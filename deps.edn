@@ -1,1 +1,2 @@
-{:aliases {:neil {:project {:name rads/bbin}}}}
+{:aliases {:neil {:project {:name rads/bbin
+                            :version "0.0.1"}}}}
