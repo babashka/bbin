@@ -10,6 +10,13 @@
         selmer/selmer {:mvn/version "1.12.53"}}
  :tasks {bbin {:requires ([rads.bbin :as bbin])
                :task (bbin/-main)}
+         ci {:doc "Run all CI tasks locally"
+             :requires ([taoensso.timbre :as log])
+             :task (do
+                     (log/info "bb run lint")
+                     (run 'lint)
+                     (log/info "bb run test")
+                     (run 'test))}
          lint (shell "clj-kondo --lint .")
          test {:depends [gen-script]
                :requires ([rads.bbin.test-runner])
