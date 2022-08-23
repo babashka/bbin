@@ -11,7 +11,7 @@
 
 ; :bbin/start
 ;
-; {:coords {:http/url \"https://raw.githubusercontent.com/rads/bbin/main/bbin\"}}
+; {:coords {:bbin/url \"https://raw.githubusercontent.com/rads/bbin/main/bbin\"}}
 ;
 ; :bbin/end
 

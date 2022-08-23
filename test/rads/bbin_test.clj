@@ -93,7 +93,7 @@
     (let [args ["install" portal-script-url
                 "--bbin/root" bbin-root]
           out (bbin args :out :edn)]
-      (is (= {:coords {:http/url portal-script-url}} out))
+      (is (= {:coords {:bbin/url portal-script-url}} out))
       (is (fs/exists? (fs/file bbin-root "bin/portal"))))))
 
 (deftest install-from-url-jar-test

@@ -96,11 +96,11 @@ exec bb \\
   (if-not (trust/allowed-url? (:script/lib cli-opts))
     (throw (ex-info (str "Script URL is not trusted") {:untrusted-url (:script/lib cli-opts)}))
     (let [http-url (:script/lib cli-opts)
-          script-deps {:http/url http-url}
+          script-deps {:bbin/url http-url}
           header {:coords script-deps}
           _ (pprint header cli-opts)
           script-name (or (:as cli-opts) (http-url->script-name http-url))
-          script-contents (-> (slurp (:http/url script-deps))
+          script-contents (-> (slurp (:bbin/url script-deps))
                               (insert-script-header header))
           script-file (fs/canonicalize (fs/file (bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
