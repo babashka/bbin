@@ -3,7 +3,8 @@
             [rads.bbin :as bbin]
             [rads.bbin.test-util :refer [bbin bbin-root reset-test-dir test-dir]]
             [clojure.string :as str]
-            [babashka.fs :as fs]))
+            [babashka.fs :as fs]
+            [babashka.process :refer [sh]]))
 
 (deftest bin-test
   (testing "bin"
@@ -28,15 +29,39 @@
        "/rads/da8ecbce63fe305f3520637810ff9506"
        "/raw/e83305656f2d145430085d5414e2c3bff776b6e8/portal.clj"))
 
+(defn run-bin-script [script-name & script-args]
+  (let [args (cons (str "bin/" (name script-name)) script-args)
+        {:keys [out]} (sh args {:dir bbin-root :err :inherit})]
+    (str/trim out)))
+
 (deftest install-from-qualified-lib-name-test
   (testing "install */*"
     (reset-test-dir)
     (bbin/ensure-bbin-dirs {:bbin/root bbin-root})
     (let [args ["install" "io.github.rads/bbin-test-lib"
                 "--bbin/root" bbin-root]
-          out (bbin args :out :edn)]
+          out (bbin args :out :edn)
+          bin-file (fs/file bbin-root "bin/hello")]
       (is (= test-lib out))
-      (is (fs/exists? (fs/file bbin-root "bin/hello"))))))
+      (is (fs/exists? bin-file))
+      (is (= "Hello world!" (run-bin-script 'hello))))))
+
+(def maven-lib
+  {:lib 'org.babashka/http-server
+   :coords {:mvn/version "0.1.11"}})
+
+(deftest install-from-mvn-version-test
+  (testing "install */* --mvn/version *"
+    (reset-test-dir)
+    (bbin/ensure-bbin-dirs {:bbin/root bbin-root})
+    (let [args ["install" (str (:lib maven-lib))
+                "--mvn/version" (-> maven-lib :coords :mvn/version)
+                "--bbin/root" bbin-root]
+          out (bbin args :out :edn)]
+      (is (= maven-lib out))
+      (is (fs/exists? (fs/file bbin-root "bin" (name (:lib maven-lib)))))
+      (is (str/starts-with? (run-bin-script (:lib maven-lib) "--help")
+                            "Serves static assets using web server.")))))
 
 (deftest install-from-local-root-dir-test
   (testing "install ./"

@@ -50,6 +50,7 @@ echo 'export PATH="$HOME/.bbin/bin:$PATH"' >> ~/.zshrc && exec /bin/zsh
 # Install a script from a qualified lib name
 $ bbin install io.github.rads/watch
 $ bbin install org.babashka/neil --git/url https://github.com/rads/neil.git --git/tag v0.1.43+bbin
+$ bbin install org.babashka/http-server --mvn/version 0.1.11
 
 # Install a script from a URL
 $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj
@@ -107,13 +108,14 @@ $ bbin install http-server.jar
 
 **Supported Options:**
 
-- `--git/url`
+- `--as`
 - `--git/sha`
 - `--git/tag`
-- `--local/root`
+- `--git/url`
 - `--latest-sha`
+- `--local/root`
 - `--main-opts`
-- `--as`
+- `--mvn/version`
 
 ---
 
