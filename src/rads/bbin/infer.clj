@@ -21,7 +21,7 @@
     (symbol (str "io.github." gh-user) repo-name)))
 
 (def lib-opts->template-deps-fn
-  "A map to define valid CLI options for deps-new template deps.
+  "A map to define valid CLI options.
 
   - Each key is a sequence of valid combinations of CLI opts.
   - Each value is a function which returns a tools.deps lib map."
@@ -59,11 +59,11 @@
      {lib-sym (select-keys lib-opts [:git/url :git/tag :git/sha])})})
 
 (def valid-lib-opts
-  "The set of all valid combinations of deps-new template deps opts."
+  "The set of all valid combinations of CLI opts."
   (into #{} cat (keys lib-opts->template-deps-fn)))
 
-(defn- deps-new-cli-opts->lib-opts
-  "Returns parsed deps-new template deps opts from raw CLI opts."
+(defn- cli-opts->lib-opts
+  "Returns parsed lib opts from raw CLI opts."
   [cli-opts]
   (-> cli-opts
       (set/rename-keys {:sha :git/sha})
@@ -76,15 +76,14 @@
         lib-opts->template-deps-fn))
 
 (defn- invalid-lib-opts-error [provided-lib-opts]
-  (ex-info (str "Provided invalid combination of CLI options for deps-new "
-                "template deps.")
+  (ex-info (str "Provided invalid combination of CLI options")
            {:provided-opts (set (keys provided-lib-opts))
             :valid-combinations valid-lib-opts}))
 
 (defn resolve-deps
   "Returns a tools.deps lib map for the given CLI opts."
   [template cli-opts]
-  (let [lib-opts (deps-new-cli-opts->lib-opts cli-opts)
+  (let [lib-opts (cli-opts->lib-opts cli-opts)
         lib-sym (edn/read-string template)
         template-deps-fn (find-template-deps-fn lib-opts)]
     (if-not template-deps-fn
