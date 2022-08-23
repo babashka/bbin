@@ -54,13 +54,9 @@ SCRIPT_COORDS='{{script/coords}}'
 SCRIPT_MAIN_OPTS_FIRST='{{script/main-opts.0}}'
 SCRIPT_MAIN_OPTS_SECOND='{{script/main-opts.1}}'
 
-if [[ ! -d \"$SCRIPT_ROOT\" ]]; then
-  bb --config <(echo \"{:deps {$SCRIPT_LIB $SCRIPT_COORDS}}\") -e
-fi
-
 exec bb \\
   --deps-root \"$SCRIPT_ROOT\" \\
-  --config \"$SCRIPT_ROOT/bb.edn\" \\
+  --config <(echo \"{:deps {$SCRIPT_LIB $SCRIPT_COORDS}}\") \\
   $SCRIPT_MAIN_OPTS_FIRST \"$SCRIPT_MAIN_OPTS_SECOND\" \\
   -- \"$@\"")
 
