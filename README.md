@@ -32,6 +32,8 @@ $ portal <(bbin ls)
 
 ## Installation
 
+Only macOS and Linux are supported right now. [Windows support](https://github.com/rads/bbin/issues/1) will be added later.
+
 ### Manual
 
 **1. Install `bbin` CLI:**
