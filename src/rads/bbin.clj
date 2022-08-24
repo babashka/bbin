@@ -3,14 +3,13 @@
             [babashka.cli :as cli]
             [babashka.deps :as deps]
             [babashka.process :refer [sh]]
-            [rads.bbin.infer :as infer]
+            [rads.deps-infer :as deps-infer]
             [clojure.string :as str]
             [taoensso.timbre :as log]
             [clojure.edn :as edn]
             [clojure.pprint :as pprint]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]
-            [rads.bbin.git :as git]
             [rads.bbin.trust :as trust]))
 
 (defn bbin-root [cli-opts]
@@ -109,12 +108,13 @@ exec bb \\
           (sh ["chmod" "+x" (str script-file)] {:err :inherit})
           nil)))))
 
-(defn default-git-or-local-script-config [cli-opts]
-  (let [[ns name] (str/split (:script/lib cli-opts) #"/")]
-    {:main-opts ["-m" (str (git/clean-github-lib ns) "." name)]}))
+(defn default-script-config [cli-opts]
+  (let [[ns name] (str/split (:script/lib cli-opts) #"/")
+        top (last (str/split ns #"\."))]
+    {:main-opts ["-m" (str top "." name)]}))
 
 (defn run-install-deps-git-or-local [cli-opts]
-  (let [script-deps (infer/resolve-deps (:script/lib cli-opts) cli-opts)
+  (let [script-deps (deps-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
         header {:lib (key (first script-deps))
                 :coords (val (first script-deps))}
         _ (pprint header cli-opts)
@@ -125,7 +125,7 @@ exec bb \\
                         (some-> (:bbin/bin bb-edn) first key str)
                         (second (str/split (:script/lib cli-opts) #"/")))
         script-config (or (some-> (:bbin/bin bb-edn) first val)
-                          (default-git-or-local-script-config cli-opts))
+                          (default-script-config cli-opts))
         script-edn-out (with-out-str
                           (binding [*print-namespace-maps* false]
                             (clojure.pprint/pprint header)))
@@ -175,11 +175,6 @@ exec bb \\
   $SCRIPT_MAIN_OPTS_FIRST \"$SCRIPT_MAIN_OPTS_SECOND\" \\
   -- \"$@\"")
 
-(defn default-maven-script-config [cli-opts]
-  (let [[ns name] (str/split (:script/lib cli-opts) #"/")
-        top (last (str/split ns #"\."))]
-    {:main-opts ["-m" (str top "." name)]}))
-
 (defn run-install-deps-maven [cli-opts]
   (let [script-deps {(edn/read-string (:script/lib cli-opts))
                      (select-keys cli-opts [:mvn/version])}
@@ -189,7 +184,7 @@ exec bb \\
         _ (deps/add-deps {:deps script-deps})
         script-root (fs/canonicalize (or (:local/root cli-opts) (gitlib-path cli-opts script-deps)) {:nofollow-links true})
         script-name (or (:as cli-opts) (second (str/split (:script/lib cli-opts) #"/")))
-        script-config (default-maven-script-config cli-opts)
+        script-config (default-script-config cli-opts)
         script-edn-out (with-out-str
                          (binding [*print-namespace-maps* false]
                            (clojure.pprint/pprint header)))

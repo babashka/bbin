@@ -26,10 +26,7 @@
 
 (defn gen-script []
   (let [trust (slurp "src/rads/bbin/trust.clj")
-        curl (slurp "src/rads/bbin/curl.clj")
-        git (slurp "src/rads/bbin/git.clj")
-        infer (slurp "src/rads/bbin/infer.clj")
         bbin (slurp "src/rads/bbin.clj")]
     (spit "bbin" (str/join "\n" [prelude-str
-                                 trust curl git infer
+                                 trust
                                  bbin]))))
