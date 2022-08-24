@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [fipp.edn :as fipp]))
 
-(def bb-deps (some-> (slurp "bb.edn") edn/read-string :deps))
+(def bbin-deps (some-> (slurp "deps.edn") edn/read-string :deps))
 
 (def prelude-template
   (str/triml "
@@ -20,7 +20,7 @@
 "))
 
 (def prelude-str
-  (let [lines (-> (with-out-str (fipp/pprint bb-deps {:width 80})) str/split-lines)]
+  (let [lines (-> (with-out-str (fipp/pprint bbin-deps {:width 80})) str/split-lines)]
     (format prelude-template
             (str/join "\n" (cons (first lines) (map #(str "          " %) (rest lines)))))))
 

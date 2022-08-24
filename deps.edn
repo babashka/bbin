@@ -1,2 +1,10 @@
-{:aliases {:neil {:project {:name rads/bbin
+{:paths ["src"]
+ :deps {org.babashka/cli {:mvn/version "0.3.35"}
+        org.clojure/core.async {:mvn/version "1.5.648"}
+        babashka/process {:mvn/version "0.1.7"}
+        fipp/fipp {:mvn/version "0.6.26"}
+        mvxcvi/puget {:mvn/version "1.3.2"}
+        com.taoensso/timbre {:mvn/version "5.2.1"}
+        selmer/selmer {:mvn/version "1.12.53"}}
+ :aliases {:neil {:project {:name rads/bbin
                             :version "0.0.2"}}}}
