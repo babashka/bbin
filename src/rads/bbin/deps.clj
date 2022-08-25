@@ -1,5 +1,6 @@
 (ns rads.bbin.deps
-  (:require [clojure.set :as set]))
+  (:require [clojure.set :as set]
+            [babashka.fs :as fs]))
 
 (def symbol-regex #"(?i)^(?:((?:[a-z0-9-]+\.)*[a-z0-9-]+)/)?([a-z0-9-]+)$")
 
@@ -61,6 +62,11 @@
         (#{:local} procurer)
         (and (#{:http} procurer) (re-seq #"\.git$" (:script/lib cli-opts))))
     :dir))
+
+(defn canonicalized-cli-opts [parsed-args]
+  (merge (:opts parsed-args)
+         (when-let [v (:local/root (:opts parsed-args))]
+           {:local/root (str (fs/canonicalize v {:nofollow-links true}))})))
 
 (defn summary [cli-opts]
   (let [{:keys [procurer]} (match-deps-type cli-opts)
