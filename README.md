@@ -98,6 +98,8 @@ $ bbin install http-server.jar
 - [`bbin uninstall [script]`](#bbin-uninstall-script)
 - [`bbin ls`](#bbin-ls)
 - [`bbin bin`](#bbin-bin)
+- [`bbin trust [identity]`](#bbin-trust-identity)
+- [`bbin revoke [identity]`](#bbin-revoke-identity)
 
 ---
 
