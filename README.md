@@ -51,7 +51,7 @@ echo 'export PATH="$HOME/.bbin/bin:$PATH"' >> ~/.zshrc && exec /bin/zsh
 ```
 # Install a script from a qualified lib name
 $ bbin install io.github.rads/watch
-$ bbin install org.babashka/neil --git/url https://github.com/rads/neil.git --git/tag v0.1.43+bbin
+$ bbin install io.github.babashka/neil --latest-sha
 $ bbin install org.babashka/http-server --mvn/version 0.1.11
 
 # Install a script from a URL
