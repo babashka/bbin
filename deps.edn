@@ -6,4 +6,4 @@
         selmer/selmer {:mvn/version "1.12.53"}
         io.github.rads/deps-infer {:git/tag "v0.0.2" :git/sha "267bba1"}}
  :aliases {:neil {:project {:name rads/bbin
-                            :version "0.0.2"}}}}
+                            :version "0.0.3"}}}}
