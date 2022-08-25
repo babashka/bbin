@@ -66,7 +66,7 @@ exec bb \\
     (str/join "\n" next-lines)))
 
 (defn install-http [cli-opts]
-  (if-not (trust/allowed-url? (:script/lib cli-opts))
+  (if-not (trust/allowed-url? (:script/lib cli-opts) cli-opts)
     (throw (ex-info (str "Script URL is not trusted") {:untrusted-url (:script/lib cli-opts)}))
     (let [http-url (:script/lib cli-opts)
           script-deps {:bbin/url http-url}
@@ -91,47 +91,55 @@ exec bb \\
         top (last (str/split ns #"\."))]
     {:main-opts ["-m" (str top "." name)]}))
 
+(defn throw-lib-name-not-trusted [cli-opts]
+  (let [msg (str "Lib name is not trusted.\nTo install this lib, provide "
+                 "a --git/sha option or use `bbin trust` to allow inference "
+                 "for this lib name.")]
+    (throw (ex-info msg {:untrusted-lib (:script/lib cli-opts)}))))
+
 (defn install-deps-git-or-local [cli-opts]
-  (let [script-deps (deps-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
-        header {:lib (key (first script-deps))
-                :coords (val (first script-deps))}
-        _ (pprint header cli-opts)
-        _ (deps/add-deps {:deps script-deps})
-        script-root (fs/canonicalize (or (:local/root cli-opts) (gitlib-path cli-opts script-deps)) {:nofollow-links true})
-        bb-edn (some-> (fs/file script-root "bb.edn") slurp edn/read-string)
-        script-name (or (:as cli-opts)
-                        (some-> (:bbin/bin bb-edn) first key str)
-                        (second (str/split (:script/lib cli-opts) #"/")))
-        script-config (or (some-> (:bbin/bin bb-edn) first val)
-                          (default-script-config cli-opts))
-        script-edn-out (with-out-str
-                         (binding [*print-namespace-maps* false]
-                           (clojure.pprint/pprint header)))
-        main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
-                      (:main-opts script-config))
-        template-opts {:script/meta (->> script-edn-out
-                                         str/split-lines
-                                         (map #(str "# " %))
-                                         (str/join "\n"))
-                       :script/root script-root
-                       :script/lib (pr-str (key (first script-deps)))
-                       :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))
-                       :script/main-opts [(first main-opts)
-                                          (if (= "-f" (first main-opts))
-                                            (fs/canonicalize (fs/file script-root (second main-opts))
-                                                             {:nofollow-links true})
-                                            (second main-opts))]}
-        template-out (selmer-util/without-escaping
-                       (selmer/render git-or-local-template-str template-opts))
-        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
-    (if (:dry-run cli-opts)
-      (pprint {:script-file (str script-file)
-               :template-out template-out}
-              cli-opts)
-      (do
-        (spit (str script-file) template-out)
-        (sh ["chmod" "+x" (str script-file)] {:err :inherit})
-        nil))))
+  (if-not (trust/allowed-lib? (:script/lib cli-opts) cli-opts)
+    (throw-lib-name-not-trusted cli-opts)
+    (let [script-deps (deps-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
+          header {:lib (key (first script-deps))
+                  :coords (val (first script-deps))}
+          _ (pprint header cli-opts)
+          _ (deps/add-deps {:deps script-deps})
+          script-root (fs/canonicalize (or (:local/root cli-opts) (gitlib-path cli-opts script-deps)) {:nofollow-links true})
+          bb-edn (some-> (fs/file script-root "bb.edn") slurp edn/read-string)
+          script-name (or (:as cli-opts)
+                          (some-> (:bbin/bin bb-edn) first key str)
+                          (second (str/split (:script/lib cli-opts) #"/")))
+          script-config (or (some-> (:bbin/bin bb-edn) first val)
+                            (default-script-config cli-opts))
+          script-edn-out (with-out-str
+                           (binding [*print-namespace-maps* false]
+                             (clojure.pprint/pprint header)))
+          main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
+                        (:main-opts script-config))
+          template-opts {:script/meta (->> script-edn-out
+                                           str/split-lines
+                                           (map #(str "# " %))
+                                           (str/join "\n"))
+                         :script/root script-root
+                         :script/lib (pr-str (key (first script-deps)))
+                         :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))
+                         :script/main-opts [(first main-opts)
+                                            (if (= "-f" (first main-opts))
+                                              (fs/canonicalize (fs/file script-root (second main-opts))
+                                                               {:nofollow-links true})
+                                              (second main-opts))]}
+          template-out (selmer-util/without-escaping
+                         (selmer/render git-or-local-template-str template-opts))
+          script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
+      (if (:dry-run cli-opts)
+        (pprint {:script-file (str script-file)
+                 :template-out template-out}
+                cli-opts)
+        (do
+          (spit (str script-file) template-out)
+          (sh ["chmod" "+x" (str script-file)] {:err :inherit})
+          nil)))))
 
 (def maven-template-str
   "#!/usr/bin/env bash

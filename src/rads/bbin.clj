@@ -3,6 +3,7 @@
             [babashka.cli :as cli]
             [rads.deps-infer :as deps-infer]
             [rads.bbin.scripts :as scripts]
+            [rads.bbin.trust :as trust]
             [rads.bbin.util :as util]
             [clojure.string :as str]
             [taoensso.timbre :as log]
@@ -18,18 +19,17 @@ Usage: bbin <command>
   bbin install    Install a script
   bbin uninstall  Remove a script
   bbin ls         List installed scripts
-  bbin bin        Display bbin bin folder")))
+  bbin bin        Display bbin bin folder
+  bbin trust      Trust an identity
+  bbin revoke     Stop trusting an identity")))
 
 (declare print-commands)
-
-(defn ensure-bbin-dirs [cli-opts]
-  (fs/create-dirs (util/bin-dir cli-opts)))
 
 (defn run-install [parsed-args]
   (if-not (get-in parsed-args [:opts :script/lib])
     (print-help parsed-args)
     (do
-      (ensure-bbin-dirs (:opts parsed-args))
+      (util/ensure-bbin-dirs (:opts parsed-args))
       (let [cli-opts (util/canonicalized-cli-opts parsed-args)
             {:keys [procurer]} (deps-infer/summary cli-opts)]
         (case procurer
@@ -42,7 +42,7 @@ Usage: bbin <command>
   (if-not (get-in parsed-args [:opts :script/lib])
     (print-help parsed-args)
     (do
-      (ensure-bbin-dirs (:opts parsed-args))
+      (util/ensure-bbin-dirs (:opts parsed-args))
       (let [cli-opts (:opts parsed-args)
             script-name (:script/lib cli-opts)
             script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
@@ -55,6 +55,17 @@ Usage: bbin <command>
 (defn run-bin [{:keys [opts]}]
   (println (str (util/bin-dir opts))))
 
+(defn run-trust [{:keys [opts]}]
+  (util/ensure-bbin-dirs opts)
+  (let [{:keys [path contents] :as plan} (trust/trust opts)]
+    (pprint plan opts)
+    (spit path (prn-str contents))))
+
+(defn run-revoke [{:keys [opts]}]
+  (let [{:keys [path]} (trust/revoke opts)]
+    (when (fs/delete-if-exists path)
+      (println "Removing" (str path)))))
+
 (def commands
   [{:cmds ["commands"] :fn #(print-commands %)}
    {:cmds ["help"] :fn print-help}
@@ -62,6 +73,8 @@ Usage: bbin <command>
    {:cmds ["uninstall"] :fn run-uninstall :args->opts [:script/lib]}
    {:cmds ["ls"] :fn run-ls}
    {:cmds ["bin"] :fn run-bin}
+   {:cmds ["trust"] :fn run-trust}
+   {:cmds ["revoke"] :fn run-revoke}
    {:cmds [] :fn print-help :aliases {:h :help}}])
 
 (defn print-commands [_]

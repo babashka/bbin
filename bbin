@@ -15,16 +15,52 @@
            io.github.rads/deps-infer {:git/tag "v0.0.2", :git/sha "267bba1"}}})
 
 (ns rads.bbin.trust
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [babashka.fs :as fs]
+            [rads.bbin.util :as util])
+  (:import (java.util Date)))
 
-(def allow-list
+(def base-allow-list
   {'babashka {}
    'rads {}})
 
-(defn allowed-url? [url]
+(defn user-allow-list [cli-opts]
+  (->> (file-seq (util/trust-dir cli-opts))
+       (filter #(.isFile %))
+       (map (fn [file]
+              [(symbol (str/replace (fs/file-name file) #"^github-user-(.+)\.edn$" "$1"))
+               {}]))
+       (into {})))
+
+(defn combined-allow-list [cli-opts]
+  (merge base-allow-list (user-allow-list cli-opts)))
+
+(defn allowed-url? [url cli-opts]
   (some #(or (str/starts-with? url (str "https://github.com/" % "/"))
              (str/starts-with? url (str "https://gist.githubusercontent.com/" % "/")))
-        (keys allow-list)))
+        (keys (combined-allow-list cli-opts))))
+
+(defn allowed-lib? [lib cli-opts]
+  (or (:git/sha cli-opts)
+      (:local/root cli-opts)
+      (some #(or (str/starts-with? lib (str "com.github." %))
+                 (str/starts-with? lib (str "io.github." %)))
+            (keys (combined-allow-list cli-opts)))))
+
+(defn github-trust-file [opts]
+  {:path (str (fs/path (util/trust-dir opts) (str "github-user-" (:github/user opts) ".edn")))})
+
+(defn trust-file [opts]
+  (cond
+    (:github/user opts) (github-trust-file opts)
+    :else (throw (ex-info "Invalid CLI opts" {:cli-opts opts}))))
+
+(defn trust [opts]
+  (-> (trust-file opts)
+      (assoc :contents {:trusted-at (Date.)})))
+
+(defn revoke [opts]
+  (trust-file opts))
 
 (ns rads.bbin.scripts
   (:require [babashka.fs :as fs]
@@ -94,7 +130,7 @@ exec bb \\
     (str/join "\n" next-lines)))
 
 (defn install-http [cli-opts]
-  (if-not (trust/allowed-url? (:script/lib cli-opts))
+  (if-not (trust/allowed-url? (:script/lib cli-opts) cli-opts)
     (throw (ex-info (str "Script URL is not trusted") {:untrusted-url (:script/lib cli-opts)}))
     (let [http-url (:script/lib cli-opts)
           script-deps {:bbin/url http-url}
@@ -119,47 +155,55 @@ exec bb \\
         top (last (str/split ns #"\."))]
     {:main-opts ["-m" (str top "." name)]}))
 
+(defn throw-lib-name-not-trusted [cli-opts]
+  (let [msg (str "Lib name is not trusted.\nTo install this lib, provide "
+                 "a --git/sha option or use `bbin trust` to allow inference "
+                 "for this lib name.")]
+    (throw (ex-info msg {:untrusted-lib (:script/lib cli-opts)}))))
+
 (defn install-deps-git-or-local [cli-opts]
-  (let [script-deps (deps-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
-        header {:lib (key (first script-deps))
-                :coords (val (first script-deps))}
-        _ (pprint header cli-opts)
-        _ (deps/add-deps {:deps script-deps})
-        script-root (fs/canonicalize (or (:local/root cli-opts) (gitlib-path cli-opts script-deps)) {:nofollow-links true})
-        bb-edn (some-> (fs/file script-root "bb.edn") slurp edn/read-string)
-        script-name (or (:as cli-opts)
-                        (some-> (:bbin/bin bb-edn) first key str)
-                        (second (str/split (:script/lib cli-opts) #"/")))
-        script-config (or (some-> (:bbin/bin bb-edn) first val)
-                          (default-script-config cli-opts))
-        script-edn-out (with-out-str
-                         (binding [*print-namespace-maps* false]
-                           (clojure.pprint/pprint header)))
-        main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
-                      (:main-opts script-config))
-        template-opts {:script/meta (->> script-edn-out
-                                         str/split-lines
-                                         (map #(str "# " %))
-                                         (str/join "\n"))
-                       :script/root script-root
-                       :script/lib (pr-str (key (first script-deps)))
-                       :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))
-                       :script/main-opts [(first main-opts)
-                                          (if (= "-f" (first main-opts))
-                                            (fs/canonicalize (fs/file script-root (second main-opts))
-                                                             {:nofollow-links true})
-                                            (second main-opts))]}
-        template-out (selmer-util/without-escaping
-                       (selmer/render git-or-local-template-str template-opts))
-        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
-    (if (:dry-run cli-opts)
-      (pprint {:script-file (str script-file)
-               :template-out template-out}
-              cli-opts)
-      (do
-        (spit (str script-file) template-out)
-        (sh ["chmod" "+x" (str script-file)] {:err :inherit})
-        nil))))
+  (if-not (trust/allowed-lib? (:script/lib cli-opts) cli-opts)
+    (throw-lib-name-not-trusted cli-opts)
+    (let [script-deps (deps-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
+          header {:lib (key (first script-deps))
+                  :coords (val (first script-deps))}
+          _ (pprint header cli-opts)
+          _ (deps/add-deps {:deps script-deps})
+          script-root (fs/canonicalize (or (:local/root cli-opts) (gitlib-path cli-opts script-deps)) {:nofollow-links true})
+          bb-edn (some-> (fs/file script-root "bb.edn") slurp edn/read-string)
+          script-name (or (:as cli-opts)
+                          (some-> (:bbin/bin bb-edn) first key str)
+                          (second (str/split (:script/lib cli-opts) #"/")))
+          script-config (or (some-> (:bbin/bin bb-edn) first val)
+                            (default-script-config cli-opts))
+          script-edn-out (with-out-str
+                           (binding [*print-namespace-maps* false]
+                             (clojure.pprint/pprint header)))
+          main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
+                        (:main-opts script-config))
+          template-opts {:script/meta (->> script-edn-out
+                                           str/split-lines
+                                           (map #(str "# " %))
+                                           (str/join "\n"))
+                         :script/root script-root
+                         :script/lib (pr-str (key (first script-deps)))
+                         :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))
+                         :script/main-opts [(first main-opts)
+                                            (if (= "-f" (first main-opts))
+                                              (fs/canonicalize (fs/file script-root (second main-opts))
+                                                               {:nofollow-links true})
+                                              (second main-opts))]}
+          template-out (selmer-util/without-escaping
+                         (selmer/render git-or-local-template-str template-opts))
+          script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
+      (if (:dry-run cli-opts)
+        (pprint {:script-file (str script-file)
+                 :template-out template-out}
+                cli-opts)
+        (do
+          (spit (str script-file) template-out)
+          (sh ["chmod" "+x" (str script-file)] {:err :inherit})
+          nil)))))
 
 (def maven-template-str
   "#!/usr/bin/env bash
@@ -243,6 +287,7 @@ exec bb \\
             [babashka.cli :as cli]
             [rads.deps-infer :as deps-infer]
             [rads.bbin.scripts :as scripts]
+            [rads.bbin.trust :as trust]
             [rads.bbin.util :as util]
             [clojure.string :as str]
             [taoensso.timbre :as log]
@@ -258,18 +303,17 @@ Usage: bbin <command>
   bbin install    Install a script
   bbin uninstall  Remove a script
   bbin ls         List installed scripts
-  bbin bin        Display bbin bin folder")))
+  bbin bin        Display bbin bin folder
+  bbin trust      Trust an identity
+  bbin revoke     Stop trusting an identity")))
 
 (declare print-commands)
-
-(defn ensure-bbin-dirs [cli-opts]
-  (fs/create-dirs (util/bin-dir cli-opts)))
 
 (defn run-install [parsed-args]
   (if-not (get-in parsed-args [:opts :script/lib])
     (print-help parsed-args)
     (do
-      (ensure-bbin-dirs (:opts parsed-args))
+      (util/ensure-bbin-dirs (:opts parsed-args))
       (let [cli-opts (util/canonicalized-cli-opts parsed-args)
             {:keys [procurer]} (deps-infer/summary cli-opts)]
         (case procurer
@@ -282,7 +326,7 @@ Usage: bbin <command>
   (if-not (get-in parsed-args [:opts :script/lib])
     (print-help parsed-args)
     (do
-      (ensure-bbin-dirs (:opts parsed-args))
+      (util/ensure-bbin-dirs (:opts parsed-args))
       (let [cli-opts (:opts parsed-args)
             script-name (:script/lib cli-opts)
             script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
@@ -295,6 +339,17 @@ Usage: bbin <command>
 (defn run-bin [{:keys [opts]}]
   (println (str (util/bin-dir opts))))
 
+(defn run-trust [{:keys [opts]}]
+  (util/ensure-bbin-dirs opts)
+  (let [{:keys [path contents] :as plan} (trust/trust opts)]
+    (pprint plan opts)
+    (spit path (prn-str contents))))
+
+(defn run-revoke [{:keys [opts]}]
+  (let [{:keys [path]} (trust/revoke opts)]
+    (when (fs/delete-if-exists path)
+      (println "Removing" (str path)))))
+
 (def commands
   [{:cmds ["commands"] :fn #(print-commands %)}
    {:cmds ["help"] :fn print-help}
@@ -302,6 +357,8 @@ Usage: bbin <command>
    {:cmds ["uninstall"] :fn run-uninstall :args->opts [:script/lib]}
    {:cmds ["ls"] :fn run-ls}
    {:cmds ["bin"] :fn run-bin}
+   {:cmds ["trust"] :fn run-trust}
+   {:cmds ["revoke"] :fn run-revoke}
    {:cmds [] :fn print-help :aliases {:h :help}}])
 
 (defn print-commands [_]

@@ -1,10 +1,10 @@
 (ns rads.bbin-test
   (:require [clojure.test :refer [deftest is testing]]
-            [rads.bbin :as bbin]
             [rads.bbin.test-util :refer [bbin bbin-root reset-test-dir test-dir]]
             [clojure.string :as str]
             [babashka.fs :as fs]
-            [babashka.process :refer [sh]]))
+            [babashka.process :refer [sh]]
+            [rads.bbin.util :as util]))
 
 (deftest bin-test
   (testing "bin"
@@ -37,7 +37,7 @@
 (deftest install-from-qualified-lib-name-test
   (testing "install */*"
     (reset-test-dir)
-    (bbin/ensure-bbin-dirs {:bbin/root bbin-root})
+    (util/ensure-bbin-dirs {:bbin/root bbin-root})
     (let [args ["install" "io.github.rads/bbin-test-lib"
                 "--bbin/root" bbin-root]
           out (bbin args :out :edn)
@@ -53,7 +53,7 @@
 (deftest install-from-mvn-version-test
   (testing "install */* --mvn/version *"
     (reset-test-dir)
-    (bbin/ensure-bbin-dirs {:bbin/root bbin-root})
+    (util/ensure-bbin-dirs {:bbin/root bbin-root})
     (let [args ["install" (str (:lib maven-lib))
                 "--mvn/version" (-> maven-lib :coords :mvn/version)
                 "--bbin/root" bbin-root]
@@ -66,7 +66,7 @@
 (deftest install-from-local-root-dir-test
   (testing "install ./"
     (reset-test-dir)
-    (bbin/ensure-bbin-dirs {:bbin/root bbin-root})
+    (util/ensure-bbin-dirs {:bbin/root bbin-root})
     (let [local-root (str (fs/file test-dir "foo"))]
       (fs/create-dir local-root)
       (spit (fs/file local-root "bb.edn") (pr-str {}))
@@ -89,7 +89,7 @@
 (deftest install-from-url-clj-test
   (testing "install https://*.clj"
     (reset-test-dir)
-    (bbin/ensure-bbin-dirs {:bbin/root bbin-root})
+    (util/ensure-bbin-dirs {:bbin/root bbin-root})
     (let [args ["install" portal-script-url
                 "--bbin/root" bbin-root]
           out (bbin args :out :edn)]
@@ -102,7 +102,7 @@
 (deftest uninstall-test
   (testing "uninstall foo"
     (reset-test-dir)
-    (bbin/ensure-bbin-dirs {:bbin/root bbin-root})
+    (util/ensure-bbin-dirs {:bbin/root bbin-root})
     (let [script-file (fs/file bbin-root "bin/foo")]
       (spit script-file "#!/usr/bin/env bb")
       (let [args ["uninstall" "foo"
