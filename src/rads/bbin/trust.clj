@@ -6,6 +6,7 @@
 
 (def base-allow-list
   {'babashka {}
+   'borkdude {}
    'rads {}})
 
 (defn user-allow-list [cli-opts]
