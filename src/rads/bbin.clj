@@ -1,7 +1,7 @@
 (ns rads.bbin
   (:require [babashka.fs :as fs]
             [babashka.cli :as cli]
-            [rads.bbin.deps :as bbin-deps]
+            [rads.deps-infer :as deps-infer]
             [rads.bbin.scripts :as scripts]
             [rads.bbin.util :as util]
             [clojure.string :as str]
@@ -30,8 +30,8 @@ Usage: bbin <command>
     (print-help parsed-args)
     (do
       (ensure-bbin-dirs (:opts parsed-args))
-      (let [cli-opts (bbin-deps/canonicalized-cli-opts parsed-args)
-            {:keys [procurer]} (bbin-deps/summary cli-opts)]
+      (let [cli-opts (util/canonicalized-cli-opts parsed-args)
+            {:keys [procurer]} (deps-infer/summary cli-opts)]
         (case procurer
           :http (scripts/install-http cli-opts)
           :maven (scripts/install-deps-maven cli-opts)

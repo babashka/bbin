@@ -7,3 +7,8 @@
 
 (defn bin-dir [cli-opts]
   (fs/file (bbin-root cli-opts) "bin"))
+
+(defn canonicalized-cli-opts [parsed-args]
+  (merge (:opts parsed-args)
+         (when-let [v (:local/root (:opts parsed-args))]
+           {:local/root (str (fs/canonicalize v {:nofollow-links true}))})))
