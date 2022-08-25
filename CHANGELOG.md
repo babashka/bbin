@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.3
+
+- [Add `bbin trust` and `bbin revoke`](https://github.com/rads/bbin/commit/3aa49be0a35bd8f77a72b26ffc4ac452bec75684)
+
 ## 0.0.2
 
 - [Add `:min-bb-version` to `bb.edn`](https://github.com/rads/bbin/commit/af09bebea56720118ca80aacb0fedcd96acc9624)
