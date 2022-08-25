@@ -4,6 +4,7 @@
             [babashka.deps :as deps]
             [babashka.process :refer [sh]]
             [rads.deps-infer :as deps-infer]
+            [rads.bbin.deps :as bbin-deps]
             [clojure.string :as str]
             [taoensso.timbre :as log]
             [clojure.edn :as edn]
@@ -214,23 +215,23 @@ exec bb \\
         (sh ["chmod" "+x" (str script-file)] {:err :inherit})
         nil))))
 
+(defn- canonicalized-cli-opts [parsed-args]
+  (merge (:opts parsed-args)
+         (when-let [v (:local/root (:opts parsed-args))]
+           {:local/root (str (fs/canonicalize v {:nofollow-links true}))})))
+
 (defn run-install [parsed-args]
   (if-not (get-in parsed-args [:opts :script/lib])
     (print-help parsed-args)
     (do
       (ensure-bbin-dirs (:opts parsed-args))
-      (let [cli-opts (merge (:opts parsed-args)
-                            (when-let [v (:local/root (:opts parsed-args))]
-                              {:local/root (str (fs/canonicalize v {:nofollow-links true}))}))]
-        (cond
-          (re-seq #"^https?://" (:script/lib cli-opts))
-          (run-install-http cli-opts)
-
-          (:mvn/version cli-opts)
-          (run-install-deps-maven cli-opts)
-
-          :else
-          (run-install-deps-git-or-local cli-opts))))))
+      (let [cli-opts (canonicalized-cli-opts parsed-args)
+            {:keys [procurer]} (bbin-deps/summary cli-opts)]
+        (case procurer
+          :http (run-install-http cli-opts)
+          :maven (run-install-deps-maven cli-opts)
+          :git (run-install-deps-git-or-local cli-opts)
+          :local (run-install-deps-git-or-local cli-opts))))))
 
 (defn run-uninstall [parsed-args]
   (if-not (get-in parsed-args [:opts :script/lib])
