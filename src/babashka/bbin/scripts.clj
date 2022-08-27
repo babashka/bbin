@@ -279,3 +279,11 @@ exec bb \\
       :maven (install-deps-maven cli-opts)
       :git (install-deps-git-or-local cli-opts)
       :local (install-deps-git-or-local cli-opts))))
+
+(defn uninstall [parsed-args]
+  (util/ensure-bbin-dirs (:opts parsed-args))
+  (let [cli-opts (:opts parsed-args)
+        script-name (:script/lib cli-opts)
+        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
+    (when (fs/delete-if-exists script-file)
+      (println "Removing" (str script-file)))))

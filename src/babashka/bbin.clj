@@ -32,13 +32,7 @@ Usage: bbin <command>
 (defn run-uninstall [parsed-args]
   (if-not (get-in parsed-args [:opts :script/lib])
     (print-help parsed-args)
-    (do
-      (util/ensure-bbin-dirs (:opts parsed-args))
-      (let [cli-opts (:opts parsed-args)
-            script-name (:script/lib cli-opts)
-            script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
-        (when (fs/delete-if-exists script-file)
-          (println "Removing" (str script-file)))))))
+    (scripts/uninstall parsed-args)))
 
 (defn run-ls [{:keys [opts]}]
   (pprint (scripts/load-scripts opts) opts))
