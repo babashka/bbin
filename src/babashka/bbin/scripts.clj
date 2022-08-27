@@ -1,4 +1,4 @@
-(ns rads.bbin.scripts
+(ns babashka.bbin.scripts
   (:require [babashka.fs :as fs]
             [babashka.deps :as deps]
             [babashka.process :refer [sh]]
@@ -8,8 +8,8 @@
             [clojure.pprint :as pprint]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]
-            [rads.bbin.trust :as trust]
-            [rads.bbin.util :as util]))
+            [babashka.bbin.trust :as trust]
+            [babashka.bbin.util :as util]))
 
 (defn pprint [x _]
   (pprint/pprint x))

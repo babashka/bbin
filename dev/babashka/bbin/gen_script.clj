@@ -1,4 +1,4 @@
-(ns rads.bbin.gen-script
+(ns babashka.bbin.gen-script
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
             [fipp.edn :as fipp]))
@@ -11,7 +11,7 @@
 
 ; :bbin/start
 ;
-; {:coords {:bbin/url \"https://raw.githubusercontent.com/rads/bbin/main/bbin\"}}
+; {:coords {:bbin/url \"https://raw.githubusercontent.com/babashka/bbin/main/bbin\"}}
 ;
 ; :bbin/end
 
@@ -25,9 +25,9 @@
             (str/join "\n" (cons (first lines) (map #(str "          " %) (rest lines)))))))
 
 (defn gen-script []
-  (let [trust (slurp "src/rads/bbin/trust.clj")
-        scripts (slurp "src/rads/bbin/scripts.clj")
-        bbin (slurp "src/rads/bbin.clj")]
+  (let [trust (slurp "src/babashka/bbin/trust.clj")
+        scripts (slurp "src/babashka/bbin/scripts.clj")
+        bbin (slurp "src/babashka/bbin.clj")]
     (spit "bbin" (str/join "\n" [prelude-str
                                  trust scripts
                                  bbin]))))

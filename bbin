@@ -2,7 +2,7 @@
 
 ; :bbin/start
 ;
-; {:coords {:bbin/url "https://raw.githubusercontent.com/rads/bbin/main/bbin"}}
+; {:coords {:bbin/url "https://raw.githubusercontent.com/babashka/bbin/main/bbin"}}
 ;
 ; :bbin/end
 
@@ -14,10 +14,10 @@
            selmer/selmer {:mvn/version "1.12.53"},
            io.github.rads/deps-infer {:git/tag "v0.0.2", :git/sha "267bba1"}}})
 
-(ns rads.bbin.trust
+(ns babashka.bbin.trust
   (:require [clojure.string :as str]
             [babashka.fs :as fs]
-            [rads.bbin.util :as util])
+            [babashka.bbin.util :as util])
   (:import (java.util Date)))
 
 (def base-allow-list
@@ -63,7 +63,7 @@
 (defn revoke [opts]
   (trust-file opts))
 
-(ns rads.bbin.scripts
+(ns babashka.bbin.scripts
   (:require [babashka.fs :as fs]
             [babashka.deps :as deps]
             [babashka.process :refer [sh]]
@@ -73,8 +73,8 @@
             [clojure.pprint :as pprint]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]
-            [rads.bbin.trust :as trust]
-            [rads.bbin.util :as util]))
+            [babashka.bbin.trust :as trust]
+            [babashka.bbin.util :as util]))
 
 (defn pprint [x _]
   (pprint/pprint x))
@@ -335,13 +335,13 @@ exec bb \\
                      (parse-script (slurp x))]))
        (into {})))
 
-(ns rads.bbin
+(ns babashka.bbin
   (:require [babashka.fs :as fs]
             [babashka.cli :as cli]
             [rads.deps-infer :as deps-infer]
-            [rads.bbin.scripts :as scripts]
-            [rads.bbin.trust :as trust]
-            [rads.bbin.util :as util]
+            [babashka.bbin.scripts :as scripts]
+            [babashka.bbin.trust :as trust]
+            [babashka.bbin.util :as util]
             [clojure.string :as str]
             [taoensso.timbre :as log]
             [clojure.pprint :as pprint]))

@@ -1,10 +1,10 @@
-(ns rads.bbin
+(ns babashka.bbin
   (:require [babashka.fs :as fs]
             [babashka.cli :as cli]
             [rads.deps-infer :as deps-infer]
-            [rads.bbin.scripts :as scripts]
-            [rads.bbin.trust :as trust]
-            [rads.bbin.util :as util]
+            [babashka.bbin.scripts :as scripts]
+            [babashka.bbin.trust :as trust]
+            [babashka.bbin.util :as util]
             [clojure.string :as str]
             [taoensso.timbre :as log]
             [clojure.pprint :as pprint]))

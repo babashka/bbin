@@ -3,7 +3,7 @@
  :deps {org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
                                  :git/sha "8df0712896f596680da7a32ae44bb000b7e45e68"}
         local/deps {:local/root "."}}
- :tasks {bbin {:requires ([rads.bbin :as bbin])
+ :tasks {bbin {:requires ([babashka.bbin :as bbin])
                :task (bbin/-main)}
          ci {:doc "Run all CI tasks locally"
              :requires ([taoensso.timbre :as log])
@@ -14,9 +14,9 @@
                      (run 'test))}
          lint (shell "clj-kondo --lint .")
          test {:depends [gen-script]
-               :requires ([rads.bbin.test-runner])
-               :task (exec 'rads.bbin.test-runner/run-tests)}
+               :requires ([babashka.bbin.test-runner])
+               :task (exec 'babashka.bbin.test-runner/run-tests)}
          gen-script {:doc "Build the bbin script"
-                     :requires ([rads.bbin.gen-script :as gen-script])
+                     :requires ([babashka.bbin.gen-script :as gen-script])
                      :task (gen-script/gen-script)}}
- :bbin/bin {bbin {:main-opts ["-m" "rads.bbin/-main"]}}}
+ :bbin/bin {bbin {:main-opts ["-m" "babashka.bbin/-main"]}}}

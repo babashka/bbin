@@ -1,8 +1,8 @@
-(ns rads.bbin.test-util
+(ns babashka.bbin.test-util
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
             [clojure.edn :as edn]
-            [rads.bbin :as bbin]))
+            [babashka.bbin :as bbin]))
 
 (def test-dir
   (doto (str (fs/file (fs/temp-dir) "bbin-test"))

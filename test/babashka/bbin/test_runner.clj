@@ -1,9 +1,9 @@
-(ns rads.bbin.test-runner
+(ns babashka.bbin.test-runner
   (:require [clojure.edn :as edn]
             [clojure.test :as t]))
 
 (def test-namespaces
-  '[rads.bbin-test])
+  '[babashka.bbin-test])
 
 (doseq [ns test-namespaces]
   (require ns))

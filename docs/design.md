@@ -24,7 +24,7 @@
 
 - **We only install inferred dependencies from trusted sources.**
     - **Trusted Organization or User**
-        - `rads.bbin.trust/allow-list`
+        - `babashka.bbin.trust/allow-list`
     - **Trusted Domain**
         - Maven
         - Clojars

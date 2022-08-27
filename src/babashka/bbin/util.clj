@@ -1,4 +1,4 @@
-(ns rads.bbin.util
+(ns babashka.bbin.util
   (:require [babashka.fs :as fs]))
 
 (defn bbin-root [cli-opts]
