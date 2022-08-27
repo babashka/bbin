@@ -32,13 +32,13 @@ $ portal <(bbin ls)
 
 ## Installation
 
-Only macOS and Linux are supported right now. [Windows support](https://github.com/rads/bbin/issues/1) will be added later.
+Only macOS and Linux are supported right now. [Windows support](https://github.com/babashka/bbin/issues/1) will be added later.
 
 ### Manual
 
 **1. Install `bbin` CLI:**
 ```zsh
-mkdir -p ~/.bbin/bin && curl -L -o ~/.bbin/bin/bbin https://raw.githubusercontent.com/rads/bbin/main/bbin && chmod +x ~/.bbin/bin/bbin
+mkdir -p ~/.bbin/bin && curl -L -o ~/.bbin/bin/bbin https://raw.githubusercontent.com/babashka/bbin/main/bbin && chmod +x ~/.bbin/bin/bbin
 ```
 
 **2. Add `~/.bbin/bin` to `PATH`:**
@@ -58,8 +58,8 @@ $ bbin install org.babashka/http-server --mvn/version 0.1.11
 $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj
 
 # Install a script from a local root
-$ git clone https://github.com/rads/bbin.git ~/src/bbin
-$ bbin install io.github.rads/bbin --local/root ~/src/bbin --as bbin-dev
+$ git clone https://github.com/babashka/bbin.git ~/src/bbin
+$ bbin install io.github.babashka/bbin --local/root ~/src/bbin --as bbin-dev
 
 # Remove a script
 $ bbin uninstall watch
@@ -154,12 +154,12 @@ $ bbin install http-server.jar
 
 **Trust an identity**
 
-- For [security purposes][security], by default you can only install scripts from HTTP URLs provided by GitHub users and orgs listed in `rads.bbin.trust/allow-list`.
+- For [security purposes][security], by default you can only install scripts from HTTP URLs provided by GitHub users and orgs listed in `babashka.bbin.trust/allow-list`.
 - This same list also limits whether you can install a qualified lib name using inference (i.e. without a `--git/sha`).
 - To relax these limitations, you can trust specific GitHub users with the `--github/user` option.
 - Each trusted user is represented as an EDN file in `~/.bbin/trust`.
 
-[security]: https://github.com/rads/bbin/blob/bdea1c92ed50fb38eed0af38d69922e0a9d61df6/docs/design.md#security
+[security]: https://github.com/babashka/bbin/blob/bdea1c92ed50fb38eed0af38d69922e0a9d61df6/docs/design.md#security
 
 **Supported Options:**
 
@@ -175,7 +175,7 @@ $ bbin install http-server.jar
 
 ## Contributing
 
-If you'd like to contribute to `bbin`, you're welcome to create [issues for ideas, feature requests, and bug reports](https://github.com/rads/bbin/issues).
+If you'd like to contribute to `bbin`, you're welcome to create [issues for ideas, feature requests, and bug reports](https://github.com/babashka/bbin/issues).
 
 ## License
 

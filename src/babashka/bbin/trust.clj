@@ -1,7 +1,7 @@
-(ns rads.bbin.trust
+(ns babashka.bbin.trust
   (:require [clojure.string :as str]
             [babashka.fs :as fs]
-            [rads.bbin.util :as util])
+            [babashka.bbin.util :as util])
   (:import (java.util Date)))
 
 (def base-allow-list

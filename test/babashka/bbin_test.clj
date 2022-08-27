@@ -1,10 +1,10 @@
-(ns rads.bbin-test
+(ns babashka.bbin-test
   (:require [clojure.test :refer [deftest is testing]]
-            [rads.bbin.test-util :refer [bbin bbin-root reset-test-dir test-dir]]
+            [babashka.bbin.test-util :refer [bbin bbin-root reset-test-dir test-dir]]
             [clojure.string :as str]
             [babashka.fs :as fs]
             [babashka.process :refer [sh]]
-            [rads.bbin.util :as util]))
+            [babashka.bbin.util :as util]))
 
 (deftest bin-test
   (testing "bin"
@@ -71,11 +71,11 @@
       (fs/create-dir local-root)
       (spit (fs/file local-root "bb.edn") (pr-str {}))
       (spit (fs/file local-root "deps.edn") (pr-str {}))
-      (let [args ["install" "rads/foo"
+      (let [args ["install" "babashka/foo"
                   "--local/root" local-root
                   "--bbin/root" bbin-root]
             out (bbin args :out :edn)]
-        (is (= {:lib 'rads/foo
+        (is (= {:lib 'babashka/foo
                 :coords {:local/root local-root}}
                out))
         (is (fs/exists? (fs/file bbin-root "bin/foo")))))))
