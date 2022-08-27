@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.4
+
+- [Rename to `babashka.bbin`](https://github.com/babashka/bbin/commit/6322b4d2bbb6e44589875057123c8e59cc5dfe6d)
+
 ## 0.0.3
 
 - [Add `bbin trust` and `bbin revoke`](https://github.com/babashka/bbin/commit/3aa49be0a35bd8f77a72b26ffc4ac452bec75684)
