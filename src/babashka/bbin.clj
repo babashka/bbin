@@ -1,7 +1,6 @@
 (ns babashka.bbin
   (:require [babashka.fs :as fs]
             [babashka.cli :as cli]
-            [rads.deps-infer :as deps-infer]
             [babashka.bbin.scripts :as scripts]
             [babashka.bbin.trust :as trust]
             [babashka.bbin.util :as util]
@@ -28,15 +27,7 @@ Usage: bbin <command>
 (defn run-install [parsed-args]
   (if-not (get-in parsed-args [:opts :script/lib])
     (print-help parsed-args)
-    (do
-      (util/ensure-bbin-dirs (:opts parsed-args))
-      (let [cli-opts (util/canonicalized-cli-opts parsed-args)
-            {:keys [procurer]} (deps-infer/summary cli-opts)]
-        (case procurer
-          :http (scripts/install-http cli-opts)
-          :maven (scripts/install-deps-maven cli-opts)
-          :git (scripts/install-deps-git-or-local cli-opts)
-          :local (scripts/install-deps-git-or-local cli-opts))))))
+    (scripts/install parsed-args)))
 
 (defn run-uninstall [parsed-args]
   (if-not (get-in parsed-args [:opts :script/lib])

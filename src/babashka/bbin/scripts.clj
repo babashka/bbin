@@ -11,14 +11,14 @@
             [babashka.bbin.trust :as trust]
             [babashka.bbin.util :as util]))
 
-(defn pprint [x _]
+(defn- pprint [x _]
   (pprint/pprint x))
 
-(defn gitlib-path [cli-opts script-deps]
+(defn- gitlib-path [cli-opts script-deps]
   (let [coords (val (first script-deps))]
     (fs/expand-home (str "~/.gitlibs/libs/" (:script/lib cli-opts) "/" (:git/sha coords)))))
 
-(def tool-template-str
+(def ^:private tool-template-str
   "#!/usr/bin/env bash
 set -e
 
@@ -58,7 +58,7 @@ else
     -- \"${@:2}\"
 fi")
 
-(def git-or-local-template-str
+(def ^:private git-or-local-template-str
   "#!/usr/bin/env bash
 set -e
 
@@ -85,10 +85,10 @@ exec bb \\
     (str/split (last (str/split http-url #"/"))
                #"\.")))
 
-(defn bb-shebang? [s]
+(defn- bb-shebang? [s]
   (str/starts-with? s "#!/usr/bin/env bb"))
 
-(defn insert-script-header [script-contents header]
+(defn- insert-script-header [script-contents header]
   (let [
         prev-lines (str/split-lines script-contents)
         [prefix [shebang & code]] (split-with #(not (bb-shebang? %)) prev-lines)
@@ -105,7 +105,7 @@ exec bb \\
                            code)]
     (str/join "\n" next-lines)))
 
-(defn install-http [cli-opts]
+(defn- install-http [cli-opts]
   (if-not (trust/allowed-url? (:script/lib cli-opts) cli-opts)
     (throw (ex-info (str "Script URL is not trusted") {:untrusted-url (:script/lib cli-opts)}))
     (let [http-url (:script/lib cli-opts)
@@ -126,19 +126,19 @@ exec bb \\
           (sh ["chmod" "+x" (str script-file)] {:err :inherit})
           nil)))))
 
-(defn default-script-config [cli-opts]
+(defn- default-script-config [cli-opts]
   (let [[ns name] (str/split (:script/lib cli-opts) #"/")
         top (last (str/split ns #"\."))]
     {:main-opts ["-m" (str top "." name)]
      :ns-default (str top "." name)}))
 
-(defn throw-lib-name-not-trusted [cli-opts]
+(defn- throw-lib-name-not-trusted [cli-opts]
   (let [msg (str "Lib name is not trusted.\nTo install this lib, provide "
                  "a --git/sha option or use `bbin trust` to allow inference "
                  "for this lib name.")]
     (throw (ex-info msg {:untrusted-lib (:script/lib cli-opts)}))))
 
-(defn install-deps-git-or-local [cli-opts]
+(defn- install-deps-git-or-local [cli-opts]
   (if-not (trust/allowed-lib? (:script/lib cli-opts) cli-opts)
     (throw-lib-name-not-trusted cli-opts)
     (let [script-deps (deps-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
@@ -193,7 +193,7 @@ exec bb \\
           (sh ["chmod" "+x" (str script-file)] {:err :inherit})
           nil)))))
 
-(def maven-template-str
+(def ^:private maven-template-str
   "#!/usr/bin/env bash
 set -e
 
@@ -213,7 +213,7 @@ exec bb \\
   $SCRIPT_MAIN_OPTS_FIRST \"$SCRIPT_MAIN_OPTS_SECOND\" \\
   -- \"$@\"")
 
-(defn install-deps-maven [cli-opts]
+(defn- install-deps-maven [cli-opts]
   (let [script-deps {(edn/read-string (:script/lib cli-opts))
                      (select-keys cli-opts [:mvn/version])}
         header {:lib (key (first script-deps))
@@ -252,7 +252,7 @@ exec bb \\
         (sh ["chmod" "+x" (str script-file)] {:err :inherit})
         nil))))
 
-(defn parse-script [s]
+(defn- parse-script [s]
   (let [lines (str/split-lines s)
         prefix (if (str/ends-with? (first lines) "bb") ";" "#")]
     (->> lines
@@ -269,3 +269,13 @@ exec bb \\
        (map (fn [x] [(symbol (str (fs/relativize (util/bin-dir cli-opts) x)))
                      (parse-script (slurp x))]))
        (into {})))
+
+(defn install [parsed-args]
+  (util/ensure-bbin-dirs (:opts parsed-args))
+  (let [cli-opts (util/canonicalized-cli-opts parsed-args)
+        {:keys [procurer]} (deps-infer/summary cli-opts)]
+    (case procurer
+      :http (install-http cli-opts)
+      :maven (install-deps-maven cli-opts)
+      :git (install-deps-git-or-local cli-opts)
+      :local (install-deps-git-or-local cli-opts))))
