@@ -88,7 +88,7 @@ exec bb \\
 (defn- bb-shebang? [s]
   (str/starts-with? s "#!/usr/bin/env bb"))
 
-(defn- insert-script-header [script-contents header]
+(defn insert-script-header [script-contents header]
   (let [
         prev-lines (str/split-lines script-contents)
         [prefix [shebang & code]] (split-with #(not (bb-shebang? %)) prev-lines)

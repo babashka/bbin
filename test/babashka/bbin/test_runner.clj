@@ -3,7 +3,8 @@
             [clojure.test :as t]))
 
 (def test-namespaces
-  '[babashka.bbin-test])
+  '[babashka.bbin-test
+    babashka.bbin.scripts-test])
 
 (doseq [ns test-namespaces]
   (require ns))
