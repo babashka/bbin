@@ -83,6 +83,46 @@
   (let [coords (val (first script-deps))]
     (fs/expand-home (str "~/.gitlibs/libs/" (:script/lib cli-opts) "/" (:git/sha coords)))))
 
+(def tool-template-str
+  "#!/usr/bin/env bash
+set -e
+
+# :bbin/start
+#
+{{script/meta}}
+#
+# :bbin/end
+
+SCRIPT_ROOT='{{script/root}}'
+SCRIPT_LIB='{{script/lib}}'
+SCRIPT_COORDS='{{script/coords}}'
+SCRIPT_NS_DEFAULT='{{script/ns-default}}'
+SCRIPT_NAME=\"$(basename \"$0\")\"
+
+if [ -z $1 ]; then
+  echo \"Usage: $SCRIPT_NAME <command>\"
+  echo
+  bb \\
+    --deps-root \"$SCRIPT_ROOT\" \\
+    --config <(echo \"{:deps {$SCRIPT_LIB $SCRIPT_COORDS}}\") \\
+    -e \"
+      (require '$SCRIPT_NS_DEFAULT)
+      (def fns (filter #(fn? (deref (val %))) (ns-publics '$SCRIPT_NS_DEFAULT)))
+      (def max-width (->> (keys fns) (map (comp count str)) (apply max)))
+      (defn pad-right [x] (format (str \\\"%-\\\" max-width \\\"s\\\") x))
+      (doseq [[k v] fns]
+        (println
+          (str \\\"  $SCRIPT_NAME \\\" (pad-right k) \\\"  \\\"
+               (when (:doc (meta v))
+                 (first (str/split-lines (:doc (meta v))))))))\"
+else
+  exec bb \\
+    --deps-root \"$SCRIPT_ROOT\" \\
+    --config <(echo \"{:deps {$SCRIPT_LIB $SCRIPT_COORDS}}\") \\
+    -x $SCRIPT_NS_DEFAULT/$1 \\
+    -- \"${@:2}\"
+fi")
+
 (def git-or-local-template-str
   "#!/usr/bin/env bash
 set -e
@@ -154,7 +194,8 @@ exec bb \\
 (defn default-script-config [cli-opts]
   (let [[ns name] (str/split (:script/lib cli-opts) #"/")
         top (last (str/split ns #"\."))]
-    {:main-opts ["-m" (str top "." name)]}))
+    {:main-opts ["-m" (str top "." name)]
+     :ns-default (str top "." name)}))
 
 (defn throw-lib-name-not-trusted [cli-opts]
   (let [msg (str "Lib name is not trusted.\nTo install this lib, provide "
@@ -175,11 +216,16 @@ exec bb \\
           script-name (or (:as cli-opts)
                           (some-> (:bbin/bin bb-edn) first key str)
                           (second (str/split (:script/lib cli-opts) #"/")))
-          script-config (or (some-> (:bbin/bin bb-edn) first val)
-                            (default-script-config cli-opts))
+          script-config (merge (default-script-config cli-opts)
+                               (some-> (:bbin/bin bb-edn) first val)
+                               (when (:ns-default cli-opts)
+                                 {:ns-default (edn/read-string (:ns-default cli-opts))}))
           script-edn-out (with-out-str
                            (binding [*print-namespace-maps* false]
                              (clojure.pprint/pprint header)))
+          tool-mode (or (:tool cli-opts)
+                        (and (some-> (:bbin/bin bb-edn) first val :ns-default)
+                             (not (some-> (:bbin/bin bb-edn) first val :main-opts))))
           main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
                         (:main-opts script-config))
           template-opts {:script/meta (->> script-edn-out
@@ -188,14 +234,20 @@ exec bb \\
                                            (str/join "\n"))
                          :script/root script-root
                          :script/lib (pr-str (key (first script-deps)))
-                         :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))
-                         :script/main-opts [(first main-opts)
-                                            (if (= "-f" (first main-opts))
-                                              (fs/canonicalize (fs/file script-root (second main-opts))
-                                                               {:nofollow-links true})
-                                              (second main-opts))]}
+                         :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))}
+          template-opts' (if tool-mode
+                           (assoc template-opts :script/ns-default (:ns-default script-config))
+                           (assoc template-opts :script/main-opts
+                                                [(first main-opts)
+                                                 (if (= "-f" (first main-opts))
+                                                   (fs/canonicalize (fs/file script-root (second main-opts))
+                                                                    {:nofollow-links true})
+                                                   (second main-opts))]))
+          template-str (if tool-mode
+                         tool-template-str
+                         git-or-local-template-str)
           template-out (selmer-util/without-escaping
-                         (selmer/render git-or-local-template-str template-opts))
+                         (selmer/render template-str template-opts'))
           script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
       (if (:dry-run cli-opts)
         (pprint {:script-file (str script-file)
@@ -354,7 +406,10 @@ Usage: bbin <command>
 (def commands
   [{:cmds ["commands"] :fn #(print-commands %)}
    {:cmds ["help"] :fn print-help}
-   {:cmds ["install"] :fn run-install :args->opts [:script/lib]}
+   {:cmds ["install"]
+    :fn run-install
+    :args->opts [:script/lib]
+    :aliases {:T :tool}}
    {:cmds ["uninstall"] :fn run-uninstall :args->opts [:script/lib]}
    {:cmds ["ls"] :fn run-ls}
    {:cmds ["bin"] :fn run-bin}

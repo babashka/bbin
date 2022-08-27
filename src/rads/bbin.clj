@@ -69,7 +69,10 @@ Usage: bbin <command>
 (def commands
   [{:cmds ["commands"] :fn #(print-commands %)}
    {:cmds ["help"] :fn print-help}
-   {:cmds ["install"] :fn run-install :args->opts [:script/lib]}
+   {:cmds ["install"]
+    :fn run-install
+    :args->opts [:script/lib]
+    :aliases {:T :tool}}
    {:cmds ["uninstall"] :fn run-uninstall :args->opts [:script/lib]}
    {:cmds ["ls"] :fn run-ls}
    {:cmds ["bin"] :fn run-bin}
