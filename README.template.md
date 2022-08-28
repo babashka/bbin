@@ -21,6 +21,10 @@ $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f352063781
 $ portal <(bbin ls)
 ```
 
+See the [**Scripts and Projects**](https://github.com/babashka/bbin/wiki/Scripts-and-Projects) wiki page for a list of CLI tools from the community. This list is just a starting point -- any existing Babashka script or project can be installed out-of-the-box!
+
+See the [**Usage**](#usage) and [**CLI**](#cli) docs for more examples of what `bbin` can do.
+
 ## Table of Contents
 
 - [Installation](#installation)
