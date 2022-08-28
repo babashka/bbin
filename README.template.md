@@ -94,6 +94,7 @@ $ bbin install http-server.jar
 
 - [CLI Docs](#cli)
 - [Design Docs](docs/design.md)
+- [Community Scripts and Projects](https://github.com/babashka/bbin/wiki/Scripts-and-Projects)
 - [Auto-Completion](docs/auto-completion.md)
 
 ## CLI
