@@ -1,8 +1,7 @@
 (ns babashka.bbin.trust
   (:require [clojure.string :as str]
             [babashka.fs :as fs]
-            [babashka.process :refer [sh]]
-            [babashka.bbin.util :as util]))
+            [babashka.bbin.util :as util :refer [sh]]))
 
 (def base-allow-list
   {'babashka {}
@@ -10,8 +9,7 @@
    'rads {}})
 
 (defn- owner-info [file]
-  (let [parts (-> (:out (sh ["ls" "-l" (str file)]
-                            {:err :inherit}))
+  (let [parts (-> (:out (sh ["ls" "-l" (str file)]))
                   str/split-lines
                   first
                   (str/split #" +"))
@@ -25,7 +23,7 @@
   (if *sudo* (into ["sudo"] cmd) cmd))
 
 (defn- trust-owner []
-  (let [group (str/trim (:out (sh ["id" "-gn" "root"]) {:err :inherit}))]
+  (let [group (str/trim (:out (sh ["id" "-gn" "root"])))]
     {:user "root" :group group}))
 
 (defn- valid-owner? [file trust-owner]
@@ -67,8 +65,7 @@
   (let [trust-dir (util/trust-dir cli-opts)
         {:keys [user group]} owner]
     (fs/create-dirs trust-dir)
-    (sh (sudo ["chown" "-R" (str user ":" group) (str trust-dir)])
-        {:err :inherit})))
+    (sh (sudo ["chown" "-R" (str user ":" group) (str trust-dir)]))))
 
 (defn- valid-path? [path]
   (or (fs/starts-with? path (fs/expand-home "~/.bbin/trust"))
@@ -80,7 +77,7 @@
 
 (defn- write-trust-file [{:keys [path contents] :as _plan}]
   (assert-valid-write path)
-  (sh (sudo ["tee" path]) {:in (prn-str contents) :err :inherit}))
+  (sh (sudo ["tee" path]) {:in (prn-str contents)}))
 
 (defn trust
   [cli-opts
@@ -99,7 +96,7 @@
 (defn- rm-trust-file [path]
   (assert-valid-write path)
   (when (fs/exists? path)
-    (sh (sudo ["rm" (str path)]) {:err :inherit})))
+    (sh (sudo ["rm" (str path)]))))
 
 (defn revoke [cli-opts]
   (if-not (:github/user cli-opts)

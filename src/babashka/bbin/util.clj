@@ -1,9 +1,14 @@
 (ns babashka.bbin.util
   (:require [babashka.fs :as fs]
+            [babashka.process :as p]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [taoensso.timbre :as log])
   (:import (java.util Date)))
+
+(defn sh [cmd & {:as opts}]
+  (doto (p/sh cmd (merge {:err :inherit} opts))
+    p/check))
 
 (defn set-logging-config! [{:keys [debug]}]
   (log/merge-config! {:min-level (if debug :debug :warn)}))

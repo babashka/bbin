@@ -16,10 +16,15 @@
 
 (ns babashka.bbin.util
   (:require [babashka.fs :as fs]
+            [babashka.process :as p]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [taoensso.timbre :as log])
   (:import (java.util Date)))
+
+(defn sh [cmd & {:as opts}]
+  (doto (p/sh cmd (merge {:err :inherit} opts))
+    p/check))
 
 (defn set-logging-config! [{:keys [debug]}]
   (log/merge-config! {:min-level (if debug :debug :warn)}))
@@ -63,8 +68,7 @@ Usage: bbin <command>
 (ns babashka.bbin.trust
   (:require [clojure.string :as str]
             [babashka.fs :as fs]
-            [babashka.process :refer [sh]]
-            [babashka.bbin.util :as util]))
+            [babashka.bbin.util :as util :refer [sh]]))
 
 (def base-allow-list
   {'babashka {}
@@ -72,8 +76,7 @@ Usage: bbin <command>
    'rads {}})
 
 (defn- owner-info [file]
-  (let [parts (-> (:out (sh ["ls" "-l" (str file)]
-                            {:err :inherit}))
+  (let [parts (-> (:out (sh ["ls" "-l" (str file)]))
                   str/split-lines
                   first
                   (str/split #" +"))
@@ -87,7 +90,7 @@ Usage: bbin <command>
   (if *sudo* (into ["sudo"] cmd) cmd))
 
 (defn- trust-owner []
-  (let [group (str/trim (:out (sh ["id" "-gn" "root"]) {:err :inherit}))]
+  (let [group (str/trim (:out (sh ["id" "-gn" "root"])))]
     {:user "root" :group group}))
 
 (defn- valid-owner? [file trust-owner]
@@ -129,8 +132,7 @@ Usage: bbin <command>
   (let [trust-dir (util/trust-dir cli-opts)
         {:keys [user group]} owner]
     (fs/create-dirs trust-dir)
-    (sh (sudo ["chown" "-R" (str user ":" group) (str trust-dir)])
-        {:err :inherit})))
+    (sh (sudo ["chown" "-R" (str user ":" group) (str trust-dir)]))))
 
 (defn- valid-path? [path]
   (or (fs/starts-with? path (fs/expand-home "~/.bbin/trust"))
@@ -142,7 +144,7 @@ Usage: bbin <command>
 
 (defn- write-trust-file [{:keys [path contents] :as _plan}]
   (assert-valid-write path)
-  (sh (sudo ["tee" path]) {:in (prn-str contents) :err :inherit}))
+  (sh (sudo ["tee" path]) {:in (prn-str contents)}))
 
 (defn trust
   [cli-opts
@@ -161,7 +163,7 @@ Usage: bbin <command>
 (defn- rm-trust-file [path]
   (assert-valid-write path)
   (when (fs/exists? path)
-    (sh (sudo ["rm" (str path)]) {:err :inherit})))
+    (sh (sudo ["rm" (str path)]))))
 
 (defn revoke [cli-opts]
   (if-not (:github/user cli-opts)
@@ -174,7 +176,6 @@ Usage: bbin <command>
 (ns babashka.bbin.scripts
   (:require [babashka.fs :as fs]
             [babashka.deps :as deps]
-            [babashka.process :refer [sh]]
             [rads.deps-info.infer :as deps-info-infer]
             [rads.deps-info.summary :as deps-info-summary]
             [clojure.string :as str]
@@ -183,7 +184,7 @@ Usage: bbin <command>
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]
             [babashka.bbin.trust :as trust]
-            [babashka.bbin.util :as util]))
+            [babashka.bbin.util :as util :refer [sh]]))
 
 (defn- pprint [x _]
   (pprint/pprint x))
@@ -297,7 +298,7 @@ exec bb \\
                 cli-opts)
         (do
           (spit (str script-file) script-contents)
-          (sh ["chmod" "+x" (str script-file)] {:err :inherit})
+          (sh ["chmod" "+x" (str script-file)])
           nil)))))
 
 (defn- default-script-config [cli-opts]
@@ -364,7 +365,7 @@ exec bb \\
                 cli-opts)
         (do
           (spit (str script-file) template-out)
-          (sh ["chmod" "+x" (str script-file)] {:err :inherit})
+          (sh ["chmod" "+x" (str script-file)])
           nil)))))
 
 (def ^:private maven-template-str
@@ -423,7 +424,7 @@ exec bb \\
               cli-opts)
       (do
         (spit (str script-file) template-out)
-        (sh ["chmod" "+x" (str script-file)] {:err :inherit})
+        (sh ["chmod" "+x" (str script-file)])
         nil))))
 
 (defn- parse-script [s]

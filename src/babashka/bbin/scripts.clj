@@ -1,7 +1,6 @@
 (ns babashka.bbin.scripts
   (:require [babashka.fs :as fs]
             [babashka.deps :as deps]
-            [babashka.process :refer [sh]]
             [rads.deps-info.infer :as deps-info-infer]
             [rads.deps-info.summary :as deps-info-summary]
             [clojure.string :as str]
@@ -10,7 +9,7 @@
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]
             [babashka.bbin.trust :as trust]
-            [babashka.bbin.util :as util]))
+            [babashka.bbin.util :as util :refer [sh]]))
 
 (defn- pprint [x _]
   (pprint/pprint x))
@@ -124,7 +123,7 @@ exec bb \\
                 cli-opts)
         (do
           (spit (str script-file) script-contents)
-          (sh ["chmod" "+x" (str script-file)] {:err :inherit})
+          (sh ["chmod" "+x" (str script-file)])
           nil)))))
 
 (defn- default-script-config [cli-opts]
@@ -191,7 +190,7 @@ exec bb \\
                 cli-opts)
         (do
           (spit (str script-file) template-out)
-          (sh ["chmod" "+x" (str script-file)] {:err :inherit})
+          (sh ["chmod" "+x" (str script-file)])
           nil)))))
 
 (def ^:private maven-template-str
@@ -250,7 +249,7 @@ exec bb \\
               cli-opts)
       (do
         (spit (str script-file) template-out)
-        (sh ["chmod" "+x" (str script-file)] {:err :inherit})
+        (sh ["chmod" "+x" (str script-file)])
         nil))))
 
 (defn- parse-script [s]
