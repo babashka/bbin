@@ -23,8 +23,9 @@
   (if *sudo* (into ["sudo"] cmd) cmd))
 
 (defn- trust-owner []
-  (let [group (str/trim (:out (sh ["id" "-gn" "root"])))]
-    {:user "root" :group group}))
+  (let [user (if *sudo* "root" (str/trim (:out (sh ["id" "-un"]))))
+        group (str/trim (:out (sh ["id" "-gn" user])))]
+    {:user user :group group}))
 
 (defn- valid-owner? [file trust-owner]
   (= trust-owner (owner-info file)))
