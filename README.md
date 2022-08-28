@@ -38,7 +38,7 @@ Only macOS and Linux are supported right now. [Windows support](https://github.c
 
 **1. Install `bbin` CLI:**
 ```zsh
-mkdir -p ~/.bbin/bin && curl -L -o ~/.bbin/bin/bbin https://raw.githubusercontent.com/babashka/bbin/v0.0.6/bbin && chmod +x ~/.bbin/bin/bbin
+mkdir -p ~/.bbin/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v0.0.6/bbin > ~/.bbin/bin/bbin && chmod +x ~/.bbin/bin/bbin
 ```
 
 **2. Add `~/.bbin/bin` to `PATH`:**
