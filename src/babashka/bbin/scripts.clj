@@ -2,7 +2,8 @@
   (:require [babashka.fs :as fs]
             [babashka.deps :as deps]
             [babashka.process :refer [sh]]
-            [rads.deps-infer :as deps-infer]
+            [rads.deps-info.infer :as deps-info-infer]
+            [rads.deps-info.summary :as deps-info-summary]
             [clojure.string :as str]
             [clojure.edn :as edn]
             [clojure.pprint :as pprint]
@@ -141,7 +142,7 @@ exec bb \\
 (defn- install-deps-git-or-local [cli-opts]
   (if-not (trust/allowed-lib? (:script/lib cli-opts) cli-opts)
     (throw-lib-name-not-trusted cli-opts)
-    (let [script-deps (deps-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
+    (let [script-deps (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
           header {:lib (key (first script-deps))
                   :coords (val (first script-deps))}
           _ (pprint header cli-opts)
@@ -283,7 +284,7 @@ exec bb \\
     (do
       (util/ensure-bbin-dirs cli-opts)
       (let [cli-opts' (util/canonicalized-cli-opts cli-opts)
-            {:keys [procurer]} (deps-infer/summary cli-opts')]
+            {:keys [procurer]} (deps-info-summary/summary cli-opts')]
         (case procurer
           :http (install-http cli-opts')
           :maven (install-deps-maven cli-opts')
