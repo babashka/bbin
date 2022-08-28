@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.5
+
+- [Require privileged access for `~/.bbin/trust`](https://github.com/babashka/bbin/commit/ae6ca2fb2ac5a8c763ebb475151b5eddd4426809)
+
 ## 0.0.4
 
 - [Rename to `babashka.bbin`](https://github.com/babashka/bbin/commit/6322b4d2bbb6e44589875057123c8e59cc5dfe6d)
