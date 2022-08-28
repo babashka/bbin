@@ -375,7 +375,7 @@ exec bb \\
         (when (fs/delete-if-exists script-file)
           (println "Removing" (str script-file)))))))
 
-(ns babashka.bbin
+(ns babashka.bbin.cli
   (:require [babashka.cli :as cli]
             [babashka.bbin.scripts :as scripts]
             [babashka.bbin.trust :as trust]

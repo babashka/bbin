@@ -1,4 +1,4 @@
-(ns babashka.bbin
+(ns babashka.bbin.cli
   (:require [babashka.cli :as cli]
             [babashka.bbin.scripts :as scripts]
             [babashka.bbin.trust :as trust]

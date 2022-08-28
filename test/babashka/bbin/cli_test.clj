@@ -1,4 +1,4 @@
-(ns babashka.bbin-test
+(ns babashka.bbin.cli-test
   (:require [clojure.test :refer [deftest is testing]]
             [babashka.bbin.test-util :refer [bbin bbin-root]]
             [clojure.string :as str]

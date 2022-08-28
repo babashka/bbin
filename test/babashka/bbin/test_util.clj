@@ -2,7 +2,7 @@
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
             [clojure.edn :as edn]
-            [babashka.bbin :as bbin]))
+            [babashka.bbin.cli :as bbin]))
 
 (def test-dir
   (doto (str (fs/file (fs/temp-dir) "bbin-test"))
