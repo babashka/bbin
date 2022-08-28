@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.7
+
+- [Fix `sudo` being required in `bbin install` command](https://github.com/babashka/bbin/commit/8fb8a8d2b8186ab0e22cde978cfeae3ce7ce4d1d)
+
 ## 0.0.6
 
 - [Use sudo user and group instead of hard-coded `root:wheel`](https://github.com/babashka/bbin/commit/e3d77ac6e26b9676bf898e60142499c9738c1877)
