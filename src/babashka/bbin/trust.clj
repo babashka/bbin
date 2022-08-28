@@ -9,7 +9,7 @@
    'borkdude {}
    'rads {}})
 
-(defn owner-info [file]
+(defn- owner-info [file]
   (let [parts (-> (:out (sh ["ls" "-l" (str file)]
                             {:err :inherit}))
                   str/split-lines
@@ -21,18 +21,25 @@
 
 (def ^:dynamic *sudo* true)
 
-(defn valid-owner? [file]
-  (if *sudo*
-    (= {:user "root" :group "wheel"} (owner-info file))
-    true))
+(defn- sudo [cmd]
+  (if *sudo* (into ["sudo"] cmd) cmd))
+
+(defn- trust-owner []
+  (let [user (str/trim (:out (sh (sudo ["id" "-un"]) {:err :inherit})))
+        group (str/trim (:out (sh (sudo ["id" "-gn"]) {:err :inherit})))]
+    {:user user :group group}))
+
+(defn- valid-owner? [file trust-owner]
+  (= trust-owner (owner-info file)))
 
 (defn- user-allow-list [cli-opts]
-  (->> (file-seq (util/trust-dir cli-opts))
-       (filter #(and (.isFile %) (valid-owner? %)))
-       (map (fn [file]
-              [(symbol (str/replace (fs/file-name file) #"^github-user-(.+)\.edn$" "$1"))
-               {}]))
-       (into {})))
+  (let [owner (trust-owner)]
+    (->> (file-seq (util/trust-dir cli-opts))
+         (filter #(and (.isFile %) (valid-owner? % owner)))
+         (map (fn [file]
+                [(symbol (str/replace (fs/file-name file) #"^github-user-(.+)\.edn$" "$1"))
+                 {}]))
+         (into {}))))
 
 (defn- combined-allow-list [cli-opts]
   (merge base-allow-list (user-allow-list cli-opts)))
@@ -57,14 +64,12 @@
     (:github/user opts) (github-trust-file opts)
     :else (throw (ex-info "Invalid CLI opts" {:cli-opts opts}))))
 
-(defn- sudo [cmd]
-  (if *sudo* (into ["sudo"] cmd) cmd))
-
-(defn- ensure-trust-dir [cli-opts]
-  (let [trust-dir (util/trust-dir cli-opts)]
+(defn- ensure-trust-dir [cli-opts owner]
+  (let [trust-dir (util/trust-dir cli-opts)
+        {:keys [user group]} owner]
     (fs/create-dirs trust-dir)
-    (when *sudo*
-      (sh (sudo ["chown" "-R" "root:wheel" (str trust-dir)]) {:err :inherit}))))
+    (sh (sudo ["chown" "-R" (str user ":" group) (str trust-dir)])
+        {:err :inherit})))
 
 (defn- valid-path? [path]
   (or (fs/starts-with? path (fs/expand-home "~/.bbin/trust"))
@@ -84,13 +89,13 @@
       :or {trusted-at (util/now)}}]
   (if-not (:github/user cli-opts)
     (util/print-help)
-    (do
-      (ensure-trust-dir cli-opts)
-      (let [plan (-> (trust-file cli-opts)
-                     (assoc :contents {:trusted-at trusted-at}))]
-        (util/pprint plan cli-opts)
-        (write-trust-file plan)
-        nil))))
+    (let [owner (trust-owner)
+          _ (ensure-trust-dir cli-opts owner)
+          plan (-> (trust-file cli-opts)
+                   (assoc :contents {:trusted-at trusted-at}))]
+      (util/pprint plan cli-opts)
+      (write-trust-file plan)
+      nil)))
 
 (defn- rm-trust-file [path]
   (assert-valid-write path)
