@@ -2,7 +2,7 @@
 
 ; :bbin/start
 ;
-; {:coords {:bbin/url "https://raw.githubusercontent.com/babashka/bbin/v0.0.5/bbin"}}
+; {:coords {:bbin/url "https://raw.githubusercontent.com/babashka/bbin/v0.0.6/bbin"}}
 ;
 ; :bbin/end
 

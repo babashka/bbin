@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.6
+
+- [Use sudo user and group instead of hard-coded `root:wheel`](https://github.com/babashka/bbin/commit/e3d77ac6e26b9676bf898e60142499c9738c1877)
+- [Fix missing `util` ns in `gen-script`](https://github.com/babashka/bbin/commit/96c54c3e7ad3ab3d4af9cff0d830fc7c5f0ca5a8)
+
 ## 0.0.5
 
 - [Require privileged access for `~/.bbin/trust`](https://github.com/babashka/bbin/commit/ae6ca2fb2ac5a8c763ebb475151b5eddd4426809)
