@@ -30,7 +30,12 @@
             (str/join "\n" (cons (first lines) (map #(str "          " %) (rest lines)))))))
 
 (defn gen-script []
-  (let [trust (slurp "src/babashka/bbin/trust.clj")
+  (let [util (slurp "src/babashka/bbin/util.clj")
+        trust (slurp "src/babashka/bbin/trust.clj")
         scripts (slurp "src/babashka/bbin/scripts.clj")
         cli (slurp "src/babashka/bbin/cli.clj")]
-    (spit "bbin" (str/join "\n" [prelude-str trust scripts cli]))))
+    (spit "bbin" (str/join "\n" [prelude-str
+                                 util
+                                 trust
+                                 scripts
+                                 cli]))))
