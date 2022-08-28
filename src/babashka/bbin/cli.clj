@@ -61,7 +61,3 @@
 
 (when (= *file* (System/getProperty "babashka.file"))
   (apply -main *command-line-args*))
-
-(comment
-  (-main "help")
-  (-main "install" "https://raw.githubusercontent.com/babashka/babashka/master/examples/portal.clj"))
