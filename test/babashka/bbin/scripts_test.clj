@@ -41,8 +41,8 @@
        "/rads/da8ecbce63fe305f3520637810ff9506"
        "/raw/e83305656f2d145430085d5414e2c3bff776b6e8/portal.clj"))
 
-(defn run-install [parsed-args]
-  (some-> (with-out-str (scripts/install parsed-args))
+(defn run-install [cli-opts]
+  (some-> (with-out-str (scripts/install cli-opts))
           edn/read-string))
 
 (defn run-bin-script [script-name & script-args]
@@ -56,7 +56,7 @@
     (util/ensure-bbin-dirs {:bbin/root bbin-root})
     (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib"
                     :bbin/root bbin-root}
-          out (run-install {:opts cli-opts})
+          out (run-install cli-opts)
           bin-file (fs/file bbin-root "bin/hello")]
       (is (= test-lib out))
       (is (fs/exists? bin-file))
@@ -73,7 +73,7 @@
     (let [cli-opts {:script/lib (str (:lib maven-lib))
                     :mvn/version (-> maven-lib :coords :mvn/version)
                     :bbin/root bbin-root}
-          out (run-install {:opts cli-opts})]
+          out (run-install cli-opts)]
       (is (= maven-lib out))
       (is (fs/exists? (fs/file bbin-root "bin" (name (:lib maven-lib)))))
       (is (str/starts-with? (run-bin-script (:lib maven-lib) "--help")
@@ -90,7 +90,7 @@
       (let [cli-opts {:script/lib "babashka/foo"
                       :local/root local-root
                       :bbin/root bbin-root}
-            out (run-install {:opts cli-opts})]
+            out (run-install cli-opts)]
         (is (= {:lib 'babashka/foo
                 :coords {:local/root local-root}}
                out))
@@ -108,7 +108,7 @@
     (util/ensure-bbin-dirs {:bbin/root bbin-root})
     (let [cli-opts {:script/lib portal-script-url
                     :bbin/root bbin-root}
-          out (run-install {:opts cli-opts})]
+          out (run-install cli-opts)]
       (is (= {:coords {:bbin/url portal-script-url}} out))
       (is (fs/exists? (fs/file bbin-root "bin/portal"))))))
 
@@ -123,7 +123,7 @@
       (spit script-file "#!/usr/bin/env bb")
       (let [cli-opts {:script/lib "foo"
                       :bbin/root bbin-root}
-            out (str/trim (with-out-str (scripts/uninstall {:opts cli-opts})))]
+            out (str/trim (with-out-str (scripts/uninstall cli-opts)))]
         (is (= (str "Removing " script-file) out))
         (is (not (fs/exists? script-file)))))))
 

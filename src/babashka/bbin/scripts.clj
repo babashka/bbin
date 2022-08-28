@@ -270,20 +270,32 @@ exec bb \\
                      (parse-script (slurp x))]))
        (into {})))
 
-(defn install [parsed-args]
-  (util/ensure-bbin-dirs (:opts parsed-args))
-  (let [cli-opts (util/canonicalized-cli-opts parsed-args)
-        {:keys [procurer]} (deps-infer/summary cli-opts)]
-    (case procurer
-      :http (install-http cli-opts)
-      :maven (install-deps-maven cli-opts)
-      :git (install-deps-git-or-local cli-opts)
-      :local (install-deps-git-or-local cli-opts))))
+(defn ls [cli-opts]
+  (-> (load-scripts cli-opts)
+      (util/pprint cli-opts)))
 
-(defn uninstall [parsed-args]
-  (util/ensure-bbin-dirs (:opts parsed-args))
-  (let [cli-opts (:opts parsed-args)
-        script-name (:script/lib cli-opts)
-        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
-    (when (fs/delete-if-exists script-file)
-      (println "Removing" (str script-file)))))
+(defn bin [cli-opts]
+  (println (str (util/bin-dir cli-opts))))
+
+(defn install [cli-opts]
+  (if-not (:script/lib cli-opts)
+    (util/print-help)
+    (do
+      (util/ensure-bbin-dirs cli-opts)
+      (let [cli-opts' (util/canonicalized-cli-opts cli-opts)
+            {:keys [procurer]} (deps-infer/summary cli-opts')]
+        (case procurer
+          :http (install-http cli-opts')
+          :maven (install-deps-maven cli-opts')
+          :git (install-deps-git-or-local cli-opts')
+          :local (install-deps-git-or-local cli-opts'))))))
+
+(defn uninstall [cli-opts]
+  (if-not (:script/lib cli-opts)
+    (util/print-help)
+    (do
+      (util/ensure-bbin-dirs cli-opts)
+      (let [script-name (:script/lib cli-opts)
+            script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
+        (when (fs/delete-if-exists script-file)
+          (println "Removing" (str script-file)))))))

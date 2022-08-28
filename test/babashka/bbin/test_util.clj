@@ -13,8 +13,8 @@
 (defn reset-test-dir []
   (fs/delete-tree test-dir))
 
-(defn bbin [cli-args & {:as opts}]
-  (let [out (str/trim (with-out-str (apply bbin/-main cli-args)))]
+(defn bbin [main-args & {:as opts}]
+  (let [out (str/trim (with-out-str (bbin/bbin main-args opts)))]
     (if (#{:edn} (:out opts))
       (edn/read-string out)
       out)))
