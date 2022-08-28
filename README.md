@@ -43,7 +43,7 @@ mkdir -p ~/.bbin/bin && curl -L -o ~/.bbin/bin/bbin https://raw.githubuserconten
 
 **2. Add `~/.bbin/bin` to `PATH`:**
 ```zsh
-echo 'export PATH="$HOME/.bbin/bin:$PATH"' >> ~/.zshrc && exec /bin/zsh
+echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.zshrc && exec /bin/zsh
 ```
 
 ## Usage
