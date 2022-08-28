@@ -8,7 +8,7 @@
    'borkdude {}
    'rads {}})
 
-(defn user-allow-list [cli-opts]
+(defn- user-allow-list [cli-opts]
   (->> (file-seq (util/trust-dir cli-opts))
        (filter #(.isFile %))
        (map (fn [file]
@@ -16,7 +16,7 @@
                {}]))
        (into {})))
 
-(defn combined-allow-list [cli-opts]
+(defn- combined-allow-list [cli-opts]
   (merge base-allow-list (user-allow-list cli-opts)))
 
 (defn allowed-url? [url cli-opts]
@@ -31,28 +31,31 @@
                  (str/starts-with? lib (str "io.github." %)))
             (keys (combined-allow-list cli-opts)))))
 
-(defn github-trust-file [opts]
+(defn- github-trust-file [opts]
   {:path (str (fs/path (util/trust-dir opts) (str "github-user-" (:github/user opts) ".edn")))})
 
-(defn trust-file [opts]
+(defn- trust-file [opts]
   (cond
     (:github/user opts) (github-trust-file opts)
     :else (throw (ex-info "Invalid CLI opts" {:cli-opts opts}))))
 
-(defn trust [opts]
-  (if-not (:github/user opts)
+(defn trust
+  [cli-opts
+   & {:keys [trusted-at]
+      :or {trusted-at (util/now)}}]
+  (if-not (:github/user cli-opts)
     (util/print-help)
     (do
-      (util/ensure-bbin-dirs opts)
-      (let [plan (-> (trust-file opts)
-                     (assoc :contents {:trusted-at (util/now)}))
+      (util/ensure-bbin-dirs cli-opts)
+      (let [plan (-> (trust-file cli-opts)
+                     (assoc :contents {:trusted-at trusted-at}))
             {:keys [path contents]} plan]
-        (util/pprint plan opts)
+        (util/pprint plan cli-opts)
         (spit path (prn-str contents))))))
 
-(defn revoke [opts]
-  (if-not (:github/user opts)
+(defn revoke [cli-opts]
+  (if-not (:github/user cli-opts)
     (util/print-help)
-    (let [{:keys [path]} (trust-file opts)]
+    (let [{:keys [path]} (trust-file cli-opts)]
       (when (fs/delete-if-exists path)
         (println "Removing" (str path))))))
