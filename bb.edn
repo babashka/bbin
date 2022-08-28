@@ -19,4 +19,4 @@
          gen-script {:doc "Build the bbin script"
                      :requires ([babashka.bbin.gen-script :as gen-script])
                      :task (gen-script/gen-script)}}
- :bbin/bin {bbin {:main-opts ["-m" "babashka.bbin/-main"]}}}
+ :bbin/bin {bbin {:main-opts ["-m" "babashka.bbin.cli/-main"]}}}

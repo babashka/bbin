@@ -1,8 +1,7 @@
 (ns babashka.bbin.trust
   (:require [clojure.string :as str]
             [babashka.fs :as fs]
-            [babashka.bbin.util :as util])
-  (:import (java.util Date)))
+            [babashka.bbin.util :as util]))
 
 (def base-allow-list
   {'babashka {}
@@ -41,8 +40,19 @@
     :else (throw (ex-info "Invalid CLI opts" {:cli-opts opts}))))
 
 (defn trust [opts]
-  (-> (trust-file opts)
-      (assoc :contents {:trusted-at (Date.)})))
+  (if-not (:github/user opts)
+    (util/print-help)
+    (do
+      (util/ensure-bbin-dirs opts)
+      (let [plan (-> (trust-file opts)
+                     (assoc :contents {:trusted-at (util/now)}))
+            {:keys [path contents]} plan]
+        (util/pprint plan opts)
+        (spit path (prn-str contents))))))
 
 (defn revoke [opts]
-  (trust-file opts))
+  (if-not (:github/user opts)
+    (util/print-help)
+    (let [{:keys [path]} (trust-file opts)]
+      (when (fs/delete-if-exists path)
+        (println "Removing" (str path))))))
