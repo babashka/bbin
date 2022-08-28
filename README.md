@@ -157,7 +157,9 @@ $ bbin install http-server.jar
 - For [security purposes][security], by default you can only install scripts from HTTP URLs provided by GitHub users and orgs listed in `babashka.bbin.trust/allow-list`.
 - This same list also limits whether you can install a qualified lib name using inference (i.e. without a `--git/sha`).
 - To relax these limitations, you can trust specific GitHub users with the `--github/user` option.
-- Each trusted user is represented as an EDN file in `~/.bbin/trust`.
+- Each trusted user is represented as an EDN file in `~/.bbin/trust` (owned by `root:wheel`)
+- Using `bbin trust` requires `sudo` access in order to modify files in `~/.bbin/trust`
+- `bbin` will not read files in `~/.bbin/trust` unless they're owned by `root:wheel`
 
 [security]: https://github.com/babashka/bbin/blob/bdea1c92ed50fb38eed0af38d69922e0a9d61df6/docs/design.md#security
 

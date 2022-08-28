@@ -1,6 +1,7 @@
 (ns babashka.bbin.trust
   (:require [clojure.string :as str]
             [babashka.fs :as fs]
+            [babashka.process :refer [sh]]
             [babashka.bbin.util :as util]))
 
 (def base-allow-list
@@ -8,9 +9,26 @@
    'borkdude {}
    'rads {}})
 
+(defn owner-info [file]
+  (let [parts (-> (:out (sh ["ls" "-l" (str file)]
+                            {:err :inherit}))
+                  str/split-lines
+                  first
+                  (str/split #" +"))
+        [_ _ user group] parts]
+    {:user user
+     :group group}))
+
+(def ^:dynamic *sudo* true)
+
+(defn valid-owner? [file]
+  (if *sudo*
+    (= {:user "root" :group "wheel"} (owner-info file))
+    true))
+
 (defn- user-allow-list [cli-opts]
   (->> (file-seq (util/trust-dir cli-opts))
-       (filter #(.isFile %))
+       (filter #(and (.isFile %) (valid-owner? %)))
        (map (fn [file]
               [(symbol (str/replace (fs/file-name file) #"^github-user-(.+)\.edn$" "$1"))
                {}]))
@@ -39,6 +57,27 @@
     (:github/user opts) (github-trust-file opts)
     :else (throw (ex-info "Invalid CLI opts" {:cli-opts opts}))))
 
+(defn- sudo [cmd]
+  (if *sudo* (into ["sudo"] cmd) cmd))
+
+(defn- ensure-trust-dir [cli-opts]
+  (let [trust-dir (util/trust-dir cli-opts)]
+    (fs/create-dirs trust-dir)
+    (when *sudo*
+      (sh (sudo ["chown" "-R" "root:wheel" (str trust-dir)]) {:err :inherit}))))
+
+(defn- valid-path? [path]
+  (or (fs/starts-with? path (fs/expand-home "~/.bbin/trust"))
+      (fs/starts-with? path (fs/temp-dir))))
+
+(defn- assert-valid-write [path]
+  (when-not (valid-path? path)
+    (throw (ex-info "Invalid write path" {:invalid-path path}))))
+
+(defn- write-trust-file [{:keys [path contents] :as _plan}]
+  (assert-valid-write path)
+  (sh (sudo ["tee" path]) {:in (prn-str contents) :err :inherit}))
+
 (defn trust
   [cli-opts
    & {:keys [trusted-at]
@@ -46,16 +85,22 @@
   (if-not (:github/user cli-opts)
     (util/print-help)
     (do
-      (util/ensure-bbin-dirs cli-opts)
+      (ensure-trust-dir cli-opts)
       (let [plan (-> (trust-file cli-opts)
-                     (assoc :contents {:trusted-at trusted-at}))
-            {:keys [path contents]} plan]
+                     (assoc :contents {:trusted-at trusted-at}))]
         (util/pprint plan cli-opts)
-        (spit path (prn-str contents))))))
+        (write-trust-file plan)
+        nil))))
+
+(defn- rm-trust-file [path]
+  (assert-valid-write path)
+  (when (fs/exists? path)
+    (sh (sudo ["rm" (str path)]) {:err :inherit})))
 
 (defn revoke [cli-opts]
   (if-not (:github/user cli-opts)
     (util/print-help)
     (let [{:keys [path]} (trust-file cli-opts)]
-      (when (fs/delete-if-exists path)
-        (println "Removing" (str path))))))
+      (println "Removing" (str path))
+      (rm-trust-file path)
+      nil)))

@@ -25,9 +25,10 @@ Usage: bbin <command>
 (defn now []
   (Date.))
 
-(defn bbin-root [cli-opts]
-  (str (or (some-> (:bbin/root cli-opts) (fs/canonicalize {:nofollow-links true}))
-           (fs/expand-home "~/.bbin"))))
+(def ^:dynamic *bbin-root* (fs/expand-home "~/.bbin"))
+
+(defn bbin-root [_]
+  *bbin-root*)
 
 (defn trust-dir [cli-opts]
   (fs/file (bbin-root cli-opts) "trust"))
@@ -41,5 +42,4 @@ Usage: bbin <command>
            {:local/root (str (fs/canonicalize v {:nofollow-links true}))})))
 
 (defn ensure-bbin-dirs [cli-opts]
-  (fs/create-dirs (bin-dir cli-opts))
-  (fs/create-dirs (trust-dir cli-opts)))
+  (fs/create-dirs (bin-dir cli-opts)))

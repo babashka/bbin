@@ -2,13 +2,20 @@
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
             [clojure.edn :as edn]
-            [babashka.bbin.cli :as bbin]))
-
+            [babashka.bbin.cli :as bbin]
+            [babashka.bbin.util :as util]
+            [babashka.bbin.trust :as trust]))
 (def test-dir
   (doto (str (fs/file (fs/temp-dir) "bbin-test"))
     (fs/delete-on-exit)))
 
 (def bbin-root (str (fs/file test-dir "bbin")))
+
+(defn bbin-root-fixture []
+  (fn [f]
+    (binding [util/*bbin-root* bbin-root
+              trust/*sudo* false]
+      (f))))
 
 (defn reset-test-dir []
   (fs/delete-tree test-dir))
