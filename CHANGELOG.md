@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.8
+
+- [Restrict `bbin` alias to installs from official repo](https://github.com/babashka/bbin/commit/d343c37d7d045f294cff928319ffe7f9fa39617a)
+- [Add info message about password request](https://github.com/babashka/bbin/commit/28911b65a21ac96b66fa47e10b16ffdf5680e4ab)
+
 ## 0.0.7
 
 - [Fix `sudo` being required in `bbin install` command](https://github.com/babashka/bbin/commit/8fb8a8d2b8186ab0e22cde978cfeae3ce7ce4d1d)
