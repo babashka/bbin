@@ -44,7 +44,8 @@
 
 (defn allowed-url? [url cli-opts]
   (some #(or (str/starts-with? url (str "https://github.com/" % "/"))
-             (str/starts-with? url (str "https://gist.githubusercontent.com/" % "/")))
+             (str/starts-with? url (str "https://gist.githubusercontent.com/" % "/"))
+             (str/starts-with? url (str "https://raw.githubusercontent.com/" % "/")))
         (keys (combined-allow-list cli-opts))))
 
 (defn allowed-lib? [lib cli-opts]
@@ -106,3 +107,43 @@
       (println "Removing" (str path))
       (rm-trust-file path)
       nil)))
+
+(defn- throw-lib-name-not-trusted [cli-opts]
+  (let [msg (str "Lib name is not trusted.\nTo install this lib, provide "
+                 "a --git/sha option or use `bbin trust` to allow inference "
+                 "for this lib name.")]
+    (throw (ex-info msg {:untrusted-lib (:script/lib cli-opts)}))))
+
+(defn assert-trusted-lib [cli-opts]
+  (when-not (allowed-lib? (:script/lib cli-opts) cli-opts)
+    (throw-lib-name-not-trusted cli-opts)))
+
+(def ^:private bbin-lib-str?
+  #{"io.github.babashka/bbin" "com.github.babashka/bbin"})
+
+(defn- bbin-git-url? [coords]
+  (or (re-seq #"^https://github.com/babashka/bbin(\.git)?$" (:git/url coords))
+      (= "git@github.com:babashka/bbin.git" (:git/url coords))))
+
+(defn- bbin-http-url? [coords]
+  (str/starts-with? (:bbin/url coords) "https://raw.githubusercontent.com/babashka/bbin/"))
+
+(defn- valid-bbin-lib? [{:keys [lib coords] :as _header}]
+  (or (and (bbin-lib-str? lib)
+           (or (= #{:git/tag :git/sha} (set (keys coords)))
+               (and (:git/url coords) (bbin-git-url? coords))))
+      (and (= #{:bbin/url} (set (keys coords)))
+           (bbin-http-url? coords))))
+
+(defn- valid-script-name? [script-name header]
+  (or (not= script-name "bbin") (valid-bbin-lib? header)))
+
+(defn- throw-invalid-script-name [script-name header]
+  (throw (ex-info (str "Invalid script name.\nThe `bbin` name is reserved for "
+                       "installing `bbin` from the official repo.\nUse `--as` "
+                       "to choose a different name.")
+                  (merge {:script/name script-name} header))))
+
+(defn assert-valid-script-name [script-name header]
+  (when-not (valid-script-name? script-name header)
+    (throw-invalid-script-name script-name header)))
