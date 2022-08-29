@@ -185,8 +185,8 @@ Usage: bbin <command>
   (when-not (allowed-lib? (:script/lib cli-opts) cli-opts)
     (throw-lib-name-not-trusted cli-opts)))
 
-(def ^:private bbin-lib-str?
-  #{"io.github.babashka/bbin" "com.github.babashka/bbin"})
+(defn- bbin-lib-str? [x]
+  #{"io.github.babashka/bbin" "com.github.babashka/bbin"} (str x))
 
 (defn- bbin-git-url? [coords]
   (or (re-seq #"^https://github.com/babashka/bbin(\.git)?$" (:git/url coords))
