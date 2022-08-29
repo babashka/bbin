@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.9
+
+- [Fix `bbin commands`](https://github.com/babashka/bbin/commit/c341c270ea2d5744c156fc719a6579f6c48549d2)
+- [Check for reserved script names](https://github.com/babashka/bbin/commit/52887c3f9948a8b4e466766dfd06d3a35d443277)
+- [Support Git and local installs when `bb.edn` file is missing](https://github.com/babashka/bbin/commit/a0bc556fc44c2d70e83bc0c387a3f3c716c25743)
+
 ## 0.0.8
 
 - [Restrict `bbin` alias to installs from official repo](https://github.com/babashka/bbin/commit/d343c37d7d045f294cff928319ffe7f9fa39617a)
