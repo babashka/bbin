@@ -1,6 +1,7 @@
 (ns babashka.bbin.trust
   (:require [clojure.string :as str]
             [babashka.fs :as fs]
+            [babashka.process :as process]
             [babashka.bbin.util :as util :refer [sh]]))
 
 (def base-allow-list
@@ -81,6 +82,14 @@
   (assert-valid-write path)
   (sh (sudo ["tee" path]) {:in (prn-str contents)}))
 
+(defn- sudo-timed-out? []
+  (when *sudo*
+    (not (zero? (:exit (doto (process/sh ["sudo" "-n" "true"])))))))
+
+(defn check-sudo-timeout []
+  (when (sudo-timed-out?)
+    (println (format "sudo is required to modify files in ~/.bbin/trust, asking for password"))))
+
 (defn trust
   [cli-opts
    & {:keys [trusted-at]
@@ -88,6 +97,7 @@
   (if-not (:github/user cli-opts)
     (util/print-help)
     (let [owner (trust-owner)
+          _ (check-sudo-timeout)
           _ (ensure-trust-dir cli-opts owner)
           plan (-> (trust-file cli-opts)
                    (assoc :contents {:trusted-at trusted-at}))]
@@ -97,15 +107,18 @@
 
 (defn- rm-trust-file [path]
   (assert-valid-write path)
-  (when (fs/exists? path)
-    (sh (sudo ["rm" (str path)]))))
+  (sh (sudo ["rm" (str path)])))
 
 (defn revoke [cli-opts]
   (if-not (:github/user cli-opts)
     (util/print-help)
     (let [{:keys [path]} (trust-file cli-opts)]
-      (println "Removing" (str path))
-      (rm-trust-file path)
+      (if-not (fs/exists? path)
+        (println (str "Trust file does not exist:\n  " path))
+        (do
+          (check-sudo-timeout)
+          (println (str "Removing trust file:\n  " path))
+          (rm-trust-file path)))
       nil)))
 
 (defn- throw-lib-name-not-trusted [cli-opts]

@@ -37,5 +37,5 @@
         trust-file (fs/file bbin-root "trust/github-user-foo.edn")
         _ (spit trust-file "{}")
         out (str/trim (with-out-str (trust/revoke cli-opts)))]
-    (is (= out (str "Removing " trust-file)))
+    (is (= out (str "Removing trust file:\n  " trust-file)))
     (is (not (fs/exists? trust-file)))))
