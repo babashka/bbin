@@ -41,7 +41,7 @@
     :aliases {:h :help}}])
 
 (defn- print-commands [_]
-  (println (str/join " " (keep #(first (:cmds %)) commands))))
+  (println (str/join " " (keep #(first (:cmds %)) (commands nil)))))
 
 (def default-run-opts
   {:install-fn scripts/install

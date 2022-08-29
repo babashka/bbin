@@ -2,7 +2,8 @@
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [babashka.bbin.test-util :refer [bbin bbin-root-fixture]]
             [clojure.string :as str]
-            [babashka.bbin.util :as util]))
+            [babashka.bbin.util :as util]
+            [clojure.set :as set]))
 
 (use-fixtures :once (bbin-root-fixture))
 
@@ -15,6 +16,21 @@
   (doseq [args [["help"] ["install"] ["uninstall"] ["trust"] ["revoke"]]]
     (let [out (bbin args :out :string)]
       (is (str/starts-with? out "Usage: bbin <command>")))))
+
+(def expected-commands
+  #{"commands"
+    "help"
+    "install"
+    "uninstall"
+    "ls"
+    "bin"
+    "trust"
+    "revoke"})
+
+(deftest commands-test
+  (let [out (bbin ["commands"] :out :string)
+        commands (set (str/split out #" "))]
+    (is (set/subset? expected-commands commands))))
 
 (deftest install-test
   (let [calls (atom [])
