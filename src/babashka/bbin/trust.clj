@@ -148,15 +148,137 @@
       (and (= #{:bbin/url} (set (keys coords)))
            (bbin-http-url? coords))))
 
-(defn- valid-script-name? [script-name header]
-  (or (not= script-name "bbin") (valid-bbin-lib? header)))
-
-(defn- throw-invalid-script-name [script-name header]
+(defn- throw-invalid-bbin-script-name [script-name header]
   (throw (ex-info (str "Invalid script name.\nThe `bbin` name is reserved for "
                        "installing `bbin` from the official repo.\nUse `--as` "
                        "to choose a different name.")
                   (merge {:script/name script-name} header))))
 
+(declare reserved-script-names)
+
+(defn- throw-reserved-script-name [script-name]
+  (let [msg (format
+              (str "Invalid script name.\nThe name `%s` cannot be used because "
+                   "it may conflict with a system command.\nUse `--as` "
+                   "to choose a different name.")
+              script-name)]
+    (throw (ex-info msg {:script/name script-name}))))
+
 (defn assert-valid-script-name [script-name header]
-  (when-not (valid-script-name? script-name header)
-    (throw-invalid-script-name script-name header)))
+  (when (contains? reserved-script-names script-name)
+    (throw-reserved-script-name script-name))
+  (when (and (#{"bbin"} script-name) (not (valid-bbin-lib? header)))
+    (throw-invalid-bbin-script-name script-name header)))
+
+(def reserved-script-names
+  #{"alias"
+    "autoload"
+    "bg"
+    "bind"
+    "bindkey"
+    "break"
+    "builtin"
+    "bye"
+    "case"
+    "cd"
+    "chdir"
+    "command"
+    "compadd"
+    "comparguments"
+    "compcall"
+    "compctl"
+    "compdescribe"
+    "compfiles"
+    "compgroups"
+    "complete"
+    "compquote"
+    "compset"
+    "comptags"
+    "comptry"
+    "compvalues"
+    "continue"
+    "declare"
+    "dirs"
+    "disable"
+    "disown"
+    "echo"
+    "echotc"
+    "echoti"
+    "emulate"
+    "enable"
+    "eval"
+    "exec"
+    "exit"
+    "export"
+    "false"
+    "fc"
+    "fg"
+    "float"
+    "for"
+    "function"
+    "functions"
+    "getln"
+    "getopts"
+    "hash"
+    "help"
+    "history"
+    "integer"
+    "jobs"
+    "kill"
+    "let"
+    "limit"
+    "local"
+    "logout"
+    "ls"
+    "man"
+    "noglob"
+    "popd"
+    "print"
+    "printf"
+    "private"
+    "pushd"
+    "pushln"
+    "pwd"
+    "r"
+    "rm"
+    "read"
+    "readonly"
+    "rehash"
+    "return"
+    "sched"
+    "select"
+    "set"
+    "setopt"
+    "shift"
+    "source"
+    "sudo"
+    "su"
+    "suspend"
+    "test"
+    "times"
+    "trap"
+    "true"
+    "ttyctl"
+    "type"
+    "typeset"
+    "ulimit"
+    "umask"
+    "unalias"
+    "unfunction"
+    "unhash"
+    "unlimit"
+    "unset"
+    "unsetopt"
+    "vared"
+    "variables"
+    "wait"
+    "whence"
+    "where"
+    "which"
+    "zcompile"
+    "zformat"
+    "zle"
+    "zmodload"
+    "zparseopts"
+    "zregexparse"
+    "zstyle"})

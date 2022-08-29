@@ -114,7 +114,7 @@
 (deftest install-from-url-jar-test
   (testing "install https://*.jar"))
 
-(deftest install-bbin-invalid-coords-test
+(deftest install-bbin-invalid-bbin-script-name-test
   (testing "install org.babashka/http-server --mvn/version 0.0.1 --as bbin"
     (reset-test-dir)
     (let [cli-opts {:script/lib "org.babashka/http-server"
@@ -132,6 +132,14 @@
     (reset-test-dir)
     (let [cli-opts {:script/lib "io.github.babashka/bbin"
                     :local/root "."}]
+      (is (thrown-with-msg? ExceptionInfo #"Invalid script name"
+                            (run-install cli-opts))))))
+
+(deftest install-bbin-reserved-script-name-test
+  (testing "install io.github.rads/watch --as sudo"
+    (reset-test-dir)
+    (let [cli-opts {:script/lib "io.github.rads/watch"
+                    :as "sudo"}]
       (is (thrown-with-msg? ExceptionInfo #"Invalid script name"
                             (run-install cli-opts))))))
 
