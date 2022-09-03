@@ -105,7 +105,10 @@ exec bb \\
                            code)]
     (str/join "\n" next-lines)))
 
-(defn- install-script [path contents dry-run?]
+(defn- install-script 
+  "Spits `contents` to `path`, or pprints them if `dry-run?` is truthy.
+  Side-effecting."
+  [path contents dry-run?]
   (if dry-run?
     (pprint {:script-file (str path)
              :script-contents contents}
