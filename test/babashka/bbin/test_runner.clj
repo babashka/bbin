@@ -4,8 +4,7 @@
 
 (def test-namespaces
   '[babashka.bbin.cli-test
-    babashka.bbin.scripts-test
-    babashka.bbin.trust-test])
+    babashka.bbin.scripts-test])
 
 (doseq [ns test-namespaces]
   (require ns))

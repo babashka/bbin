@@ -1,14 +1,13 @@
 (ns babashka.bbin.cli
   (:require [babashka.cli :as cli]
             [babashka.bbin.scripts :as scripts]
-            [babashka.bbin.trust :as trust]
             [babashka.bbin.util :as util]
             [clojure.string :as str]))
 
 (declare print-commands)
 
 (defn- commands
-  [& {:keys [install-fn uninstall-fn ls-fn bin-fn trust-fn revoke-fn]}]
+  [& {:keys [install-fn uninstall-fn ls-fn bin-fn]}]
   [{:cmds ["commands"]
     :fn #(print-commands %)}
 
@@ -30,12 +29,6 @@
    {:cmds ["bin"]
     :fn #(bin-fn (:opts %))}
 
-   {:cmds ["trust"]
-    :fn #(trust-fn (:opts %))}
-
-   {:cmds ["revoke"]
-    :fn #(revoke-fn (:opts %))}
-
    {:cmds []
     :fn util/print-help
     :aliases {:h :help}}])
@@ -47,9 +40,7 @@
   {:install-fn scripts/install
    :uninstall-fn scripts/uninstall
    :ls-fn scripts/ls
-   :bin-fn scripts/bin
-   :trust-fn trust/trust
-   :revoke-fn trust/revoke})
+   :bin-fn scripts/bin})
 
 (defn bbin [main-args & {:as run-opts}]
   (let [run-opts' (merge default-run-opts run-opts)]

@@ -8,8 +8,46 @@
             [clojure.pprint :as pprint]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]
-            [babashka.bbin.trust :as trust]
             [babashka.bbin.util :as util :refer [sh]]))
+
+(defn- bbin-lib-str? [x]
+  #{"io.github.babashka/bbin"
+    "com.github.babashka/bbin"}
+  (str x))
+
+(defn- bbin-git-url? [coords]
+  (or (re-seq #"^https://github.com/babashka/bbin(\.git)?$" (:git/url coords))
+      (= "git@github.com:babashka/bbin.git" (:git/url coords))))
+
+(defn- bbin-http-url? [coords]
+  (str/starts-with? (:bbin/url coords) "https://raw.githubusercontent.com/babashka/bbin/"))
+
+(defn- valid-bbin-lib? [{:keys [lib coords] :as _header}]
+  (or (and (bbin-lib-str? lib)
+           (or (= #{:git/tag :git/sha} (set (keys coords)))
+               (and (:git/url coords) (bbin-git-url? coords))))
+      (and (= #{:bbin/url} (set (keys coords)))
+           (bbin-http-url? coords))))
+
+(defn- throw-invalid-bbin-script-name [script-name header]
+  (throw (ex-info (str "Invalid script name.\nThe `bbin` name is reserved for "
+                       "installing `bbin` from the official repo.\nUse `--as` "
+                       "to choose a different name.")
+                  (merge {:script/name script-name} header))))
+
+(defn- throw-reserved-script-name [script-name]
+  (let [msg (format
+              (str "Invalid script name.\nThe name `%s` cannot be used because "
+                   "it may conflict with a system command.\nUse `--as` "
+                   "to choose a different name.")
+              script-name)]
+    (throw (ex-info msg {:script/name script-name}))))
+
+(defn assert-valid-script-name [script-name header]
+  (when (contains? util/reserved-script-names script-name)
+    (throw-reserved-script-name script-name))
+  (when (and (#{"bbin"} script-name) (not (valid-bbin-lib? header)))
+    (throw-invalid-bbin-script-name script-name header)))
 
 (defn- pprint [x _]
   (pprint/pprint x))
@@ -106,26 +144,24 @@ exec bb \\
     (str/join "\n" next-lines)))
 
 (defn- install-http [cli-opts]
-  (if-not (trust/allowed-url? (:script/lib cli-opts) cli-opts)
-    (throw (ex-info (str "Script URL is not trusted") {:untrusted-url (:script/lib cli-opts)}))
-    (let [http-url (:script/lib cli-opts)
-          script-deps {:bbin/url http-url}
-          header {:coords script-deps}
-          _ (pprint header cli-opts)
-          script-name (or (:as cli-opts) (http-url->script-name http-url))
-          _ (trust/assert-valid-script-name script-name header)
-          script-contents (-> (slurp (:bbin/url script-deps))
-                              (insert-script-header header))
-          script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
-                                       {:nofollow-links true})]
-      (if (:dry-run cli-opts)
-        (pprint {:script-file (str script-file)
-                 :script-contents script-contents}
-                cli-opts)
-        (do
-          (spit (str script-file) script-contents)
-          (sh ["chmod" "+x" (str script-file)])
-          nil)))))
+  (let [http-url (:script/lib cli-opts)
+        script-deps {:bbin/url http-url}
+        header {:coords script-deps}
+        _ (pprint header cli-opts)
+        script-name (or (:as cli-opts) (http-url->script-name http-url))
+        _ (assert-valid-script-name script-name header)
+        script-contents (-> (slurp (:bbin/url script-deps))
+                            (insert-script-header header))
+        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
+                                     {:nofollow-links true})]
+    (if (:dry-run cli-opts)
+      (pprint {:script-file (str script-file)
+               :script-contents script-contents}
+              cli-opts)
+      (do
+        (spit (str script-file) script-contents)
+        (sh ["chmod" "+x" (str script-file)])
+        nil))))
 
 (defn- default-script-config [cli-opts]
   (let [[ns name] (str/split (:script/lib cli-opts) #"/")
@@ -134,7 +170,6 @@ exec bb \\
      :ns-default (str top "." name)}))
 
 (defn- install-deps-git-or-local [cli-opts]
-  (trust/assert-trusted-lib cli-opts)
   (let [script-deps (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
         header {:lib (key (first script-deps))
                 :coords (val (first script-deps))}
@@ -147,7 +182,7 @@ exec bb \\
         script-name (or (:as cli-opts)
                         (some-> (:bbin/bin bb-edn) first key str)
                         (second (str/split (:script/lib cli-opts) #"/")))
-        _ (trust/assert-valid-script-name script-name header)
+        _ (assert-valid-script-name script-name header)
         script-config (merge (default-script-config cli-opts)
                              (some-> (:bbin/bin bb-edn) first val)
                              (when (:ns-default cli-opts)
@@ -219,7 +254,7 @@ exec bb \\
         _ (deps/add-deps {:deps script-deps})
         script-root (fs/canonicalize (or (:local/root cli-opts) (gitlib-path cli-opts script-deps)) {:nofollow-links true})
         script-name (or (:as cli-opts) (second (str/split (:script/lib cli-opts) #"/")))
-        _ (trust/assert-valid-script-name script-name header)
+        _ (assert-valid-script-name script-name header)
         script-config (default-script-config cli-opts)
         script-edn-out (with-out-str
                          (binding [*print-namespace-maps* false]

@@ -71,13 +71,6 @@ $ bbin uninstall watch
 # Show installed scripts
 $ bbin ls
 
-# Trust a GitHub user
-$ bbin trust --github/user bbin-test
-$ bbin install io.github.bbin-test/watch
-
-# Stop trusting a GitHub user
-$ bbin revoke --github/user bbin-test
-
 # Show the bin path
 $ bbin bin
 
@@ -103,8 +96,6 @@ $ bbin install http-server.jar
 - [`bbin uninstall [script]`](#bbin-uninstall-script)
 - [`bbin ls`](#bbin-ls)
 - [`bbin bin`](#bbin-bin)
-- [`bbin trust [identity]`](#bbin-trust-identity)
-- [`bbin revoke [identity]`](#bbin-revoke-identity)
 
 ---
 
@@ -152,31 +143,6 @@ $ bbin install http-server.jar
 **Display bbin bin folder**
 
 - The default folder is `~/.bbin/bin`
-
----
-
-### `bbin trust [identity]`
-
-**Trust an identity**
-
-- For [security purposes][security], by default you can only install scripts from HTTP URLs provided by GitHub users and orgs listed in `babashka.bbin.trust/allow-list`.
-- This same list also limits whether you can install a qualified lib name using inference (i.e. without a `--git/sha`).
-- To relax these limitations, you can trust specific GitHub users with the `--github/user` option.
-- Each trusted user is represented as an EDN file in `~/.bbin/trust` (owned by the `root` user)
-- Using `bbin trust` requires `sudo` access in order to modify files in `~/.bbin/trust`
-- `bbin` will not read files in `~/.bbin/trust` unless they're owned by the `root` user
-
-[security]: https://github.com/babashka/bbin/blob/bdea1c92ed50fb38eed0af38d69922e0a9d61df6/docs/design.md#security
-
-**Supported Options:**
-
-- `--github/user`
-
----
-
-### `bbin revoke [identity]`
-
-**Stop trusting an identity**
 
 ---
 

@@ -31,11 +31,9 @@
 
 (defn gen-script []
   (let [util (slurp "src/babashka/bbin/util.clj")
-        trust (slurp "src/babashka/bbin/trust.clj")
         scripts (slurp "src/babashka/bbin/scripts.clj")
         cli (slurp "src/babashka/bbin/cli.clj")]
     (spit "bbin" (str/join "\n" [prelude-str
                                  util
-                                 trust
                                  scripts
                                  cli]))))

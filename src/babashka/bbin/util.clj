@@ -23,9 +23,7 @@ Usage: bbin <command>
   bbin install    Install a script
   bbin uninstall  Remove a script
   bbin ls         List installed scripts
-  bbin bin        Display bbin bin folder
-  bbin trust      Trust an identity
-  bbin revoke     Stop trusting an identity")))
+  bbin bin        Display bbin bin folder")))
 
 (defn now []
   (Date.))
@@ -34,9 +32,6 @@ Usage: bbin <command>
 
 (defn bbin-root [_]
   *bbin-root*)
-
-(defn trust-dir [cli-opts]
-  (fs/file (bbin-root cli-opts) "trust"))
 
 (defn bin-dir [cli-opts]
   (fs/file (bbin-root cli-opts) "bin"))
@@ -48,3 +43,116 @@ Usage: bbin <command>
 
 (defn ensure-bbin-dirs [cli-opts]
   (fs/create-dirs (bin-dir cli-opts)))
+
+(def reserved-script-names
+  #{"alias"
+    "autoload"
+    "bg"
+    "bind"
+    "bindkey"
+    "break"
+    "builtin"
+    "bye"
+    "case"
+    "cd"
+    "chdir"
+    "command"
+    "compadd"
+    "comparguments"
+    "compcall"
+    "compctl"
+    "compdescribe"
+    "compfiles"
+    "compgroups"
+    "complete"
+    "compquote"
+    "compset"
+    "comptags"
+    "comptry"
+    "compvalues"
+    "continue"
+    "declare"
+    "dirs"
+    "disable"
+    "disown"
+    "echo"
+    "echotc"
+    "echoti"
+    "emulate"
+    "enable"
+    "eval"
+    "exec"
+    "exit"
+    "export"
+    "false"
+    "fc"
+    "fg"
+    "float"
+    "for"
+    "function"
+    "functions"
+    "getln"
+    "getopts"
+    "hash"
+    "help"
+    "history"
+    "integer"
+    "jobs"
+    "kill"
+    "let"
+    "limit"
+    "local"
+    "logout"
+    "ls"
+    "man"
+    "noglob"
+    "popd"
+    "print"
+    "printf"
+    "private"
+    "pushd"
+    "pushln"
+    "pwd"
+    "r"
+    "rm"
+    "read"
+    "readonly"
+    "rehash"
+    "return"
+    "sched"
+    "select"
+    "set"
+    "setopt"
+    "shift"
+    "source"
+    "sudo"
+    "su"
+    "suspend"
+    "test"
+    "times"
+    "trap"
+    "true"
+    "ttyctl"
+    "type"
+    "typeset"
+    "ulimit"
+    "umask"
+    "unalias"
+    "unfunction"
+    "unhash"
+    "unlimit"
+    "unset"
+    "unsetopt"
+    "vared"
+    "variables"
+    "wait"
+    "whence"
+    "where"
+    "which"
+    "zcompile"
+    "zformat"
+    "zle"
+    "zmodload"
+    "zparseopts"
+    "zregexparse"
+    "zstyle"})

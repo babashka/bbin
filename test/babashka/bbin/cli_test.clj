@@ -13,7 +13,7 @@
       (is (= (str (util/bin-dir nil)) out)))))
 
 (deftest help-test
-  (doseq [args [["help"] ["install"] ["uninstall"] ["trust"] ["revoke"]]]
+  (doseq [args [["help"] ["install"] ["uninstall"]]]
     (let [out (bbin args :out :string)]
       (is (str/starts-with? out "Usage: bbin <command>")))))
 
@@ -23,9 +23,7 @@
     "install"
     "uninstall"
     "ls"
-    "bin"
-    "trust"
-    "revoke"})
+    "bin"})
 
 (deftest commands-test
   (let [out (bbin ["commands"] :out :string)
@@ -48,24 +46,6 @@
           :out :string
           :uninstall-fn #(swap! calls conj %))
     (is (= [{:script/lib "watch"}]
-           @calls))))
-
-(deftest trust-test
-  (let [calls (atom [])
-        args ["trust" "--github/user" "foo"]]
-    (bbin args
-          :out :string
-          :trust-fn #(swap! calls conj %))
-    (is (= [{:github/user "foo"}]
-           @calls))))
-
-(deftest revoke-test
-  (let [calls (atom [])
-        args ["revoke" "--github/user" "foo"]]
-    (bbin args
-          :out :string
-          :revoke-fn #(swap! calls conj %))
-    (is (= [{:github/user "foo"}]
            @calls))))
 
 (comment
