@@ -36,18 +36,38 @@ $ portal <(bbin ls)
 
 ## Installation
 
-Only macOS and Linux are supported right now. [Windows support](https://github.com/babashka/bbin/issues/1) will be added later.
+Only Linux and macOS are supported right now. [Windows support](https://github.com/babashka/bbin/issues/1) will be added later.
+
+### Homebrew (Linux and macOS)
+
+**1. Install via `brew`:**
+```shell
+brew install babashka/brew/bbin
+```
+
+**2. Add `~/.bbin/bin` to `PATH`:**
+```shell
+# Use this for ZSH
+echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.zshrc && exec /bin/zsh
+
+# Use this for Bash
+echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
+```
 
 ### Manual
 
 **1. Install `bbin` CLI:**
-```zsh
+```shell
 mkdir -p ~/.bbin/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v{{version}}/bbin > ~/.bbin/bin/bbin && chmod +x ~/.bbin/bin/bbin
 ```
 
 **2. Add `~/.bbin/bin` to `PATH`:**
-```zsh
+```shell
+# Use this for ZSH
 echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.zshrc && exec /bin/zsh
+
+# Use this for Bash
+echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 ```
 
 ## Usage
