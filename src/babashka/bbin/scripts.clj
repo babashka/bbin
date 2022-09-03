@@ -104,6 +104,16 @@ exec bb \\
                            code)]
     (str/join "\n" next-lines)))
 
+(defn- install-script [path contents dry-run?]
+  (if dry-run?
+    (pprint {:script-file (str path)
+             :script-contents contents}
+      dry-run?)
+    (do
+      (spit (str path) contents)
+      (when-not util/windows? (sh ["chmod" "+x" (str path)]))
+      nil)))
+
 (defn- install-http [cli-opts]
   (let [http-url (:script/lib cli-opts)
         script-deps {:bbin/url http-url}
@@ -114,14 +124,7 @@ exec bb \\
                             (insert-script-header header))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
                                      {:nofollow-links true})]
-    (if (:dry-run cli-opts)
-      (pprint {:script-file (str script-file)
-               :script-contents script-contents}
-              cli-opts)
-      (do
-        (spit (str script-file) script-contents)
-        (sh ["chmod" "+x" (str script-file)])
-        nil))))
+    (install-script script-file script-contents (:dry-run cli-opts))))
 
 (defn- default-script-config [cli-opts]
   (let [[ns name] (str/split (:script/lib cli-opts) #"/")
@@ -175,14 +178,7 @@ exec bb \\
         template-out (selmer-util/without-escaping
                        (selmer/render template-str template-opts'))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
-    (if (:dry-run cli-opts)
-      (pprint {:script-file (str script-file)
-               :template-out template-out}
-              cli-opts)
-      (do
-        (spit (str script-file) template-out)
-        (sh ["chmod" "+x" (str script-file)])
-        nil))))
+    (install-script script-file template-out (:dry-run cli-opts))))
 
 (def ^:private maven-template-str
   "#!/usr/bin/env bash
@@ -234,14 +230,7 @@ exec bb \\
         template-out (selmer-util/without-escaping
                        (selmer/render maven-template-str template-opts))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
-    (if (:dry-run cli-opts)
-      (pprint {:script-file (str script-file)
-               :template-out template-out}
-              cli-opts)
-      (do
-        (spit (str script-file) template-out)
-        (sh ["chmod" "+x" (str script-file)])
-        nil))))
+    (install-script script-file template-out (:dry-run cli-opts))))
 
 (defn- parse-script [s]
   (let [lines (str/split-lines s)
