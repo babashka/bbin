@@ -6,8 +6,7 @@
             [babashka.process :refer [sh]]
             [babashka.bbin.util :as util]
             [clojure.string :as str]
-            [clojure.edn :as edn])
-  (:import (clojure.lang ExceptionInfo)))
+            [clojure.edn :as edn]))
 
 (use-fixtures :once (bbin-root-fixture))
 
@@ -113,35 +112,6 @@
 
 (deftest install-from-url-jar-test
   (testing "install https://*.jar"))
-
-(deftest install-bbin-invalid-bbin-script-name-test
-  (testing "install org.babashka/http-server --mvn/version 0.0.1 --as bbin"
-    (reset-test-dir)
-    (let [cli-opts {:script/lib "org.babashka/http-server"
-                    :mvn/version "0.1.11"
-                    :as "bbin"}]
-      (is (thrown-with-msg? ExceptionInfo #"Invalid script name"
-                            (run-install cli-opts)))))
-  (testing "install io.github.rads/watch --as bbin"
-    (reset-test-dir)
-    (let [cli-opts {:script/lib "io.github.rads/watch"
-                    :as "bbin"}]
-      (is (thrown-with-msg? ExceptionInfo #"Invalid script name"
-                            (run-install cli-opts)))))
-  (testing "install io.github.babashka/bbin --local/root ."
-    (reset-test-dir)
-    (let [cli-opts {:script/lib "io.github.babashka/bbin"
-                    :local/root "."}]
-      (is (thrown-with-msg? ExceptionInfo #"Invalid script name"
-                            (run-install cli-opts))))))
-
-(deftest install-bbin-reserved-script-name-test
-  (testing "install io.github.rads/watch --as sudo"
-    (reset-test-dir)
-    (let [cli-opts {:script/lib "io.github.rads/watch"
-                    :as "sudo"}]
-      (is (thrown-with-msg? ExceptionInfo #"Invalid script name"
-                            (run-install cli-opts))))))
 
 (deftest uninstall-test
   (testing "uninstall foo"
