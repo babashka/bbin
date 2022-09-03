@@ -8,14 +8,15 @@
             [clojure.pprint :as pprint]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]
-            [babashka.bbin.util :as util :refer [sh]]))
+            [babashka.bbin.util :as util :refer [sh]])
+  (:import (java.io File)))
 
 (defn- pprint [x _]
   (pprint/pprint x))
 
 (defn- gitlib-path [cli-opts script-deps]
   (let [coords (val (first script-deps))]
-    (fs/expand-home (str "~/.gitlibs/libs/" (:script/lib cli-opts) "/" (:git/sha coords)))))
+    (fs/expand-home (str/join File/separator ["~" ".gitlibs" "libs" (:script/lib cli-opts) (:git/sha coords)]))))
 
 (def ^:private tool-template-str
   "#!/usr/bin/env bash
