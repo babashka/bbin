@@ -4,7 +4,8 @@
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [taoensso.timbre :as log])
-  (:import (java.util Date)))
+  (:import (java.io File)
+           (java.util Date)))
 
 (defn sh [cmd & {:as opts}]
   (doto (p/sh cmd (merge {:err :inherit} opts))
@@ -28,7 +29,7 @@ Usage: bbin <command>
 (defn now []
   (Date.))
 
-(def ^:dynamic *bbin-root* (fs/expand-home "~/.bbin"))
+(def ^:dynamic *bbin-root* (fs/expand-home (str "~" File/separator ".bbin")))
 
 (defn bbin-root [_]
   *bbin-root*)
@@ -43,3 +44,8 @@ Usage: bbin <command>
 
 (defn ensure-bbin-dirs [cli-opts]
   (fs/create-dirs (bin-dir cli-opts)))
+
+(def windows?
+  (some-> (System/getProperty "os.name")
+    (str/lower-case)
+    (str/index-of "win")))
