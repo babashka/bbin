@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.10
+
+- [Remove `bbin trust` and `bbin revoke`](https://github.com/babashka/bbin/commit/6c1b44cd5d09415779557084d63ca4af325acae1)
+- [Remove script name checks](https://github.com/babashka/bbin/commit/3c0730011b1c74514600beb476fa7713d2c30671)
+
 ## 0.0.9
 
 - [Fix `bbin commands`](https://github.com/babashka/bbin/commit/c341c270ea2d5744c156fc719a6579f6c48549d2)
