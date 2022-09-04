@@ -105,18 +105,24 @@ exec bb \\
                            code)]
     (str/join "\n" next-lines)))
 
+(def script-name-fn
+  (if util/windows?
+    #(str % ".cmd")
+    str))
 (defn- install-script 
-  "Spits `contents` to `path`, or pprints them if `dry-run?` is truthy.
+  "Spits `contents` to `path` (adding an extension on Windows), or 
+  pprints them if `dry-run?` is truthy.
   Side-effecting."
   [path contents dry-run?]
-  (if dry-run?
-    (pprint {:script-file (str path)
-             :script-contents contents}
-      dry-run?)
-    (do
-      (spit (str path) contents)
-      (when-not util/windows? (sh ["chmod" "+x" (str path)]))
-      nil)))
+  (let [path-str (script-name-fn path)]
+    (if dry-run?
+      (pprint {:script-file     path-str
+               :script-contents contents}
+        dry-run?)
+      (do
+        (spit path-str contents)
+        (when-not util/windows? (sh ["chmod" "+x" path-str]))
+        nil))))
 
 (defn- install-http [cli-opts]
   (let [http-url (:script/lib cli-opts)
@@ -280,6 +286,6 @@ exec bb \\
     (do
       (util/ensure-bbin-dirs cli-opts)
       (let [script-name (:script/lib cli-opts)
-            script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
+            script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) (script-name-fn script-name)) {:nofollow-links true})]
         (when (fs/delete-if-exists script-file)
           (println "Removing" (str script-file)))))))
