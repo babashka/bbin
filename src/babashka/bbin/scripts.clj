@@ -106,7 +106,7 @@ exec bb \\
 
 (def script-name-fn
   (if util/windows?
-    #(str % ".cmd")
+    #(str % ".bat")
     str))
 (defn- install-script 
   "Spits `contents` to `path` (adding an extension on Windows), or 
