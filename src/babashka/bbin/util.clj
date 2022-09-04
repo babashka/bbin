@@ -4,8 +4,7 @@
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [taoensso.timbre :as log])
-  (:import (java.io File)
-           (java.util Date)))
+  (:import  (java.util Date)))
 
 (defn sh [cmd & {:as opts}]
   (doto (p/sh cmd (merge {:err :inherit} opts))
@@ -29,7 +28,7 @@ Usage: bbin <command>
 (defn now []
   (Date.))
 
-(def ^:dynamic *bbin-root* (fs/expand-home (str "~" File/separator ".bbin")))
+(def ^:dynamic *bbin-root* (fs/expand-home (str "~" fs/file-separator ".bbin")))
 
 (defn bbin-root [_]
   *bbin-root*)
