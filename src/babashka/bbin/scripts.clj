@@ -230,24 +230,24 @@ exec bb \\
 (def ^:private maven-template-str
   (if util/windows?
     "; :bbin/start
-    ;
-    {{script/meta}}
-    ; :bbin/end
-    (require '[babashka.process :as process]
-             '[babashka.fs :as fs]
-             '[clojure.string :as str])
-    
-    (let [SCRIPT_LIB     '{{script/lib}}
-          SCRIPT_COORDS  {{script/coords|str}}
-          SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
-          SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}} 
-          TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-                     (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\")))]
-                                             
-    (babashka.process/exec
-      (str/join \" \" (concat [\"bb --config\" (str TMP_EDN)
-                       SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
-                       \"--\"] *command-line-args*))))\""
+;
+{{script/meta}}
+; :bbin/end
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(let [SCRIPT_LIB     '{{script/lib}}
+      SCRIPT_COORDS  {{script/coords|str}}
+      SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
+      SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}} 
+      TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+                 (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\")))]
+                                         
+(babashka.process/exec
+  (str/join \" \" (concat [\"bb --config\" (str TMP_EDN)
+                   SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
+                   \"--\"] *command-line-args*))))\""
 ;
 ; non-windows script template
 ;  
@@ -304,7 +304,7 @@ exec bb \\
 
 (defn- parse-script [s]
   (let [lines (str/split-lines s)
-        prefix (if (str/ends-with? (first lines) "bb") ";" "#")]
+        prefix (if (or util/windows? (str/ends-with? (first lines) "bb")) ";" "#")]
     (->> lines
          (drop-while #(not (re-seq (re-pattern (str "^" prefix " *:bbin/start")) %)))
          next
@@ -349,4 +349,5 @@ exec bb \\
       (let [script-name (:script/lib cli-opts)
             script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
         (when (fs/delete-if-exists script-file)
+          (when util/windows? (fs/delete-if-exists (fs/file (str script-file windows-wrapper-extension))))
           (println "Removing" (str script-file)))))))
