@@ -62,7 +62,7 @@
     (util/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib"}
           out (run-install cli-opts)
-          bin-file (fs/file bbin-root (scripts/script-name-fn "bin/hello"))]
+          bin-file (fs/file bbin-root "bin/hello")]
       (is (= test-lib out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
@@ -79,7 +79,7 @@
                     :mvn/version (-> maven-lib :coords :mvn/version)}
           out (run-install cli-opts)]
       (is (= maven-lib out))
-      (is (fs/exists? (fs/file bbin-root "bin" (scripts/script-name-fn (name (:lib maven-lib))))))
+      (is (fs/exists? (fs/file bbin-root "bin" (name (:lib maven-lib)))))
       (is (str/starts-with? (run-bin-script (:lib maven-lib) "--help")
                             "Serves static assets using web server.")))))
 
@@ -97,7 +97,7 @@
         (is (= {:lib 'babashka/foo
                 :coords {:local/root local-root}}
                out))
-        (is (fs/exists? (fs/file bbin-root (scripts/script-name-fn "bin/foo"))))))))
+        (is (fs/exists? (fs/file bbin-root "bin/foo")))))))
 
 (deftest install-from-local-root-clj-test
   (testing "install ./*.clj"))
@@ -112,7 +112,7 @@
     (let [cli-opts {:script/lib portal-script-url}
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url portal-script-url}} out))
-      (is (fs/exists? (fs/file bbin-root (scripts/script-name-fn "bin/portal")))))))
+      (is (fs/exists? (fs/file bbin-root "bin/portal"))))))
 
 (deftest install-from-url-jar-test
   (testing "install https://*.jar"))
@@ -121,7 +121,7 @@
   (testing "uninstall foo"
     (reset-test-dir)
     (util/ensure-bbin-dirs {})
-    (let [script-file (fs/file bbin-root (scripts/script-name-fn "bin/foo"))]
+    (let [script-file (fs/file bbin-root "bin/foo")]
       (spit script-file "#!/usr/bin/env bb")
       (let [cli-opts {:script/lib "foo"}
             out (str/trim (with-out-str (scripts/uninstall cli-opts)))]
