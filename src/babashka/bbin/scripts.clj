@@ -8,6 +8,7 @@
             [clojure.pprint :as pprint]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]
+            [selmer.filters :as filters]
             [babashka.bbin.util :as util :refer [sh]]))
 
 (defn- pprint [x _]
@@ -17,7 +18,21 @@
   (let [coords (val (first script-deps))]
     (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (:script/lib cli-opts) (:git/sha coords)]))))
 
+; windows scripts are babashka/clojure instead of shell scripts, so we need a variable 
+; comment character in the script meta
+(def ^:private comment-char
+  (if util/windows? "; " "# "))
+
+(def windows-wrapper-extension ".bat")
+
+; selmer filter for clojure escaping for e.g. files
+(filters/add-filter! :pr-str (comp pr-str str))
 (def ^:private tool-template-str
+  (if util/windows?
+    "(println \"Tool mode not currently supported on Windows.\")"
+;    
+; non-windows tool script
+;
   "#!/usr/bin/env bash
 set -e
 
@@ -55,9 +70,34 @@ else
     --config <(echo \"{:deps {$SCRIPT_LIB $SCRIPT_COORDS}}\") \\
     -x $SCRIPT_NS_DEFAULT/$1 \\
     -- \"${@:2}\"
-fi")
+fi"))
 
 (def ^:private git-or-local-template-str
+  (if util/windows?
+    "; :bbin/start
+;
+{{script/meta}}
+; :bbin/end
+
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(let [SCRIPT_ROOT    {{script/root|pr-str}}             
+      SCRIPT_LIB     '{{script/lib}}
+      SCRIPT_COORDS  {{script/coords|str}}               
+      SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
+      SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}} 
+      TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+                      (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS\"}}\")))]
+                        
+     (babashka.process/exec
+        (str/join \" \" (concat [\"bb --deps-root\" SCRIPT_ROOT \"--config\" (str TMP_EDN)
+                         SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
+                         \"--\"] *command-line-args*))))"
+;
+; non-windows script template
+;
   "#!/usr/bin/env bash
 set -e
 
@@ -77,7 +117,7 @@ exec bb \\
   --deps-root \"$SCRIPT_ROOT\" \\
   --config <(echo \"{:deps {$SCRIPT_LIB $SCRIPT_COORDS}}\") \\
   $SCRIPT_MAIN_OPTS_FIRST \"$SCRIPT_MAIN_OPTS_SECOND\" \\
-  -- \"$@\"")
+  -- \"$@\""))
 
 (defn- http-url->script-name [http-url]
   (first
@@ -104,16 +144,12 @@ exec bb \\
                            code)]
     (str/join "\n" next-lines)))
 
-(def script-name-fn
-  (if util/windows?
-    #(str % ".bat")
-    str))
 (defn- install-script 
   "Spits `contents` to `path` (adding an extension on Windows), or 
   pprints them if `dry-run?` is truthy.
   Side-effecting."
   [path contents dry-run?]
-  (let [path-str (script-name-fn path)]
+  (let [path-str (str path)]
     (if dry-run?
       (pprint {:script-file     path-str
                :script-contents contents}
@@ -121,6 +157,8 @@ exec bb \\
       (do
         (spit path-str contents)
         (when-not util/windows? (sh ["chmod" "+x" path-str]))
+        (when util/windows? 
+          (spit (str path-str windows-wrapper-extension) (str "@call bb -f %~dp0" (fs/file-name path-str) " -- %*")))
         nil))))
 
 (defn- install-http [cli-opts]
@@ -168,7 +206,7 @@ exec bb \\
                       (:main-opts script-config))
         template-opts {:script/meta (->> script-edn-out
                                          str/split-lines
-                                         (map #(str "# " %))
+                                         (map #(str comment-char %))
                                          (str/join "\n"))
                        :script/root script-root
                        :script/lib (pr-str (key (first script-deps)))
@@ -190,6 +228,29 @@ exec bb \\
     (install-script script-file template-out (:dry-run cli-opts))))
 
 (def ^:private maven-template-str
+  (if util/windows?
+    "; :bbin/start
+    ;
+    {{script/meta}}
+    ; :bbin/end
+    (require '[babashka.process :as process]
+             '[babashka.fs :as fs]
+             '[clojure.string :as str])
+    
+    (let [SCRIPT_LIB     '{{script/lib}}
+          SCRIPT_COORDS  {{script/coords|str}}
+          SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
+          SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}} 
+          TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+                     (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\")))]
+                                             
+    (babashka.process/exec
+      (str/join \" \" (concat [\"bb --config\" (str TMP_EDN)
+                       SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
+                       \"--\"] *command-line-args*))))\""
+;
+; non-windows script template
+;  
   "#!/usr/bin/env bash
 set -e
 
@@ -207,7 +268,7 @@ SCRIPT_MAIN_OPTS_SECOND='{{script/main-opts.1}}'
 exec bb \\
   --config <(echo \"{:deps {$SCRIPT_LIB $SCRIPT_COORDS}}\") \\
   $SCRIPT_MAIN_OPTS_FIRST \"$SCRIPT_MAIN_OPTS_SECOND\" \\
-  -- \"$@\"")
+  -- \"$@\""))
 
 (defn- install-deps-maven [cli-opts]
   (let [script-deps {(edn/read-string (:script/lib cli-opts))
@@ -226,7 +287,7 @@ exec bb \\
                       (:main-opts script-config))
         template-opts {:script/meta (->> script-edn-out
                                          str/split-lines
-                                         (map #(str "# " %))
+                                         (map #(str comment-char %))
                                          (str/join "\n"))
                        :script/root script-root
                        :script/lib (pr-str (key (first script-deps)))
@@ -257,6 +318,7 @@ exec bb \\
        (filter #(.isFile %))
        (map (fn [x] [(symbol (str (fs/relativize (util/bin-dir cli-opts) x)))
                      (parse-script (slurp x))]))
+       (filter second)
        (into {})))
 
 (defn ls [cli-opts]
@@ -285,6 +347,6 @@ exec bb \\
     (do
       (util/ensure-bbin-dirs cli-opts)
       (let [script-name (:script/lib cli-opts)
-            script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) (script-name-fn script-name)) {:nofollow-links true})]
+            script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
         (when (fs/delete-if-exists script-file)
           (println "Removing" (str script-file)))))))
