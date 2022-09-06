@@ -29,7 +29,42 @@
 (filters/add-filter! :pr-str (comp pr-str str))
 (def ^:private tool-template-str
   (if util/windows?
-    "(println \"Tool mode not currently supported on Windows.\")"
+    "#!/usr/bin/env bb
+; :bbin/start
+;
+{{script/meta}}
+; :bbin/end
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(let [SCRIPT_ROOT        {{script/root|pr-str}}
+      SCRIPT_LIB         '{{script/lib}}
+      SCRIPT_COORDS      {{script/coords|str}}
+      SCRIPT_NS_DEFAULT  '{{script/ns-default}}
+      SCRIPT_NAME        (fs/file-name *file*)
+      TMP_EDN            (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+                           (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\")))
+      [first-arg & rest-args] *command-line-args*]
+  (if first-arg
+    (babashka.process/exec
+      (str/join \" \" (concat [\"bb --deps-root \" SCRIPT_ROOT \"--config\" (str TMP_EDN)
+                               \"-x\" (str SCRIPT_NS_DEFAULT \"/\" first-arg)
+                               \"--\"] rest-args)))
+    (do
+      (let [script (str \"(require '\" SCRIPT_NS_DEFAULT \")
+                     (def fns (filter #(fn? (deref (val %))) (ns-publics '\" SCRIPT_NS_DEFAULT \")))
+                     (def max-width (->> (keys fns) (map (comp count str)) (apply max)))
+                     (defn pad-right [x] (format (str \\\"%-\\\" max-width \\\"s\\\") x))
+                     (println (str \\\"Usage: \" SCRIPT_NAME \" <command>\\\"))
+                     (doseq [[k v] fns]
+                       (println
+                         (str \\\"  \" SCRIPT_NAME \" \\\" (pad-right k) \\\"  \\\"
+                            (when (:doc (meta v))
+                              (first (str/split-lines (:doc (meta v))))))))\")
+             cmd-line     [\"bb\" \"--deps-root\" SCRIPT_ROOT \"--config\"  (str TMP_EDN)
+                           \"-e\"  script]]
+         (babashka.process/exec cmd-line)))))"
 ;    
 ; non-windows tool script
 ;
@@ -74,7 +109,8 @@ fi"))
 
 (def ^:private git-or-local-template-str
   (if util/windows?
-    "; :bbin/start
+    "#!/usr/bin/env bb
+; :bbin/start
 ;
 {{script/meta}}
 ; :bbin/end
@@ -229,7 +265,8 @@ exec bb \\
 
 (def ^:private maven-template-str
   (if util/windows?
-    "; :bbin/start
+    "#!/usr/bin/env bb
+; :bbin/start
 ;
 {{script/meta}}
 ; :bbin/end
