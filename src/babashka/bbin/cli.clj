@@ -7,7 +7,7 @@
 (declare print-commands)
 
 (defn- run [command-fn {:keys [opts]}]
-  (if (:version opts)
+  (if (and (:version opts) (not (:help opts)))
     (util/print-version)
     (command-fn opts)))
 
@@ -37,6 +37,9 @@
    {:cmds ["bin"]
     :fn #(run bin-fn %)}
 
+   {:cmds ["version"]
+    :fn #(run util/print-version %)}
+
    {:cmds []
     :fn #(run util/print-help %)}])
 
@@ -50,8 +53,7 @@
   {:install-fn scripts/install
    :uninstall-fn scripts/uninstall
    :ls-fn scripts/ls
-   :bin-fn scripts/bin
-   :version-fn util/print-version})
+   :bin-fn scripts/bin})
 
 (defn bbin [main-args & {:as run-opts}]
   (let [run-opts' (merge default-run-opts run-opts)]

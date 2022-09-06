@@ -24,7 +24,8 @@ Usage: bbin <command>
   bbin install    Install a script
   bbin uninstall  Remove a script
   bbin ls         List installed scripts
-  bbin bin        Display bbin bin folder")))
+  bbin bin        Display bbin bin folder
+  bbin version    Display bbin version")))
 
 (defn now []
   (Date.))
@@ -45,5 +46,7 @@ Usage: bbin <command>
 (defn ensure-bbin-dirs [cli-opts]
   (fs/create-dirs (bin-dir cli-opts)))
 
-(defn print-version [& _]
-  (println "bbin" meta/version))
+(defn print-version [& {:as opts}]
+  (if (:help opts)
+    (print-help)
+    (println "bbin" meta/version)))

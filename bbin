@@ -42,7 +42,8 @@ Usage: bbin <command>
   bbin install    Install a script
   bbin uninstall  Remove a script
   bbin ls         List installed scripts
-  bbin bin        Display bbin bin folder")))
+  bbin bin        Display bbin bin folder
+  bbin version    Display bbin version")))
 
 (defn now []
   (Date.))
@@ -63,8 +64,10 @@ Usage: bbin <command>
 (defn ensure-bbin-dirs [cli-opts]
   (fs/create-dirs (bin-dir cli-opts)))
 
-(defn print-version [& _]
-  (println "bbin" meta/version))
+(defn print-version [& {:as opts}]
+  (if (:help opts)
+    (print-help)
+    (println "bbin" meta/version)))
 
 (ns babashka.bbin.scripts
   (:require [babashka.fs :as fs]
@@ -368,7 +371,7 @@ exec bb \\
 (declare print-commands)
 
 (defn- run [command-fn {:keys [opts]}]
-  (if (:version opts)
+  (if (and (:version opts) (not (:help opts)))
     (util/print-version)
     (command-fn opts)))
 
@@ -398,6 +401,9 @@ exec bb \\
    {:cmds ["bin"]
     :fn #(run bin-fn %)}
 
+   {:cmds ["version"]
+    :fn #(run util/print-version %)}
+
    {:cmds []
     :fn #(run util/print-help %)}])
 
@@ -411,8 +417,7 @@ exec bb \\
   {:install-fn scripts/install
    :uninstall-fn scripts/uninstall
    :ls-fn scripts/ls
-   :bin-fn scripts/bin
-   :version-fn util/print-version})
+   :bin-fn scripts/bin})
 
 (defn bbin [main-args & {:as run-opts}]
   (let [run-opts' (merge default-run-opts run-opts)]
