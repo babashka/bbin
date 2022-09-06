@@ -57,6 +57,7 @@
                      (def max-width (->> (keys fns) (map (comp count str)) (apply max)))
                      (defn pad-right [x] (format (str \\\"%-\\\" max-width \\\"s\\\") x))
                      (println (str \\\"Usage: \" SCRIPT_NAME \" <command>\\\"))
+                     (newline)
                      (doseq [[k v] fns]
                        (println
                          (str \\\"  \" SCRIPT_NAME \" \\\" (pad-right k) \\\"  \\\"
