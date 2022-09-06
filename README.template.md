@@ -117,6 +117,7 @@ $ bbin install http-server.jar
 - [`bbin ls`](#bbin-ls)
 - [`bbin bin`](#bbin-bin)
 - [`bbin version`](#bbin-version)
+- [`bbin help`](#bbin-help)
 
 ---
 
