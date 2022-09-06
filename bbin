@@ -44,7 +44,8 @@ Usage: bbin <command>
   bbin uninstall  Remove a script
   bbin ls         List installed scripts
   bbin bin        Display bbin bin folder
-  bbin version    Display bbin version")))
+  bbin version    Display bbin version
+  bbin help       Display bbin help")))
 
 (defn now []
   (Date.))

@@ -173,6 +173,12 @@ $ bbin install http-server.jar
 
 ---
 
+### `bbin help`
+
+**Display bbin help**
+
+---
+
 ## Contributing
 
 If you'd like to contribute to `bbin`, you're welcome to create [issues for ideas, feature requests, and bug reports](https://github.com/babashka/bbin/issues).
