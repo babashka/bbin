@@ -64,4 +64,5 @@
   (bbin args))
 
 (when (= *file* (System/getProperty "babashka.file"))
+  (util/check-min-bb-version)
   (apply -main *command-line-args*))

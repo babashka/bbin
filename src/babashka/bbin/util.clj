@@ -2,6 +2,7 @@
   (:require [babashka.fs :as fs]
             [babashka.process :as p]
             [babashka.bbin.meta :as meta]
+            [clojure.edn :as edn]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [taoensso.timbre :as log])
@@ -50,3 +51,31 @@ Usage: bbin <command>
   (if (:help opts)
     (print-help)
     (println "bbin" meta/version)))
+
+(defn- parse-version [version]
+  (mapv #(Integer/parseInt %)
+        (-> version
+            (str/replace "-SNAPSHOT" "")
+            (str/split #"\."))))
+
+(defn- satisfies-min-version? [current-version min-version]
+  (let [[major-current minor-current patch-current] (parse-version current-version)
+        [major-min minor-min patch-min] (parse-version min-version)]
+    (or (> major-current major-min)
+        (and (= major-current major-min)
+             (or (> minor-current minor-min)
+                 (and (= minor-current minor-min)
+                      (>= patch-current patch-min)))))))
+
+(defn check-min-bb-version []
+  (let [current-bb-version (System/getProperty "babashka.version")
+        min-bb-version (when (fs/exists? "bb.edn")
+                         (some-> (slurp "bb.edn")
+                                 edn/read-string
+                                 :min-bb-version))]
+    (when min-bb-version
+      (when-not (satisfies-min-version? current-bb-version min-bb-version)
+        (binding [*out* *err*]
+          (println (str "WARNING: this project requires babashka "
+                        min-bb-version " or newer, but you have: "
+                        current-bb-version)))))))
