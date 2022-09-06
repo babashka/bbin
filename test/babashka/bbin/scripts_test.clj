@@ -117,6 +117,21 @@
 (deftest install-from-url-jar-test
   (testing "install https://*.jar"))
 
+(deftest install-tool-from-local-root-test
+  (testing "install ./ --tool"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [opts {:script/lib "bbin/foo"
+                :local/root (str "test-resources" fs/file-separator "local-tool")
+                :as "footool"
+                :tool true}
+          _ (run-install opts)]
+      (is (fs/exists? (fs/file bbin-root "bin/footool")))
+      (let [usage-out (run-bin-script "footool")]
+        (is (every? #(str/includes? usage-out %) ["`keys`" "`vals`"])))
+      (is (str/includes? (run-bin-script "footool" "k" ":a" "1") "(:a)"))
+      (is (str/includes? (run-bin-script "footool" "v" ":a" "1") "(1)")))))
+
 (deftest uninstall-test
   (testing "uninstall foo"
     (reset-test-dir)
