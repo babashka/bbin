@@ -1,6 +1,7 @@
 (ns babashka.bbin.util
   (:require [babashka.fs :as fs]
             [babashka.process :as p]
+            [babashka.bbin.meta :as meta]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [taoensso.timbre :as log])
@@ -43,3 +44,6 @@ Usage: bbin <command>
 
 (defn ensure-bbin-dirs [cli-opts]
   (fs/create-dirs (bin-dir cli-opts)))
+
+(defn print-version [& _]
+  (println "bbin" meta/version))

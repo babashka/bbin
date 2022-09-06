@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
             [babashka.bbin.test-util :refer [bbin bbin-root-fixture]]
             [clojure.string :as str]
+            [babashka.bbin.meta :as meta]
             [babashka.bbin.util :as util]
             [clojure.set :as set]))
 
@@ -16,6 +17,10 @@
   (doseq [args [["help"] ["install"] ["uninstall"]]]
     (let [out (bbin args :out :string)]
       (is (str/starts-with? out "Usage: bbin <command>")))))
+
+(deftest version-test
+  (let [out (bbin ["--version"] :out :string)]
+    (is (str/starts-with? out (str "bbin " meta/version)))))
 
 (def expected-commands
   #{"commands"

@@ -3,6 +3,7 @@
  :deps {org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
                                  :git/sha "8df0712896f596680da7a32ae44bb000b7e45e68"}
         local/deps {:local/root "."}}
+ :bbin/bin {bbin {:main-opts ["-f" "bbin"]}}
  :tasks {bbin {:requires ([babashka.bbin :as bbin])
                :task (bbin/-main)}
          ci {:doc "Run all CI tasks locally"
@@ -27,5 +28,4 @@
                                 (->> (p/render (slurp "README.template.md")
                                                {:version (some-> (slurp "deps.edn") edn/read-string
                                                                  :aliases :neil :project :version)})
-                                     (spit "README.md")))}}
- :bbin/bin {bbin {:main-opts ["-m" "babashka.bbin.cli/-main"]}}}
+                                     (spit "README.md")))}}}
