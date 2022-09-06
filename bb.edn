@@ -1,4 +1,4 @@
-{:min-bb-version "0.9.161"
+{:min-bb-version "0.9.162"
  :paths ["src" "test" "dev"]
  :pods {org.babashka/fswatcher {:version "0.0.3"}}
  :deps {org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
