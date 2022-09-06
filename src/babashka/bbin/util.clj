@@ -2,7 +2,6 @@
   (:require [babashka.fs :as fs]
             [babashka.process :as p]
             [babashka.bbin.meta :as meta]
-            [clojure.edn :as edn]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [taoensso.timbre :as log])
@@ -68,14 +67,10 @@ Usage: bbin <command>
                       (>= patch-current patch-min)))))))
 
 (defn check-min-bb-version []
-  (let [current-bb-version (System/getProperty "babashka.version")
-        min-bb-version (when (fs/exists? "bb.edn")
-                         (some-> (slurp "bb.edn")
-                                 edn/read-string
-                                 :min-bb-version))]
-    (when min-bb-version
-      (when-not (satisfies-min-version? current-bb-version min-bb-version)
+  (let [current-bb-version (System/getProperty "babashka.version")]
+    (when (and meta/min-bb-version (not= meta/min-bb-version :version-not-set))
+      (when-not (satisfies-min-version? current-bb-version meta/min-bb-version)
         (binding [*out* *err*]
           (println (str "WARNING: this project requires babashka "
-                        min-bb-version " or newer, but you have: "
+                        meta/min-bb-version " or newer, but you have: "
                         current-bb-version)))))))
