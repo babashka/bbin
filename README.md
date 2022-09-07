@@ -129,6 +129,8 @@ $ bbin install http-server.jar
 - [`bbin uninstall [script]`](#bbin-uninstall-script)
 - [`bbin ls`](#bbin-ls)
 - [`bbin bin`](#bbin-bin)
+- [`bbin version`](#bbin-version)
+- [`bbin help`](#bbin-help)
 
 ---
 
@@ -176,6 +178,18 @@ $ bbin install http-server.jar
 **Display bbin bin folder**
 
 - The default folder is `~/.bbin/bin`
+
+---
+
+### `bbin version`
+
+**Display bbin version**
+
+---
+
+### `bbin help`
+
+**Display bbin help**
 
 ---
 
