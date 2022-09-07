@@ -70,6 +70,19 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.zshrc && exec /bin/zsh
 echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 ```
 
+### Windows (Manual)
+
+**1. Install `bbin` CLI (and batch file, because Windows):**
+```shell
+> set BBIN_DEST=%HOMEDRIVE%%HOMEPATH%\.bbin\bin
+> mkdir %BBIN_DEST% && curl -o %BBIN_DEST%\bbin -L https://raw.githubusercontent.com/babashka/bbin/v0.0.10/bbin && curl -o %BBIN_DEST%\bbin.bat -L https://raw.githubusercontent.com/babashka/bbin/v0.0.10/bbin.bat
+> set BBIN_DEST=
+```
+
+**2. Add `%HOMEDRIVE%%HOMEPATH%\.bbin\bin` to `Path` environment variable**
+
+Because `Path` is often a system-level and user-level variable, setting from the command line can be messy; it's probably easiest to add it in the Environment Variables settings window.
+
 ## Usage
 
 ```
