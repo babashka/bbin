@@ -58,7 +58,7 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 
 **1. Install `bbin` CLI:**
 ```shell
-mkdir -p ~/.bbin/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v0.0.11-SNAPSHOT/bbin > ~/.bbin/bin/bbin && chmod +x ~/.bbin/bin/bbin
+mkdir -p ~/.bbin/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v0.0.10/bbin > ~/.bbin/bin/bbin && chmod +x ~/.bbin/bin/bbin
 ```
 
 **2. Add `~/.bbin/bin` to `PATH`:**
@@ -75,7 +75,7 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 **1. Install `bbin` CLI (and batch file, because Windows):**
 ```shell
 > set BBIN_DEST=%HOMEDRIVE%%HOMEPATH%\.bbin\bin
-> mkdir %BBIN_DEST% && curl -o %BBIN_DEST%\bbin -L https://raw.githubusercontent.com/babashka/bbin/v0.0.11-SNAPSHOT/bbin && curl -o %BBIN_DEST%\bbin.bat -L https://raw.githubusercontent.com/babashka/bbin/v0.0.11-SNAPSHOT/bbin.bat
+> mkdir %BBIN_DEST% && curl -o %BBIN_DEST%\bbin -L https://raw.githubusercontent.com/babashka/bbin/v0.0.10/bbin && curl -o %BBIN_DEST%\bbin.bat -L https://raw.githubusercontent.com/babashka/bbin/v0.0.10/bbin.bat
 > set BBIN_DEST=
 ```
 
