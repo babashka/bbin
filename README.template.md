@@ -83,6 +83,8 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 
 Because `Path` is often a system-level and user-level variable, setting from the command line can be messy; it's probably easiest to add it in the Environment Variables settings window.
 
+Also, remember to check line endings.
+
 ## Usage
 
 ```

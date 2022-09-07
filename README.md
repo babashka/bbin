@@ -58,7 +58,7 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 
 **1. Install `bbin` CLI:**
 ```shell
-mkdir -p ~/.bbin/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v0.0.10/bbin > ~/.bbin/bin/bbin && chmod +x ~/.bbin/bin/bbin
+mkdir -p ~/.bbin/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v0.0.11-SNAPSHOT/bbin > ~/.bbin/bin/bbin && chmod +x ~/.bbin/bin/bbin
 ```
 
 **2. Add `~/.bbin/bin` to `PATH`:**
@@ -82,6 +82,8 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 **2. Add `%HOMEDRIVE%%HOMEPATH%\.bbin\bin` to `Path` environment variable**
 
 Because `Path` is often a system-level and user-level variable, setting from the command line can be messy; it's probably easiest to add it in the Environment Variables settings window.
+
+Also, remember to check line endings.
 
 ## Usage
 
