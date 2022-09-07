@@ -27,6 +27,7 @@
 
 ; selmer filter for clojure escaping for e.g. files
 (filters/add-filter! :pr-str (comp pr-str str))
+
 (def ^:private tool-template-str
   (if util/windows?
     "#!/usr/bin/env bb
@@ -44,10 +45,11 @@
       SCRIPT_NS_DEFAULT  '{{script/ns-default}}
       SCRIPT_NAME        (fs/file-name *file*)
       TMP_EDN            (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-                           (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\")))
+                           (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\"))
+                           (fs/delete-on-exit))
       [first-arg & rest-args] *command-line-args*]
   (if first-arg
-    (babashka.process/exec
+    (process/exec
       (str/join \" \" (concat [\"bb --deps-root \" SCRIPT_ROOT \"--config\" (str TMP_EDN)
                                \"-x\" (str SCRIPT_NS_DEFAULT \"/\" first-arg)
                                \"--\"] rest-args)))
@@ -65,7 +67,7 @@
                               (first (str/split-lines (:doc (meta v))))))))\")
              cmd-line     [\"bb\" \"--deps-root\" SCRIPT_ROOT \"--config\"  (str TMP_EDN)
                            \"-e\"  script]]
-         (babashka.process/exec cmd-line)))))"
+         (process/exec cmd-line)))))"
 ;    
 ; non-windows tool script
 ;
@@ -126,9 +128,10 @@ fi"))
       SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
       SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}} 
       TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-                      (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS\"}}\")))]
+                      (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS\"}}\"))
+                      (fs/delete-on-exit))]
                         
-     (babashka.process/exec
+     (process/exec
         (str/join \" \" (concat [\"bb --deps-root\" SCRIPT_ROOT \"--config\" (str TMP_EDN)
                          SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
                          \"--\"] *command-line-args*))))"
@@ -195,7 +198,7 @@ exec bb \\
         (spit path-str contents)
         (when-not util/windows? (sh ["chmod" "+x" path-str]))
         (when util/windows? 
-          (spit (str path-str windows-wrapper-extension) (str "@call bb -f %~dp0" (fs/file-name path-str) " -- %*")))
+          (spit (str path-str windows-wrapper-extension) (str "@bb -f %~dp0" (fs/file-name path-str) " -- %*")))
         nil))))
 
 (defn- install-http [cli-opts]
@@ -280,9 +283,10 @@ exec bb \\
       SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
       SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}} 
       TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-                 (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\")))]
+                 (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\"))
+                 (fs/delete-on-exit))]
                                          
-(babashka.process/exec
+(process/exec
   (str/join \" \" (concat [\"bb --config\" (str TMP_EDN)
                    SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
                    \"--\"] *command-line-args*))))\""
@@ -342,7 +346,7 @@ exec bb \\
 
 (defn- parse-script [s]
   (let [lines (str/split-lines s)
-        prefix (if (or util/windows? (str/ends-with? (first lines) "bb")) ";" "#")]
+        prefix (if (str/ends-with? (first lines) "bb") ";" "#")]
     (->> lines
          (drop-while #(not (re-seq (re-pattern (str "^" prefix " *:bbin/start")) %)))
          next

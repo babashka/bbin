@@ -75,7 +75,7 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 **1. Install `bbin` CLI (and batch file, because Windows):**
 ```shell
 > set BBIN_DEST=%HOMEDRIVE%%HOMEPATH%\.bbin\bin
-> mkdir %BBIN_DEST% && curl -o %BBIN_DEST%\bbin -L https://raw.githubusercontent.com/babashka/bbin/v0.0.10/bbin && curl -o %BBIN_DEST%\bbin.bat -L https://raw.githubusercontent.com/babashka/bbin/v0.0.10/bbin.bat
+> mkdir %BBIN_DEST% && curl -o %BBIN_DEST%\bbin -L https://raw.githubusercontent.com/babashka/bbin/v{{version}}/bbin && curl -o %BBIN_DEST%\bbin.bat -L https://raw.githubusercontent.com/babashka/bbin/v{{version}}/bbin.bat
 > set BBIN_DEST=
 ```
 
