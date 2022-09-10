@@ -71,7 +71,7 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 ### Manual (Windows)
 
 **1. Open Windows Powershell and run the following command to install the `bbin` CLI (including `.bat` wrapper):**
-```shell
+```powershell
 New-Item -ItemType Directory -Force -Path $Env:HOMEDRIVE$Env:HOMEPATH\.bbin\bin; Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v{{version}}/bbin -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.bbin\bin\bbin; Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v{{version}}/bbin.bat -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.bbin\bin\bbin.bat
 ```
 
