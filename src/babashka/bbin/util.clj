@@ -31,7 +31,7 @@ Usage: bbin <command>
 (defn now []
   (Date.))
 
-(def ^:dynamic *bbin-root* (fs/expand-home "~/.bbin"))
+(def ^:dynamic *bbin-root* (fs/expand-home (str "~" fs/file-separator ".bbin")))
 
 (defn bbin-root [_]
   *bbin-root*)
@@ -46,6 +46,11 @@ Usage: bbin <command>
 
 (defn ensure-bbin-dirs [cli-opts]
   (fs/create-dirs (bin-dir cli-opts)))
+
+(def windows?
+  (some-> (System/getProperty "os.name")
+    (str/lower-case)
+    (str/index-of "win")))
 
 (defn print-version [& {:as opts}]
   (if (:help opts)
