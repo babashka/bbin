@@ -36,8 +36,6 @@ $ portal <(bbin ls)
 
 ## Installation
 
-Only Linux and macOS are supported right now. [Windows support](https://github.com/babashka/bbin/issues/1) will be added later.
-
 ### Homebrew (Linux and macOS)
 
 **1. Install via `brew`:**
