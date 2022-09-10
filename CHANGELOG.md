@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.11
+
+- [Windows Support](https://github.com/babashka/bbin/commit/378e7e7728d19b7800798afe73f2d1d2e4831273) (thanks [@bobisageek](https://github.com/bobisageek)!)
+- [Bump `:min-bb-version` to `0.9.162`](https://github.com/babashka/bbin/commit/52bc0d053abef6c0a7744d0eb2045096ad0dc533)
+- [Add `bbin version`](https://github.com/babashka/bbin/commit/7e5bef4d077afc1f20a5aa288f317ffe1bb1a8e1)
+- [Add `bbin --version`](https://github.com/babashka/bbin/commit/6e066bd2005d930d5f5171e8a678beb16bce8546)
+
 ## 0.0.10
 
 - [Remove `bbin trust` and `bbin revoke`](https://github.com/babashka/bbin/commit/6c1b44cd5d09415779557084d63ca4af325acae1)

@@ -36,8 +36,6 @@ $ portal <(bbin ls)
 
 ## Installation
 
-Only Linux and macOS are supported right now. [Windows support](https://github.com/babashka/bbin/issues/1) will be added later.
-
 ### Homebrew (Linux and macOS)
 
 **1. Install via `brew`:**
@@ -54,11 +52,11 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.zshrc && exec /bin/zsh
 echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 ```
 
-### Manual
+### Manual (Linux and macOS)
 
 **1. Install `bbin` CLI:**
 ```shell
-mkdir -p ~/.bbin/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v0.0.10/bbin > ~/.bbin/bin/bbin && chmod +x ~/.bbin/bin/bbin
+mkdir -p ~/.bbin/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v0.0.11/bbin > ~/.bbin/bin/bbin && chmod +x ~/.bbin/bin/bbin
 ```
 
 **2. Add `~/.bbin/bin` to `PATH`:**
@@ -69,6 +67,22 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.zshrc && exec /bin/zsh
 # Use this for Bash
 echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 ```
+
+### Manual (Windows)
+
+**1. Open Windows Powershell and run the following command to install the `bbin` CLI (including `.bat` wrapper):**
+```powershell
+New-Item -ItemType Directory -Force -Path $Env:HOMEDRIVE$Env:HOMEPATH\.bbin\bin; Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v0.0.11/bbin -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.bbin\bin\bbin; Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v0.0.11/bbin.bat -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.bbin\bin\bbin.bat
+```
+
+**2. Add `%HOMEDRIVE%%HOMEPATH%\.bbin\bin` to `Path` environment variable**
+
+1. Search for `View advanced system settings` in the Start Menu
+2. Click on the `Environment Variables...` button
+3. Double-click on the `Path` variable to edit
+4. When the edit dialog opens, click on `New`
+5. Paste `%HOMEDRIVE%%HOMEPATH%\.bbin\bin` into the text field
+6. Click `OK` on all remaining dialogs to save the changes
 
 ## Usage
 
