@@ -54,7 +54,7 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.zshrc && exec /bin/zsh
 echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 ```
 
-### Manual
+### Manual (Linux and macOS)
 
 **1. Install `bbin` CLI:**
 ```shell
@@ -70,7 +70,7 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.zshrc && exec /bin/zsh
 echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 ```
 
-### Windows (Manual)
+### Manual (Windows)
 
 **1. Open Windows Powershell and run the following command to install the `bbin` CLI (including `.bat` wrapper):**
 ```shell
