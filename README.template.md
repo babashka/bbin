@@ -72,18 +72,19 @@ echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.bashrc && exec /bin/bash
 
 ### Windows (Manual)
 
-**1. Install `bbin` CLI (and batch file, because Windows):**
+**1. Open Windows Powershell and run the following command to install the `bbin` CLI (including `.bat` wrapper):**
 ```shell
-> set BBIN_DEST=%HOMEDRIVE%%HOMEPATH%\.bbin\bin
-> IF NOT EXIST %BBIN_DEST% mkdir %BBIN_DEST% && curl -o %BBIN_DEST%\bbin -L https://raw.githubusercontent.com/babashka/bbin/v{{version}}/bbin && curl -o %BBIN_DEST%\bbin.bat -L https://raw.githubusercontent.com/babashka/bbin/v{{version}}/bbin.bat
-> set BBIN_DEST=
+New-Item -ItemType Directory -Force -Path $Env:HOMEDRIVE$Env:HOMEPATH\.bbin\bin; Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v{{version}}/bbin -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.bbin\bin\bbin; Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v{{version}}/bbin.bat -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.bbin\bin\bbin.bat
 ```
 
 **2. Add `%HOMEDRIVE%%HOMEPATH%\.bbin\bin` to `Path` environment variable**
 
-Because `Path` is often a system-level and user-level variable, setting from the command line can be messy; it's probably easiest to add it in the Environment Variables settings window.
-
-Also, remember to check line endings.
+1. Search for `View advanced system settings` in the Start Menu
+2. Click on the `Environment Variables...` button
+3. Double-click on the `Path` variable to edit
+4. When the edit dialog opens, click on `New`
+5. Paste `%HOMEDRIVE%%HOMEPATH%\.bbin\bin` into the text field
+6. Click `OK` on all remaining dialogs to save the changes
 
 ## Usage
 
