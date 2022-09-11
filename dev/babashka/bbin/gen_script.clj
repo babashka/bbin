@@ -15,7 +15,7 @@
 
 ; :bbin/start
 ;
-; {:coords {:bbin/url \"https://raw.githubusercontent.com/babashka/bbin/v%s/bbin\"}}
+; {:coords {:bbin/url \"https://raw.githubusercontent.com/babashka/bbin/%s/bbin\"}}
 ;
 ; :bbin/end
 
@@ -41,7 +41,7 @@
 (def prelude-str
   (let [lines (-> (with-out-str (fipp/pprint bbin-deps {:width 80})) str/split-lines)]
     (format prelude-template
-            version
+            (if (str/ends-with? version "-SNAPSHOT") "main" (str "v" version))
             (str/join "\n" (cons (first lines) (map #(str "          " %) (rest lines)))))))
 
 (defn gen-script []
