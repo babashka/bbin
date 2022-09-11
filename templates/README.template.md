@@ -62,7 +62,7 @@ scoop install bbin
 
 ### Manual (Linux, macOS, and Windows)
 
-[Click here for manual installation instructions.](docs/installation.md)
+[Click here for manual installation instructions.](docs/installation.md#manual-linux-and-macos)
 
 ## Usage
 
