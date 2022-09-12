@@ -51,7 +51,12 @@ Usage: bbin <command>
   (Date.))
 
 (def ^:dynamic *bbin-root*
-  (fs/expand-home (str/join fs/file-separator ["~" ".babashka" "bbin"])))
+  (if-let [bbin-dir (System/getenv "BABASHKA_BBIN_DIR")]
+    (fs/file bbin-dir)
+    (fs/file (or (System/getenv "XDG_DATA_HOME")
+                 (System/getProperty "user.home"))
+             ".babashka"
+             "bbin")))
 
 (defn bbin-root [_]
   *bbin-root*)

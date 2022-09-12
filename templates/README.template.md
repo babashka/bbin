@@ -119,7 +119,9 @@ $ bbin install http-server.jar
 
 **Install a script**
 
-- The scripts will be installed to `~/.babashka/bbin/bin`.
+- By default, scripts will be installed to `~/.babashka/bbin/bin`
+    - If `$BABASHKA_BBIN_DIR` is set, then use `$BABASHKA_BBIN_DIR` (explicit override)
+    - If `$XDG_DATA_HOME` is set, then use `$XDG_DATA_HOME/.babashka/bbin/bin` (Freedesktop conventions)
 - Each bin script is a self-contained shell script that fetches deps and invokes `bb` with the correct arguments.
 - The bin scripts can be configured using the CLI options or the `:bbin/bin` key in `bb.edn`
 
