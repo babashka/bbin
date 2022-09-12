@@ -31,7 +31,8 @@ Usage: bbin <command>
 (defn now []
   (Date.))
 
-(def ^:dynamic *bbin-root* (fs/expand-home (str "~" fs/file-separator ".bbin")))
+(def ^:dynamic *bbin-root*
+  (fs/expand-home (str/join fs/file-separator ["~" ".babashka" "bbin"])))
 
 (defn bbin-root [_]
   *bbin-root*)
