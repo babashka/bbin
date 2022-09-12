@@ -44,11 +44,7 @@ mkdir -p ~/.babashka/bbin/bin && curl -o- -L https://raw.githubusercontent.com/b
 
 **2. Add `~/.babashka/bbin/bin` to `PATH`:**
 ```shell
-# Use this for ZSH
-echo 'export PATH="$PATH:$HOME/.babashka/bbin/bin"' >> ~/.zshrc && exec /bin/zsh
-
-# Use this for Bash
-echo 'export PATH="$PATH:$HOME/.babashka/bbin/bin"' >> ~/.bashrc && exec /bin/bash
+echo 'export PATH="$PATH:$HOME/.babashka/bbin/bin"' >> ~/.$(basename $SHELL)rc && exec $SHELL
 ```
 
 ## Manual (Windows)
