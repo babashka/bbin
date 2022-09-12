@@ -56,9 +56,7 @@ scoop bucket add scoop-clojure https://github.com/littleli/scoop-clojure
 scoop install bbin
 ```
 
-**2. Add `%HOMEDRIVE%%HOMEPATH%\.babashka\bbin\bin` to `Path` environment variable**
-
-[Click here for instructions to edit your `Path` on Windows.](docs/installation.md#scoop-windows)
+The Scoop package will automatically update your `Path` with `%HOMEDRIVE%%HOMEPATH%\.babashka\bbin\bin`, but you will have to restart your terminal for this to take effect.
 
 ### Manual (Linux, macOS, and Windows)
 
