@@ -25,71 +25,89 @@
 (filters/add-filter! :pr-str (comp pr-str str))
 
 (def ^:private tool-template-str
-  "#!/usr/bin/env bb
+  (str/trim "
+#!/usr/bin/env bb
 
 ; :bbin/start
 ;
 {{script/meta}}
+;
 ; :bbin/end
 
 (require '[babashka.process :as process]
          '[babashka.fs :as fs]
          '[clojure.string :as str])
 
-(let [SCRIPT_ROOT        {{script/root|pr-str}}
-      SCRIPT_LIB         '{{script/lib}}
-      SCRIPT_COORDS      {{script/coords|str}}
-      SCRIPT_NS_DEFAULT  '{{script/ns-default}}
-      SCRIPT_NAME        (fs/file-name *file*)
-      TMP_EDN            (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-                         (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\"))
-                         (fs/delete-on-exit))
-    [first-arg & rest-args] *command-line-args*]
+(def script-root {{script/root|pr-str}})
+(def script-lib '{{script/lib}})
+(def script-coords {{script/coords|str}})
+(def script-ns-default '{{script/ns-default}})
+(def script-name (fs/file-name *file*))
+
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)])
+
+(defn help-eval-str []
+  (str \"(require '\" script-ns-default \")
+        (def fns (filter #(fn? (deref (val %))) (ns-publics '\" script-ns-default \")))
+        (def max-width (->> (keys fns) (map (comp count str)) (apply max)))
+        (defn pad-right [x] (format (str \\\"%-\\\" max-width \\\"s\\\") x))
+        (println (str \\\"Usage: \" script-name \" <command>\\\"))
+        (newline)
+        (doseq [[k v] fns]
+          (println
+            (str \\\"  \" script-name \" \\\" (pad-right k) \\\"  \\\"
+               (when (:doc (meta v))
+                 (first (str/split-lines (:doc (meta v))))))))\"))
+
+(def first-arg (first *command-line-args*))
+(def rest-args (rest *command-line-args*))
+
 (if first-arg
   (process/exec
-    (into [\"bb\" \"--deps-root\" SCRIPT_ROOT \"--config\" (str TMP_EDN)
-                             \"-x\" (str SCRIPT_NS_DEFAULT \"/\" first-arg)
-                             \"--\"] rest-args))
-  (do
-    (let [script (str \"(require '\" SCRIPT_NS_DEFAULT \")
-                   (def fns (filter #(fn? (deref (val %))) (ns-publics '\" SCRIPT_NS_DEFAULT \")))
-                   (def max-width (->> (keys fns) (map (comp count str)) (apply max)))
-                   (defn pad-right [x] (format (str \\\"%-\\\" max-width \\\"s\\\") x))
-                   (println (str \\\"Usage: \" SCRIPT_NAME \" <command>\\\"))
-                   (newline)
-                   (doseq [[k v] fns]
-                     (println
-                       (str \\\"  \" SCRIPT_NAME \" \\\" (pad-right k) \\\"  \\\"
-                          (when (:doc (meta v))
-                            (first (str/split-lines (:doc (meta v))))))))\")
-           cmd-line     [\"bb\" \"--deps-root\" SCRIPT_ROOT \"--config\"  (str TMP_EDN)
-                         \"-e\"  script]]
-       (process/exec cmd-line)))))")
+    (vec (concat base-command
+                 [\"-x\" (str script-ns-default \"/\" first-arg)]
+                 rest-args)))
+  (process/exec (into base-command [\"-e\" (help-eval-str)])))
+"))
 
 (def ^:private git-or-local-template-str
-  "#!/usr/bin/env bb
+  (str/trim "
+#!/usr/bin/env bb
 
 ; :bbin/start
 ;
 {{script/meta}}
+;
 ; :bbin/end
 
 (require '[babashka.process :as process]
          '[babashka.fs :as fs]
          '[clojure.string :as str])
 
-(let [SCRIPT_ROOT    {{script/root|pr-str}}
-      SCRIPT_LIB     '{{script/lib}}
-      SCRIPT_COORDS  {{script/coords|str}}
-      SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
-      SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}}
-      TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-                      (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS\"}}\"))
-                      (fs/delete-on-exit))]
-  (process/exec
-     (into [\"bb\" \"--deps-root\" SCRIPT_ROOT \"--config\" (str TMP_EDN)
-            SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
-            \"--\"] *command-line-args*)))")
+(def script-root {{script/root|pr-str}})
+(def script-lib '{{script/lib}})
+(def script-coords {{script/coords|str}})
+(def script-main-opts-first {{script/main-opts.0|pr-str}})
+(def script-main-opts-second {{script/main-opts.1|pr-str}})
+
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)
+        script-main-opts-first script-main-opts-second
+        \"--\"])
+
+(process/exec (into base-command *command-line-args*))
+"))
 
 (defn- http-url->script-name [http-url]
   (first
@@ -200,26 +218,36 @@
     (install-script script-file template-out (:dry-run cli-opts))))
 
 (def ^:private maven-template-str
-  "#!/usr/bin/env bb
+  (str/trim "
+#!/usr/bin/env bb
+
 ; :bbin/start
 ;
 {{script/meta}}
+;
 ; :bbin/end
-(require '[babashka.process :as process]
-       '[babashka.fs :as fs]
-       '[clojure.string :as str])
 
-(let [SCRIPT_LIB     '{{script/lib}}
-    SCRIPT_COORDS  {{script/coords|str}}
-    SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
-    SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}}
-    TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-               (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\"))
-               (fs/delete-on-exit))]
-(process/exec
-(into [\"bb\" \"--config\" (str TMP_EDN)
-       SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
-       \"--\"] *command-line-args*)))")
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(def script-lib '{{script/lib}})
+(def script-coords {{script/coords|str}})
+(def script-main-opts-first {{script/main-opts.0|pr-str}})
+(def script-main-opts-second {{script/main-opts.1|pr-str}})
+
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  [\"bb\" \"--config\" (str tmp-edn)
+        script-main-opts-first script-main-opts-second
+        \"--\"])
+
+(process/exec (into base-command *command-line-args*))
+"))
 
 (defn- install-deps-maven [cli-opts]
   (let [script-deps {(edn/read-string (:script/lib cli-opts))
