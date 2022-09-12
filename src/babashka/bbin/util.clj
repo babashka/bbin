@@ -4,8 +4,7 @@
             [babashka.bbin.meta :as meta]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [taoensso.timbre :as log])
-  (:import (java.util Date)))
+            [taoensso.timbre :as log]))
 
 (defn sh [cmd & {:as opts}]
   (doto (p/sh cmd (merge {:err :inherit} opts))
@@ -27,9 +26,6 @@ Usage: bbin <command>
   bbin bin        Display bbin bin folder
   bbin version    Display bbin version
   bbin help       Display bbin help")))
-
-(defn now []
-  (Date.))
 
 (def ^:dynamic *bbin-root*
   (if-let [bbin-dir (System/getenv "BABASHKA_BBIN_DIR")]
