@@ -1,15 +1,16 @@
 (ns babashka.bbin.scripts
-  (:require [babashka.fs :as fs]
-            [babashka.deps :as deps]
-            [rads.deps-info.infer :as deps-info-infer]
-            [rads.deps-info.summary :as deps-info-summary]
-            [clojure.string :as str]
-            [clojure.edn :as edn]
-            [clojure.pprint :as pprint]
-            [selmer.parser :as selmer]
-            [selmer.util :as selmer-util]
-            [selmer.filters :as filters]
-            [babashka.bbin.util :as util :refer [sh]]))
+  (:require
+   [babashka.bbin.util :as util :refer [sh]]
+   [babashka.deps :as deps]
+   [babashka.fs :as fs]
+   [clojure.edn :as edn]
+   [clojure.pprint :as pprint]
+   [clojure.string :as str]
+   [rads.deps-info.infer :as deps-info-infer]
+   [rads.deps-info.summary :as deps-info-summary]
+   [selmer.filters :as filters]
+   [selmer.parser :as selmer]
+   [selmer.util :as selmer-util]))
 
 (defn- pprint [x _]
   (pprint/pprint x))
@@ -18,14 +19,14 @@
   (let [coords (val (first script-deps))]
     (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (:script/lib cli-opts) (:git/sha coords)]))))
 
-; windows scripts are babashka/clojure instead of shell scripts, so we need a variable 
-; comment character in the script meta
+                                        ; windows scripts are babashka/clojure instead of shell scripts, so we need a variable
+                                        ; comment character in the script meta
 (def ^:private comment-char
   (if util/windows? "; " "# "))
 
 (def windows-wrapper-extension ".bat")
 
-; selmer filter for clojure escaping for e.g. files
+                                        ; selmer filter for clojure escaping for e.g. files
 (filters/add-filter! :pr-str (comp pr-str str))
 
 (def ^:private tool-template-str
@@ -50,9 +51,9 @@
       [first-arg & rest-args] *command-line-args*]
   (if first-arg
     (process/exec
-      (str/join \" \" (concat [\"bb --deps-root \" SCRIPT_ROOT \"--config\" (str TMP_EDN)
+      (into [\"bb\" \"--deps-root\" SCRIPT_ROOT \"--config\" (str TMP_EDN)
                                \"-x\" (str SCRIPT_NS_DEFAULT \"/\" first-arg)
-                               \"--\"] rest-args)))
+                               \"--\"] rest-args))
     (do
       (let [script (str \"(require '\" SCRIPT_NS_DEFAULT \")
                      (def fns (filter #(fn? (deref (val %))) (ns-publics '\" SCRIPT_NS_DEFAULT \")))
@@ -68,10 +69,10 @@
              cmd-line     [\"bb\" \"--deps-root\" SCRIPT_ROOT \"--config\"  (str TMP_EDN)
                            \"-e\"  script]]
          (process/exec cmd-line)))))"
-;    
-; non-windows tool script
-;
-  "#!/usr/bin/env bash
+    ;;
+    ;; non-windows tool script
+    ;;
+    "#!/usr/bin/env bash
 set -e
 
 # :bbin/start
@@ -122,23 +123,22 @@ fi"))
          '[babashka.fs :as fs]
          '[clojure.string :as str])
 
-(let [SCRIPT_ROOT    {{script/root|pr-str}}             
+(let [SCRIPT_ROOT    {{script/root|pr-str}}
       SCRIPT_LIB     '{{script/lib}}
-      SCRIPT_COORDS  {{script/coords|str}}               
+      SCRIPT_COORDS  {{script/coords|str}}
       SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
-      SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}} 
+      SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}}
       TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
                       (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS\"}}\"))
                       (fs/delete-on-exit))]
-                        
      (process/exec
-        (str/join \" \" (concat [\"bb --deps-root\" SCRIPT_ROOT \"--config\" (str TMP_EDN)
-                         SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
-                         \"--\"] *command-line-args*))))"
-;
-; non-windows script template
-;
-  "#!/usr/bin/env bash
+        (into [\"bb\" \"--deps-root\" SCRIPT_ROOT \"--config\" (str TMP_EDN)
+               SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
+               \"--\"] *command-line-args*)))"
+    ;;
+    ;; non-windows script template
+    ;;
+    "#!/usr/bin/env bash
 set -e
 
 # :bbin/start
@@ -161,8 +161,8 @@ exec bb \\
 
 (defn- http-url->script-name [http-url]
   (first
-    (str/split (last (str/split http-url #"/"))
-               #"\.")))
+   (str/split (last (str/split http-url #"/"))
+              #"\.")))
 
 (defn- bb-shebang? [s]
   (str/starts-with? s "#!/usr/bin/env bb"))
@@ -177,15 +177,15 @@ exec bb \\
                             ";"]
                            (map #(str "; " %)
                                 (str/split-lines
-                                  (with-out-str
-                                    (pprint/pprint header))))
+                                 (with-out-str
+                                   (pprint/pprint header))))
                            [";"
                             "; :bbin/end"]
                            code)]
     (str/join "\n" next-lines)))
 
-(defn- install-script 
-  "Spits `contents` to `path` (adding an extension on Windows), or 
+(defn- install-script
+  "Spits `contents` to `path` (adding an extension on Windows), or
   pprints them if `dry-run?` is truthy.
   Side-effecting."
   [path contents dry-run?]
@@ -193,11 +193,11 @@ exec bb \\
     (if dry-run?
       (pprint {:script-file     path-str
                :script-contents contents}
-        dry-run?)
+              dry-run?)
       (do
         (spit path-str contents)
         (when-not util/windows? (sh ["chmod" "+x" path-str]))
-        (when util/windows? 
+        (when util/windows?
           (spit (str path-str windows-wrapper-extension) (str "@bb -f %~dp0" (fs/file-name path-str) " -- %*")))
         nil))))
 
@@ -254,16 +254,16 @@ exec bb \\
         template-opts' (if tool-mode
                          (assoc template-opts :script/ns-default (:ns-default script-config))
                          (assoc template-opts :script/main-opts
-                                              [(first main-opts)
-                                               (if (= "-f" (first main-opts))
-                                                 (fs/canonicalize (fs/file script-root (second main-opts))
-                                                                  {:nofollow-links true})
-                                                 (second main-opts))]))
+                                [(first main-opts)
+                                 (if (= "-f" (first main-opts))
+                                   (fs/canonicalize (fs/file script-root (second main-opts))
+                                                    {:nofollow-links true})
+                                   (second main-opts))]))
         template-str (if tool-mode
                        tool-template-str
                        git-or-local-template-str)
         template-out (selmer-util/without-escaping
-                       (selmer/render template-str template-opts'))
+                      (selmer/render template-str template-opts'))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
     (install-script script-file template-out (:dry-run cli-opts))))
 
@@ -281,19 +281,18 @@ exec bb \\
 (let [SCRIPT_LIB     '{{script/lib}}
       SCRIPT_COORDS  {{script/coords|str}}
       SCRIPT_MAIN_OPTS_FIRST  {{script/main-opts.0|pr-str}}
-      SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}} 
+      SCRIPT_MAIN_OPTS_SECOND {{script/main-opts.1|pr-str}}
       TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
                  (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\"))
                  (fs/delete-on-exit))]
-                                         
-(process/exec
-  (str/join \" \" (concat [\"bb --config\" (str TMP_EDN)
-                   SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
-                   \"--\"] *command-line-args*))))\""
-;
-; non-windows script template
-;  
-  "#!/usr/bin/env bash
+(process/exex
+  (into [\"bb\" \"--config\" (str TMP_EDN)
+         SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
+         \"--\"] *command-line-args*)))"
+    ;;
+    ;; non-windows script template
+    ;;
+    "#!/usr/bin/env bash
 set -e
 
 # :bbin/start
@@ -340,7 +339,7 @@ exec bb \\
                                                              {:nofollow-links true})
                                             (second main-opts))]}
         template-out (selmer-util/without-escaping
-                       (selmer/render maven-template-str template-opts))
+                      (selmer/render maven-template-str template-opts))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
     (install-script script-file template-out (:dry-run cli-opts))))
 
