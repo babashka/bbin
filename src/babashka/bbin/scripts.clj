@@ -284,7 +284,7 @@ exec bb \\
       TMP_EDN (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
                  (spit (str \"{:deps {\" SCRIPT_LIB SCRIPT_COORDS \"}}\"))
                  (fs/delete-on-exit))]
-(process/exex
+(process/exec
   (into [\"bb\" \"--config\" (str TMP_EDN)
          SCRIPT_MAIN_OPTS_FIRST SCRIPT_MAIN_OPTS_SECOND
          \"--\"] *command-line-args*)))"
