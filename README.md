@@ -43,9 +43,9 @@ $ portal <(bbin ls)
 brew install babashka/brew/bbin
 ```
 
-**2. Add `~/.bbin/bin` to `PATH`:**
+**2. Add `~/.babashka/bbin/bin` to `PATH`:**
 ```shell
-echo 'export PATH="$PATH:$HOME/.bbin/bin"' >> ~/.$(basename $SHELL)rc && exec $SHELL
+echo 'export PATH="$PATH:$HOME/.babashka/bbin/bin"' >> ~/.$(basename $SHELL)rc && exec $SHELL
 ```
 
 ### Scoop (Windows)
@@ -56,7 +56,7 @@ scoop bucket add scoop-clojure https://github.com/littleli/scoop-clojure
 scoop install bbin
 ```
 
-**2. Add `%HOMEDRIVE%%HOMEPATH%\.bbin\bin` to `Path` environment variable**
+**2. Add `%HOMEDRIVE%%HOMEPATH%\.babashka\bbin\bin` to `Path` environment variable**
 
 [Click here for instructions to edit your `Path` on Windows.](docs/installation.md#scoop-windows)
 
@@ -119,7 +119,7 @@ $ bbin install http-server.jar
 
 **Install a script**
 
-- The scripts will be installed to `~/.bbin/bin`.
+- The scripts will be installed to `~/.babashka/bbin/bin`.
 - Each bin script is a self-contained shell script that fetches deps and invokes `bb` with the correct arguments.
 - The bin scripts can be configured using the CLI options or the `:bbin/bin` key in `bb.edn`
 
@@ -158,7 +158,7 @@ $ bbin install http-server.jar
 
 **Display bbin bin folder**
 
-- The default folder is `~/.bbin/bin`
+- The default folder is `~/.babashka/bbin/bin`
 
 ---
 

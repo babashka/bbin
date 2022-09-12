@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.12
+
+- [Change root dir from `~/.bbin` to `~/.babashka/bbin`](https://github.com/babashka/bbin/commit/99a5d2684f4e979ff8f183a2ce8088f3df26b405)
+- [Improve script readability](https://github.com/babashka/bbin/commit/04c2e1851eae335a8a1b57118b7a4af78c3f4b1c)
+- [Remove bash scripts](https://github.com/babashka/bbin/commit/f889f1a53620f87ac42af54015d85ecf0f70c7d0)
+- [Do not stringify args (#24)](https://github.com/babashka/bbin/commit/e5b8daf6b71e5e51e8fb948ba677eaa748416218) (thanks [@borkdude](https://github.com/borkdude)!)
+
 ## 0.0.11
 
 - [Windows Support](https://github.com/babashka/bbin/commit/378e7e7728d19b7800798afe73f2d1d2e4831273) (thanks [@bobisageek](https://github.com/bobisageek)!)
