@@ -1,16 +1,15 @@
 (ns babashka.bbin.scripts
-  (:require
-   [babashka.bbin.util :as util :refer [sh]]
-   [babashka.deps :as deps]
-   [babashka.fs :as fs]
-   [clojure.edn :as edn]
-   [clojure.pprint :as pprint]
-   [clojure.string :as str]
-   [rads.deps-info.infer :as deps-info-infer]
-   [rads.deps-info.summary :as deps-info-summary]
-   [selmer.filters :as filters]
-   [selmer.parser :as selmer]
-   [selmer.util :as selmer-util]))
+  (:require [babashka.bbin.util :as util :refer [sh]]
+            [babashka.deps :as deps]
+            [babashka.fs :as fs]
+            [clojure.edn :as edn]
+            [clojure.pprint :as pprint]
+            [clojure.string :as str]
+            [rads.deps-info.infer :as deps-info-infer]
+            [rads.deps-info.summary :as deps-info-summary]
+            [selmer.filters :as filters]
+            [selmer.parser :as selmer]
+            [selmer.util :as selmer-util]))
 
 (defn- pprint [x _]
   (pprint/pprint x))
@@ -19,14 +18,14 @@
   (let [coords (val (first script-deps))]
     (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (:script/lib cli-opts) (:git/sha coords)]))))
 
-                                        ; windows scripts are babashka/clojure instead of shell scripts, so we need a variable
-                                        ; comment character in the script meta
+;; windows scripts are babashka/clojure instead of shell scripts, so we need a variable
+;; comment character in the script meta
 (def ^:private comment-char
   (if util/windows? "; " "# "))
 
 (def windows-wrapper-extension ".bat")
 
-                                        ; selmer filter for clojure escaping for e.g. files
+;; selmer filter for clojure escaping for e.g. files
 (filters/add-filter! :pr-str (comp pr-str str))
 
 (def ^:private tool-template-str
@@ -254,11 +253,11 @@ exec bb \\
         template-opts' (if tool-mode
                          (assoc template-opts :script/ns-default (:ns-default script-config))
                          (assoc template-opts :script/main-opts
-                                [(first main-opts)
-                                 (if (= "-f" (first main-opts))
-                                   (fs/canonicalize (fs/file script-root (second main-opts))
-                                                    {:nofollow-links true})
-                                   (second main-opts))]))
+                                              [(first main-opts)
+                                               (if (= "-f" (first main-opts))
+                                                 (fs/canonicalize (fs/file script-root (second main-opts))
+                                                                  {:nofollow-links true})
+                                                 (second main-opts))]))
         template-str (if tool-mode
                        tool-template-str
                        git-or-local-template-str)
