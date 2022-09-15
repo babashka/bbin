@@ -100,6 +100,7 @@ $ bbin install http-server.jar
 ## Docs
 
 - [CLI Docs](#cli)
+- [FAQ](docs/faq.md)
 - [Design Docs](docs/design.md)
 - [Community Scripts and Projects](https://github.com/babashka/bbin/wiki/Scripts-and-Projects)
 - [Auto-Completion](docs/auto-completion.md)
@@ -124,6 +125,7 @@ $ bbin install http-server.jar
     - If `$XDG_DATA_HOME` is set, then use `$XDG_DATA_HOME/.babashka/bbin/bin` (Freedesktop conventions)
 - Each bin script is a self-contained shell script that fetches deps and invokes `bb` with the correct arguments.
 - The bin scripts can be configured using the CLI options or the `:bbin/bin` key in `bb.edn`
+- [See the FAQ for additional info on setting up your code to work with bbin](docs/faq.md#how-do-i-get-my-software-onto-bbin)
 
 **Example `bb.edn` Config:**
 
