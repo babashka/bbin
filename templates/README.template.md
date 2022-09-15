@@ -5,14 +5,15 @@
 **Install any Babashka script or project with one command.**
 
 ```
-$ bbin install io.github.rads/watch
-{:coords {:git/sha "d5f36aa54e685f42f9592a7f3dd28badc3588c08",
-          :git/tag "v0.0.4",
-          :git/url "https://github.com/rads/watch"},
- :lib io.github.rads/watch}
-        
-$ watch --version
-watch 0.0.4
+$ bbin install io.github.babashka/neil
+{:lib io.github.babashka/neil,
+ :coords
+ {:git/url "https://github.com/babashka/neil",
+  :git/tag "v0.1.45",
+  :git/sha "0474d4cb5cfb0207265a4508a0e82ae7a293ab61"}}
+
+$ neil --version
+neil 0.1.45
 
 $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj
 {:coords {:bbin/url "https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj"}}
