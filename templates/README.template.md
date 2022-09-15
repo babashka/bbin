@@ -65,9 +65,12 @@ The Scoop package will automatically update your `Path` with `%HOMEDRIVE%%HOMEPA
 
 ```
 # Install a script from a qualified lib name
-$ bbin install io.github.rads/watch
-$ bbin install io.github.babashka/neil --latest-sha
+$ bbin install io.github.babashka/neil
+$ bbin install io.github.rads/watch --latest-sha
 $ bbin install org.babashka/http-server --mvn/version 0.1.11
+
+# Install an auto-generated CLI from a namespace of functions
+$ bbin install io.github.borkdude/quickblog --tool --ns-default quickblog.api
 
 # Install a script from a URL
 $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj
