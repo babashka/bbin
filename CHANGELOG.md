@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0
+
+- [Remove alpha status warning](https://github.com/babashka/bbin/commit/ea7dc1999a0e928ce749520d64d6a833e8bba686)
+- [Add docs for all supported options](https://github.com/babashka/bbin/commit/add4e2b2613a7503e49110ca711f7815734e9aed)
+- [Add support for overriding bbin root via env variables](https://github.com/babashka/bbin/commit/a24775cfd8637541caee42d320be4a3882bf5219)
+
 ## 0.0.12
 
 - [Change root dir from `~/.bbin` to `~/.babashka/bbin`](https://github.com/babashka/bbin/commit/99a5d2684f4e979ff8f183a2ce8088f3df26b405)

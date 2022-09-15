@@ -1,18 +1,17 @@
 # bbin
 
-**ALPHA STATUS**
-
 **Install any Babashka script or project with one command.**
 
 ```
-$ bbin install io.github.rads/watch
-{:coords {:git/sha "d5f36aa54e685f42f9592a7f3dd28badc3588c08",
-          :git/tag "v0.0.4",
-          :git/url "https://github.com/rads/watch"},
- :lib io.github.rads/watch}
-        
-$ watch --version
-watch 0.0.4
+$ bbin install io.github.babashka/neil
+{:lib io.github.babashka/neil,
+ :coords
+ {:git/url "https://github.com/babashka/neil",
+  :git/tag "v0.1.45",
+  :git/sha "0474d4cb5cfb0207265a4508a0e82ae7a293ab61"}}
+
+$ neil --version
+neil 0.1.45
 
 $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj
 {:coords {:bbin/url "https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj"}}
@@ -66,9 +65,12 @@ The Scoop package will automatically update your `Path` with `%HOMEDRIVE%%HOMEPA
 
 ```
 # Install a script from a qualified lib name
-$ bbin install io.github.rads/watch
-$ bbin install io.github.babashka/neil --latest-sha
+$ bbin install io.github.babashka/neil
+$ bbin install io.github.rads/watch --latest-sha
 $ bbin install org.babashka/http-server --mvn/version 0.1.11
+
+# Install an auto-generated CLI from a namespace of functions
+$ bbin install io.github.borkdude/quickblog --tool --ns-default quickblog.api
 
 # Install a script from a URL
 $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj
@@ -117,7 +119,9 @@ $ bbin install http-server.jar
 
 **Install a script**
 
-- The scripts will be installed to `~/.babashka/bbin/bin`.
+- By default, scripts will be installed to `~/.babashka/bbin/bin`
+    - If `$BABASHKA_BBIN_DIR` is set, then use `$BABASHKA_BBIN_DIR` (explicit override)
+    - If `$XDG_DATA_HOME` is set, then use `$XDG_DATA_HOME/.babashka/bbin/bin` (Freedesktop conventions)
 - Each bin script is a self-contained shell script that fetches deps and invokes `bb` with the correct arguments.
 - The bin scripts can be configured using the CLI options or the `:bbin/bin` key in `bb.edn`
 
@@ -129,15 +133,36 @@ $ bbin install http-server.jar
 
 **Supported Options:**
 
-- `--as`
-- `--git/sha`
-- `--git/tag`
-- `--git/url`
-- `--latest-sha`
-- `--local/root`
-- `--main-opts`
-- `--mvn/version`
+*Note:* `bbin` will throw an error if conflicting options are provided, such as using both `--git/sha` and `--mvn/version` at the same time.
 
+If no `--git/tag` or `--git/sha` is provided, the latest Git tag from GitHub will be used.
+
+- `--as`
+    - The name of the script to be saved in the `bbin bin` path
+- `--git/sha`
+    - The SHA for a Git repo
+- `--git/tag`
+    - The tag for a Git repo
+- `--git/url`
+    - The URL for a Git repo
+- `--latest-sha`
+    - If provided, find the latest SHA from GitHub
+- `--local/root`
+    - The path of a local directory containing a `deps.edn` file
+- `--main-opts`
+    - The provided options (EDN format) will be passed to the `bb` command-line when the installed script is run
+    - By default, `--main-opts` will be set to `["-m" ...]`, inferring the main function from the lib name
+    - For example, if you provide a lib name like `io.github.rads/watch`, `bbin` will infer `rads.watch/-main`
+    - Project authors can provide a default in the `:bbin/bin` key in `bb.edn`
+- `--mvn/version`
+    - The version of a Maven dependency
+- `--ns-default`
+    - The namespace to use to find functions (tool mode only)
+    - Project authors can provide a default in the `:bbin/bin` key in `bb.edn`
+- `--tool`
+    - If this option is provided, the script will be installed using **tool mode**
+    - When enabled, the installed script acts as an entry point for functions in a namespace, similar to `clj -T`
+    - If no function is provided, the installed script will infer a help message based on the function docstrings
 ---
 
 ### `bbin uninstall [script]`
