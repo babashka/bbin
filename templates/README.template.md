@@ -1,7 +1,5 @@
 # bbin
 
-**ALPHA STATUS**
-
 **Install any Babashka script or project with one command.**
 
 ```
