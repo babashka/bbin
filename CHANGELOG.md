@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1
+
+- [Add support for installing local files](https://github.com/babashka/bbin/commit/675c5826a633e10a1e997870dcf0cb28867c411f)
+- [Coerce script names to snake-case](https://github.com/babashka/bbin/commit/7235b2c291400f7074232c2ef1230fe3e9652f23)
+
 ## 0.1.0
 
 - [Remove alpha status warning](https://github.com/babashka/bbin/commit/ea7dc1999a0e928ce749520d64d6a833e8bba686)
