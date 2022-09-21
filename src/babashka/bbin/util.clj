@@ -82,3 +82,6 @@ Usage: bbin <command>
           (println (str "WARNING: this project requires babashka "
                         meta/min-bb-version " or newer, but you have: "
                         current-bb-version)))))))
+
+(defn snake-case [s]
+  (str/replace s "_" "-"))

@@ -102,6 +102,9 @@ Usage: bbin <command>
                         meta/min-bb-version " or newer, but you have: "
                         current-bb-version)))))))
 
+(defn snake-case [s]
+  (str/replace s "_" "-"))
+
 (ns babashka.bbin.scripts
   (:require [babashka.bbin.util :as util :refer [sh]]
             [babashka.deps :as deps]
@@ -214,9 +217,10 @@ Usage: bbin <command>
 "))
 
 (defn- http-url->script-name [http-url]
-  (first
-   (str/split (last (str/split http-url #"/"))
-              #"\.")))
+  (util/snake-case
+    (first
+     (str/split (last (str/split http-url #"/"))
+                #"\."))))
 
 (defn- bb-shebang? [s]
   (str/starts-with? s "#!/usr/bin/env bb"))

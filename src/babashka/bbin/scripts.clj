@@ -110,9 +110,10 @@
 "))
 
 (defn- http-url->script-name [http-url]
-  (first
-   (str/split (last (str/split http-url #"/"))
-              #"\.")))
+  (util/snake-case
+    (first
+     (str/split (last (str/split http-url #"/"))
+                #"\."))))
 
 (defn- bb-shebang? [s]
   (str/starts-with? s "#!/usr/bin/env bb"))
