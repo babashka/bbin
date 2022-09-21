@@ -100,7 +100,15 @@
         (is (fs/exists? (fs/file bbin-root "bin/foo")))))))
 
 (deftest install-from-local-root-clj-test
-  (testing "install ./*.clj"))
+  (testing "install ./*.clj"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [script-file (doto (fs/file test-dir "hello.clj")
+                        (spit "#!/usr/bin/env bb\n(println \"Hello world\")"))
+          cli-opts {:script/lib (str script-file)}
+          out (run-install cli-opts)]
+      (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
+      (is (= "Hello world" (run-bin-script :hello))))))
 
 (deftest install-from-local-root-jar-test
   (testing "install ./*.jar"))

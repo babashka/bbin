@@ -115,6 +115,12 @@
      (str/split (last (str/split http-url #"/"))
                 #"\."))))
 
+(defn- file-path->script-name [file-path]
+  (util/snake-case
+    (first
+      (str/split (last (str/split file-path #"/"))
+                 #"\."))))
+
 (defn- bb-shebang? [s]
   (str/starts-with? s "#!/usr/bin/env bb"))
 
@@ -131,7 +137,8 @@
                                  (with-out-str
                                    (pprint/pprint header))))
                            [";"
-                            "; :bbin/end"]
+                            "; :bbin/end"
+                            ""]
                            code)]
     (str/join "\n" next-lines)))
 
@@ -158,6 +165,18 @@
         header {:coords script-deps}
         _ (pprint header cli-opts)
         script-name (or (:as cli-opts) (http-url->script-name http-url))
+        script-contents (-> (slurp (:bbin/url script-deps))
+                            (insert-script-header header))
+        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
+                                     {:nofollow-links true})]
+    (install-script script-file script-contents (:dry-run cli-opts))))
+
+(defn- install-local-script [cli-opts]
+  (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
+        script-deps {:bbin/url (str "file://" file-path)}
+        header {:coords script-deps}
+        _ (pprint header cli-opts)
+        script-name (or (:as cli-opts) (file-path->script-name file-path))
         script-contents (-> (slurp (:bbin/url script-deps))
                             (insert-script-header header))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
@@ -314,12 +333,13 @@
     (do
       (util/ensure-bbin-dirs cli-opts)
       (let [cli-opts' (util/canonicalized-cli-opts cli-opts)
-            {:keys [procurer]} (deps-info-summary/summary cli-opts')]
-        (case procurer
-          :http (install-http cli-opts')
-          :maven (install-deps-maven cli-opts')
-          :git (install-deps-git-or-local cli-opts')
-          :local (install-deps-git-or-local cli-opts'))))))
+            {:keys [procurer artifact]} (deps-info-summary/summary cli-opts')]
+        (case [procurer artifact]
+          [:git :dir] (install-deps-git-or-local cli-opts')
+          [:http :file] (install-http cli-opts')
+          [:local :dir] (install-deps-git-or-local cli-opts')
+          [:local :file] (install-local-script cli-opts')
+          [:maven :jar] (install-deps-maven cli-opts'))))))
 
 (defn uninstall [cli-opts]
   (if-not (:script/lib cli-opts)

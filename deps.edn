@@ -4,6 +4,6 @@
         fipp/fipp {:mvn/version "0.6.26"}
         com.taoensso/timbre {:mvn/version "5.2.1"}
         selmer/selmer {:mvn/version "1.12.53"}
-        io.github.rads/deps-info {:git/tag "v0.0.1" :git/sha "1e4eb28"}}
+        io.github.rads/deps-info {:git/tag "v0.0.2" :git/sha "0e927ed"}}
  :aliases {:neil {:project {:name babashka/bbin
                             :version "0.1.1-SNAPSHOT"}}}}
