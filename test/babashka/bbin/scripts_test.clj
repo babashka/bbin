@@ -83,8 +83,8 @@
       (is (str/starts-with? (run-bin-script (:lib maven-lib) "--help")
                             "Serves static assets using web server.")))))
 
-(deftest install-from-local-root-dir-test
-  (testing "install ./"
+(deftest install-from-lib-local-root-dir-test
+  (testing "install */* --local/root *"
     (reset-test-dir)
     (util/ensure-bbin-dirs {})
     (let [local-root (str (fs/file test-dir "foo"))]
@@ -96,6 +96,21 @@
             out (run-install cli-opts)]
         (is (= {:lib 'babashka/foo
                 :coords {:local/root local-root}}
+               out))
+        (is (fs/exists? (fs/file bbin-root "bin/foo")))))))
+
+(deftest install-from-no-lib-local-root-dir-test
+  (testing "install ./"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [local-root (str (fs/file test-dir "foo"))]
+      (fs/create-dir local-root)
+      (spit (fs/file local-root "bb.edn")
+            (pr-str {:bbin/bin {'foo {:main-opts ["-m" "babashka/foo"]}}}))
+      (spit (fs/file local-root "deps.edn") (pr-str {}))
+      (let [cli-opts {:script/lib local-root}
+            out (run-install cli-opts)]
+        (is (= {:coords {:bbin/url (str "file://" local-root)}}
                out))
         (is (fs/exists? (fs/file bbin-root "bin/foo")))))))
 

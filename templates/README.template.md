@@ -78,8 +78,11 @@ $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f352063781
 # Install a script from a local file
 $ bbin install foo.clj
 
-# Install a script from a local root
+# Install a script from a local root (with no lib name)
 $ git clone https://github.com/babashka/bbin.git ~/src/bbin
+$ bbin install ~/src/bbin --as bbin-dev
+
+# Install a script from a local root (with lib name)
 $ bbin install io.github.babashka/bbin --local/root ~/src/bbin --as bbin-dev
 
 # Remove a script
@@ -95,7 +98,6 @@ $ bbin bin
 $ bbin install https://gist.github.com/1d7670142f8117fa78d7db40a9d6ee80.git
 $ bbin install git@gist.github.com:1d7670142f8117fa78d7db40a9d6ee80.git
 $ bbin install https://github.com/babashka/http-server/releases/download/v0.1.11/http-server.jar
-$ bbin install ~/src/watch
 $ bbin install http-server.jar
 ```
 

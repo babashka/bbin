@@ -14,9 +14,12 @@
 (defn- pprint [x _]
   (pprint/pprint x))
 
-(defn- gitlib-path [cli-opts script-deps]
-  (let [coords (val (first script-deps))]
-    (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (:script/lib cli-opts) (:git/sha coords)]))))
+(defn- local-lib-path [cli-opts script-deps]
+  (let [lib (key (first script-deps))
+        coords (val (first script-deps))]
+    (if (#{::no-lib} lib)
+      (:local/root coords)
+      (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (:script/lib cli-opts) (:git/sha coords)])))))
 
 (def ^:private comment-char ";")
 (def windows-wrapper-extension ".bat")
@@ -24,7 +27,57 @@
 ;; selmer filter for clojure escaping for e.g. files
 (filters/add-filter! :pr-str (comp pr-str str))
 
-(def ^:private tool-template-str
+(def ^:private local-dir-tool-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(def script-root {{script/root|pr-str}})
+(def script-ns-default '{{script/ns-default}})
+(def script-name (fs/file-name *file*))
+
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {local/deps {:local/root \\\"\" script-root \"\\\"}}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)])
+
+(defn help-eval-str []
+  (str \"(require '\" script-ns-default \")
+        (def fns (filter #(fn? (deref (val %))) (ns-publics '\" script-ns-default \")))
+        (def max-width (->> (keys fns) (map (comp count str)) (apply max)))
+        (defn pad-right [x] (format (str \\\"%-\\\" max-width \\\"s\\\") x))
+        (println (str \\\"Usage: \" script-name \" <command>\\\"))
+        (newline)
+        (doseq [[k v] fns]
+          (println
+            (str \\\"  \" script-name \" \\\" (pad-right k) \\\"  \\\"
+               (when (:doc (meta v))
+                 (first (str/split-lines (:doc (meta v))))))))\"))
+
+(def first-arg (first *command-line-args*))
+(def rest-args (rest *command-line-args*))
+
+(if first-arg
+  (process/exec
+    (vec (concat base-command
+                 [\"-x\" (str script-ns-default \"/\" first-arg)]
+                 rest-args)))
+  (process/exec (into base-command [\"-e\" (help-eval-str)])))
+"))
+
+(def ^:private deps-tool-template-str
   (str/trim "
 #!/usr/bin/env bb
 
@@ -74,6 +127,37 @@
                  [\"-x\" (str script-ns-default \"/\" first-arg)]
                  rest-args)))
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
+"))
+
+(def ^:private local-dir-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(def script-root {{script/root|pr-str}})
+(def script-main-opts-first {{script/main-opts.0|pr-str}})
+(def script-main-opts-second {{script/main-opts.1|pr-str}})
+
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {local/deps {:local/root \\\"\" script-root \"\\\"}}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)
+        script-main-opts-first script-main-opts-second
+        \"--\"])
+
+(process/exec (into base-command *command-line-args*))
 "))
 
 (def ^:private git-or-local-template-str
@@ -189,31 +273,48 @@
     {:main-opts ["-m" (str top "." name)]
      :ns-default (str top "." name)}))
 
-(defn- install-deps-git-or-local [cli-opts]
-  (let [script-deps (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts)))
-        header {:lib (key (first script-deps))
-                :coords (val (first script-deps))}
-        _ (pprint header cli-opts)
-        _ (deps/add-deps {:deps script-deps})
-        script-root (fs/canonicalize (or (:local/root cli-opts) (gitlib-path cli-opts script-deps)) {:nofollow-links true})
+(defn- install-deps-git-or-local [cli-opts {:keys [procurer] :as _summary}]
+  (let [script-deps (if (and (#{:local} procurer) (not (:local/root cli-opts)))
+                      {::no-lib {:local/root (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))}}
+                      (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts))))
+        lib (key (first script-deps))
+        coords (val (first script-deps))
+        header (merge {:coords coords} (when-not (#{::no-lib} lib) {:lib lib}))
+        header' (if (#{::no-lib} lib)
+                  {:coords {:bbin/url (str "file://" (get-in header [:coords :local/root]))}}
+                  header)
+        _ (pprint header' cli-opts)
+        _ (when-not (#{::no-lib} lib)
+            (deps/add-deps {:deps script-deps}))
+        script-root (fs/canonicalize (or (get-in header [:coords :local/root])
+                                         (local-lib-path cli-opts script-deps))
+                                     {:nofollow-links true})
         bb-file (fs/file script-root "bb.edn")
         bb-edn (when (fs/exists? bb-file)
                  (some-> bb-file slurp edn/read-string))
         script-name (or (:as cli-opts)
                         (some-> (:bbin/bin bb-edn) first key str)
-                        (second (str/split (:script/lib cli-opts) #"/")))
-        script-config (merge (default-script-config cli-opts)
+                        (and (not (#{::no-lib} lib))
+                             (second (str/split (:script/lib cli-opts) #"/"))))
+        _ (when (str/blank? script-name)
+            (throw (ex-info "Script name not found. Use --as or :bbin/bin to provide a script name."
+                            header)))
+        script-config (merge (when-not (#{::no-lib} lib)
+                               (default-script-config cli-opts))
                              (some-> (:bbin/bin bb-edn) first val)
                              (when (:ns-default cli-opts)
                                {:ns-default (edn/read-string (:ns-default cli-opts))}))
         script-edn-out (with-out-str
                          (binding [*print-namespace-maps* false]
-                           (clojure.pprint/pprint header)))
+                           (clojure.pprint/pprint header')))
         tool-mode (or (:tool cli-opts)
                       (and (some-> (:bbin/bin bb-edn) first val :ns-default)
                            (not (some-> (:bbin/bin bb-edn) first val :main-opts))))
         main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
                       (:main-opts script-config))
+        _ (when (and (not tool-mode) (not (seq main-opts)))
+            (throw (ex-info "Main opts not found. Use --main-opts or :bbin/bin to provide main opts."
+                            {})))
         template-opts {:script/meta (->> script-edn-out
                                          str/split-lines
                                          (map #(str comment-char " " %))
@@ -230,8 +331,12 @@
                                                                   {:nofollow-links true})
                                                  (second main-opts))]))
         template-str (if tool-mode
-                       tool-template-str
-                       git-or-local-template-str)
+                       (if (#{::no-lib} lib)
+                         local-dir-tool-template-str
+                         deps-tool-template-str)
+                       (if (#{::no-lib} lib)
+                         local-dir-template-str
+                         git-or-local-template-str))
         template-out (selmer-util/without-escaping
                       (selmer/render template-str template-opts'))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
@@ -276,7 +381,7 @@
                 :coords (val (first script-deps))}
         _ (pprint header cli-opts)
         _ (deps/add-deps {:deps script-deps})
-        script-root (fs/canonicalize (or (:local/root cli-opts) (gitlib-path cli-opts script-deps)) {:nofollow-links true})
+        script-root (fs/canonicalize (or (:local/root cli-opts) (local-lib-path cli-opts script-deps)) {:nofollow-links true})
         script-name (or (:as cli-opts) (second (str/split (:script/lib cli-opts) #"/")))
         script-config (default-script-config cli-opts)
         script-edn-out (with-out-str
@@ -333,13 +438,18 @@
     (do
       (util/ensure-bbin-dirs cli-opts)
       (let [cli-opts' (util/canonicalized-cli-opts cli-opts)
-            {:keys [procurer artifact]} (deps-info-summary/summary cli-opts')]
+            summary (deps-info-summary/summary cli-opts')
+            {:keys [procurer artifact]} summary]
         (case [procurer artifact]
-          [:git :dir] (install-deps-git-or-local cli-opts')
+          [:git :dir] (install-deps-git-or-local cli-opts' summary)
           [:http :file] (install-http cli-opts')
-          [:local :dir] (install-deps-git-or-local cli-opts')
+          [:local :dir] (install-deps-git-or-local cli-opts' summary)
           [:local :file] (install-local-script cli-opts')
-          [:maven :jar] (install-deps-maven cli-opts'))))))
+          [:maven :jar] (install-deps-maven cli-opts')
+          (throw (ex-info "Invalid script coordinates.\nIf you're trying to install from the filesystem, make sure the path actually exists."
+                          {:script/lib (:script/lib cli-opts')
+                           :procurer procurer
+                           :artifact artifact})))))))
 
 (defn uninstall [cli-opts]
   (if-not (:script/lib cli-opts)
