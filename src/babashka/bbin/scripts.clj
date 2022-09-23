@@ -146,7 +146,7 @@
 (def script-jar {{script/jar|pr-str}})
 
 (def base-command
-  [\"bb\" script-jar \"--\"])
+  [\"bb\" script-jar])
 
 (process/exec (into base-command *command-line-args*))
 "))
