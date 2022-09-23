@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- [Add support for HTTP and local JARs](https://github.com/babashka/bbin/commit/58d48df19969aaf5e7ff8ea0b87330e2d1e67568)
+- [Add support for installing local directories](https://github.com/babashka/bbin/commit/268de01de73f26e8256498d33f508c61a3c5663d)
+
 ## 0.1.1
 
 - [Add support for installing local files](https://github.com/babashka/bbin/commit/675c5826a633e10a1e997870dcf0cb28867c411f)

@@ -74,12 +74,17 @@ $ bbin install io.github.borkdude/quickblog --tool --ns-default quickblog.api
 
 # Install a script from a URL
 $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj
+$ bbin install https://github.com/babashka/http-server/releases/download/v0.1.11/http-server.jar
 
 # Install a script from a local file
 $ bbin install foo.clj
+$ bbin install http-server.jar
 
-# Install a script from a local root
+# Install a script from a local root (with no lib name)
 $ git clone https://github.com/babashka/bbin.git ~/src/bbin
+$ bbin install ~/src/bbin --as bbin-dev
+
+# Install a script from a local root (with lib name)
 $ bbin install io.github.babashka/bbin --local/root ~/src/bbin --as bbin-dev
 
 # Remove a script
@@ -94,9 +99,6 @@ $ bbin bin
 # TODO: Not implemented yet, but possibly supported in the future
 $ bbin install https://gist.github.com/1d7670142f8117fa78d7db40a9d6ee80.git
 $ bbin install git@gist.github.com:1d7670142f8117fa78d7db40a9d6ee80.git
-$ bbin install https://github.com/babashka/http-server/releases/download/v0.1.11/http-server.jar
-$ bbin install ~/src/watch
-$ bbin install http-server.jar
 ```
 
 ## Docs
