@@ -126,7 +126,15 @@
       (is (= "Hello world" (run-bin-script :hello))))))
 
 (deftest install-from-local-root-jar-test
-  (testing "install ./*.jar"))
+  (testing "install ./*.jar"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [script-jar (str "test-resources" fs/file-separator "hello.jar")
+          cli-opts {:script/lib script-jar}
+          out (run-install cli-opts)]
+      (is (= {:coords {:bbin/url (str "file://" (fs/canonicalize script-jar {:nofollow-links true}))}}
+             out))
+      (is (= "Hello JAR" (run-bin-script :hello))))))
 
 (deftest install-from-url-clj-test
   (testing "install https://*.clj"
@@ -137,8 +145,16 @@
       (is (= {:coords {:bbin/url portal-script-url}} out))
       (is (fs/exists? (fs/file bbin-root "bin/portal"))))))
 
+(def hello-jar-url "https://raw.githubusercontent.com/rads/bbin-test-lib/main/hello.jar")
+
 (deftest install-from-url-jar-test
-  (testing "install https://*.jar"))
+  (testing "install https://*.jar"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [cli-opts {:script/lib hello-jar-url}
+          out (run-install cli-opts)]
+      (is (= {:coords {:bbin/url hello-jar-url}} out))
+      (is (= "Hello JAR" (run-bin-script :hello))))))
 
 (deftest install-tool-from-local-root-test
   (testing "install ./ --tool"

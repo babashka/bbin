@@ -1,5 +1,5 @@
 {:min-bb-version "0.9.162"
- :paths ["src" "test" "dev"]
+ :paths ["src" "test" "test-resources" "dev"]
  :pods {org.babashka/fswatcher {:version "0.0.3"}}
  :deps {org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
                                  :git/sha "8df0712896f596680da7a32ae44bb000b7e45e68"}

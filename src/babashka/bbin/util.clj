@@ -41,6 +41,9 @@ Usage: bbin <command>
 (defn bin-dir [cli-opts]
   (fs/file (bbin-root cli-opts) "bin"))
 
+(defn jars-dir [cli-opts]
+  (fs/file (bbin-root cli-opts) "jars"))
+
 (defn canonicalized-cli-opts [cli-opts]
   (merge cli-opts
          (when-let [v (:local/root cli-opts)]

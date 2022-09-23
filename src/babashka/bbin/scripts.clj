@@ -1,8 +1,10 @@
 (ns babashka.bbin.scripts
   (:require [babashka.bbin.util :as util :refer [sh]]
+            [babashka.curl :as curl]
             [babashka.deps :as deps]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [rads.deps-info.infer :as deps-info-infer]
@@ -129,6 +131,26 @@
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
+(def ^:private local-jar-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process])
+
+(def script-jar {{script/jar|pr-str}})
+
+(def base-command
+  [\"bb\" script-jar \"--\"])
+
+(process/exec (into base-command *command-line-args*))
+"))
+
 (def ^:private local-dir-template-str
   (str/trim "
 #!/usr/bin/env bb
@@ -243,7 +265,7 @@
           (spit (str path-str windows-wrapper-extension) (str "@bb -f %~dp0" (fs/file-name path-str) " -- %*")))
         nil))))
 
-(defn- install-http [cli-opts]
+(defn- install-http-file [cli-opts]
   (let [http-url (:script/lib cli-opts)
         script-deps {:bbin/url http-url}
         header {:coords script-deps}
@@ -265,6 +287,52 @@
                             (insert-script-header header))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
                                      {:nofollow-links true})]
+    (install-script script-file script-contents (:dry-run cli-opts))))
+
+(defn- install-http-jar [cli-opts]
+  (fs/create-dirs (util/jars-dir cli-opts))
+  (let [http-url (:script/lib cli-opts)
+        script-deps {:bbin/url http-url}
+        header {:coords script-deps}
+        _ (pprint header cli-opts)
+        script-name (or (:as cli-opts) (http-url->script-name http-url))
+        cached-jar-path (fs/file (util/jars-dir cli-opts) (str script-name ".jar"))
+        script-edn-out (with-out-str
+                         (binding [*print-namespace-maps* false]
+                           (clojure.pprint/pprint header)))
+        template-opts {:script/meta (->> script-edn-out
+                                         str/split-lines
+                                         (map #(str comment-char " " %))
+                                         (str/join "\n"))
+                       :script/jar cached-jar-path}
+        script-contents (selmer-util/without-escaping
+                          (selmer/render local-jar-template-str template-opts))
+        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
+                                     {:nofollow-links true})]
+    (io/copy (:body (curl/get http-url {:as :bytes})) cached-jar-path)
+    (install-script script-file script-contents (:dry-run cli-opts))))
+
+(defn- install-local-jar [cli-opts]
+  (fs/create-dirs (util/jars-dir cli-opts))
+  (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
+        script-deps {:bbin/url (str "file://" file-path)}
+        header {:coords script-deps}
+        _ (pprint header cli-opts)
+        script-name (or (:as cli-opts) (file-path->script-name file-path))
+        cached-jar-path (fs/file (util/jars-dir cli-opts) (str script-name ".jar"))
+        script-edn-out (with-out-str
+                         (binding [*print-namespace-maps* false]
+                           (clojure.pprint/pprint header)))
+        template-opts {:script/meta (->> script-edn-out
+                                         str/split-lines
+                                         (map #(str comment-char " " %))
+                                         (str/join "\n"))
+                       :script/jar cached-jar-path}
+        script-contents (selmer-util/without-escaping
+                          (selmer/render local-jar-template-str template-opts))
+        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
+                                     {:nofollow-links true})]
+    (fs/copy file-path cached-jar-path {:replace-existing true})
     (install-script script-file script-contents (:dry-run cli-opts))))
 
 (defn- default-script-config [cli-opts]
@@ -442,9 +510,11 @@
             {:keys [procurer artifact]} summary]
         (case [procurer artifact]
           [:git :dir] (install-deps-git-or-local cli-opts' summary)
-          [:http :file] (install-http cli-opts')
+          [:http :file] (install-http-file cli-opts')
+          [:http :jar] (install-http-jar cli-opts')
           [:local :dir] (install-deps-git-or-local cli-opts' summary)
           [:local :file] (install-local-script cli-opts')
+          [:local :jar] (install-local-jar cli-opts')
           [:maven :jar] (install-deps-maven cli-opts')
           (throw (ex-info "Invalid script coordinates.\nIf you're trying to install from the filesystem, make sure the path actually exists."
                           {:script/lib (:script/lib cli-opts')
@@ -460,4 +530,5 @@
             script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
         (when (fs/delete-if-exists script-file)
           (when util/windows? (fs/delete-if-exists (fs/file (str script-file windows-wrapper-extension))))
+          (fs/delete-if-exists (fs/file (util/jars-dir cli-opts) (str script-name ".jar")))
           (println "Removing" (str script-file)))))))

@@ -20,6 +20,7 @@
 .vscode
 *.class
 *.jar
+!test-resources/hello.jar
 *.swp
 *~
 /checkouts
