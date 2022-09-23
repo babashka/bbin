@@ -7,6 +7,7 @@
 (declare print-commands)
 
 (defn- run [command-fn {:keys [opts]}]
+  (util/check-legacy-paths)
   (if (and (:version opts) (not (:help opts)))
     (util/print-version)
     (command-fn opts)))

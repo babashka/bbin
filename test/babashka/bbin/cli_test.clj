@@ -1,12 +1,12 @@
 (ns babashka.bbin.cli-test
   (:require [clojure.test :refer [deftest is testing use-fixtures]]
-            [babashka.bbin.test-util :refer [bbin bbin-root-fixture]]
+            [babashka.bbin.test-util :refer [bbin bbin-dirs-fixture]]
             [clojure.string :as str]
             [babashka.bbin.meta :as meta]
             [babashka.bbin.util :as util]
             [clojure.set :as set]))
 
-(use-fixtures :once (bbin-root-fixture))
+(use-fixtures :once (bbin-dirs-fixture))
 
 (deftest bin-test
   (testing "bin"

@@ -9,11 +9,13 @@
   (doto (str (fs/file (fs/temp-dir) "bbin-test"))
     (fs/delete-on-exit)))
 
-(def bbin-root (str (fs/file test-dir "bbin")))
+(def bin-dir (fs/file test-dir (fs/relativize (util/user-home) (util/bin-dir-base nil))))
+(def jars-dir (fs/file test-dir (fs/relativize (util/user-home) (util/jars-dir-base nil))))
 
-(defn bbin-root-fixture []
+(defn bbin-dirs-fixture []
   (fn [f]
-    (binding [util/*bbin-root* bbin-root]
+    (binding [util/*bin-dir* bin-dir
+              util/*jars-dir* jars-dir]
       (f))))
 
 (defn reset-test-dir []
