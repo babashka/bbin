@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- [Fix script args being ignored when installing JARs](https://github.com/babashka/bbin/commit/ac85b8f984c8a30683c219d8d0faa32ef91e93e2)
+
 ## 0.1.2
 
 - [Add support for HTTP and local JARs](https://github.com/babashka/bbin/commit/58d48df19969aaf5e7ff8ea0b87330e2d1e67568)
