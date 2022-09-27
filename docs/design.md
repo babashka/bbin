@@ -13,7 +13,7 @@
 - Build the script from the corresponding template
   - Selmer template rendering of a bash script (or a babashka script on Windows)
   - Script also includes commented metadata for use by `ls`
-- Write script out to bbin's bin directory (~/.bbin/bin)
+- Write script out to bbin's bin directory (~/.local/bin)
   - On Windows, a batch file is also written to provide a command-line executable
 
 ### `uninstall`
