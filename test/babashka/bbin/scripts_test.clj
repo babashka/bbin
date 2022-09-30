@@ -49,7 +49,7 @@
 
 (defn exec-cmd-line [script-name]
   (concat (when util/windows? ["cmd" "/c"])
-          [(fs/canonicalize (fs/file bin-dir (name script-name)) {:nofollow-links true})]))
+          [(str (fs/canonicalize (fs/file bin-dir (name script-name)) {:nofollow-links true}))]))
 
 (defn run-bin-script [script-name & script-args]
   (let [args (concat (exec-cmd-line script-name) script-args)

@@ -1,14 +1,15 @@
 (ns babashka.bbin.scripts
   (:require [babashka.bbin.util :as util :refer [sh]]
-            [babashka.curl :as curl]
             [babashka.deps :as deps]
             [babashka.fs :as fs]
+            [cheshire.core :as json]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [rads.deps-info.infer :as deps-info-infer]
             [rads.deps-info.summary :as deps-info-summary]
+            [org.httpkit.client :as http]
             [selmer.filters :as filters]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]))
@@ -283,7 +284,7 @@
         header {:coords script-deps}
         _ (pprint header cli-opts)
         script-name (or (:as cli-opts) (file-path->script-name file-path))
-        script-contents (-> (slurp (:bbin/url script-deps))
+        script-contents (-> (slurp file-path)
                             (insert-script-header header))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
                                      {:nofollow-links true})]
@@ -309,7 +310,7 @@
                           (selmer/render local-jar-template-str template-opts))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
                                      {:nofollow-links true})]
-    (io/copy (:body (curl/get http-url {:as :bytes})) cached-jar-path)
+    (io/copy (:body @(http/get http-url {:as :byte-array})) cached-jar-path)
     (install-script script-file script-contents (:dry-run cli-opts))))
 
 (defn- install-local-jar [cli-opts]
@@ -341,10 +342,16 @@
     {:main-opts ["-m" (str top "." name)]
      :ns-default (str top "." name)}))
 
+(def ^:private deps-info-client
+  {:http-get-json #(json/parse-string (:body @(apply http/get %&)) true)})
+
+(defn- deps-info-infer [& {:as opts}]
+  (deps-info-infer/infer deps-info-client opts))
+
 (defn- install-deps-git-or-local [cli-opts {:keys [procurer] :as _summary}]
   (let [script-deps (if (and (#{:local} procurer) (not (:local/root cli-opts)))
                       {::no-lib {:local/root (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))}}
-                      (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts))))
+                      (deps-info-infer (assoc cli-opts :lib (:script/lib cli-opts))))
         lib (key (first script-deps))
         coords (val (first script-deps))
         header (merge {:coords coords} (when-not (#{::no-lib} lib) {:lib lib}))
