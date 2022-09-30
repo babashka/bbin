@@ -23,7 +23,8 @@
             [babashka.bbin.meta :as meta]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [taoensso.timbre :as log]))
+            [taoensso.timbre :as log]
+            [clojure.edn :as edn]))
 
 (defn user-home []
   (System/getProperty "user.home"))
@@ -68,19 +69,26 @@ WARNING: Override:
 WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbin\"
 "))))
 
+(defn- xdg-flag-enabled? []
+  (some-> (System/getenv "BABASHKA_BBIN_FLAG_XDG")
+          edn/read-string))
+
 (defn- using-legacy-paths? []
-  (fs/exists? (fs/file (user-home) ".babashka" "bbin" "bin")))
+  (and (xdg-flag-enabled?)
+       (fs/exists? (fs/file (user-home) ".babashka" "bbin" "bin"))))
 
 (defn check-legacy-paths []
   (when (using-legacy-paths?)
     (print-legacy-path-warning)))
 
 (defn bin-dir-base [_]
-  (if-let [override (System/getenv "BABASHKA_BBIN_BIN_DIR")]
-    (fs/file override)
-    (if (using-legacy-paths?)
-      (fs/file (user-home) ".babashka" "bbin" "bin")
-      (fs/file (user-home) ".local" "bin"))))
+  (if (xdg-flag-enabled?)
+    (if-let [override (System/getenv "BABASHKA_BBIN_BIN_DIR")]
+      (fs/file override)
+      (fs/file (user-home) ".local" "bin"))
+    (if-let [override (System/getenv "BABASHKA_BBIN_DIR")]
+      (fs/file override "bin")
+      (fs/file (user-home) ".babashka" "bbin" "bin"))))
 
 (defn bin-dir [opts]
   (or *bin-dir* (bin-dir-base opts)))
@@ -93,11 +101,13 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
 (def ^:dynamic *jars-dir* nil)
 
 (defn jars-dir-base [_]
-  (if-let [override (System/getenv "BABASHKA_BBIN_JARS_DIR")]
-    (fs/file override)
-    (if (using-legacy-paths?)
-      (fs/file (user-home) ".babashka" "bbin" "jars")
-      (fs/file (xdg-cache-home) "babashka" "bbin" "jars"))))
+  (if (xdg-flag-enabled?)
+    (if-let [override (System/getenv "BABASHKA_BBIN_JARS_DIR")]
+      (fs/file override)
+      (fs/file (xdg-cache-home) "babashka" "bbin" "jars"))
+    (if-let [override (System/getenv "BABASHKA_BBIN_DIR")]
+      (fs/file override "jars")
+      (fs/file (user-home) ".babashka" "bbin" "jars"))))
 
 (defn jars-dir [opts]
   (or *jars-dir* (jars-dir-base opts)))
