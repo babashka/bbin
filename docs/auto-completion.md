@@ -8,3 +8,11 @@ Add this to `~/.zshrc`:
 function _bbin() { _arguments "1: :($(bbin commands))" }
 compdef _bbin bbin
 ```
+
+### BASH
+
+Add this to `~/.bashrc`:
+
+```shell
+complete -W "$(bbin commands)" bbin
+```

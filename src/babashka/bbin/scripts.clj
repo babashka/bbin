@@ -222,10 +222,10 @@
                 #"\."))))
 
 (defn- file-path->script-name [file-path]
-  (util/snake-case
-    (first
-      (str/split (last (str/split file-path #"/"))
-                 #"\."))))
+  (-> file-path
+    fs/file-name
+    fs/strip-ext
+    util/snake-case))
 
 (defn- bb-shebang? [s]
   (str/starts-with? s "#!/usr/bin/env bb"))
