@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- [local installs without aliases throw exception on Windows](https://github.com/babashka/bbin/issues/37)
+
 ## 0.1.3
 
 - [Fix script args being ignored when installing JARs](https://github.com/babashka/bbin/commit/ac85b8f984c8a30683c219d8d0faa32ef91e93e2)
