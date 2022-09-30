@@ -1,7 +1,21 @@
 # Changelog
 
-## Unreleased
-- [local installs without aliases throw exception on Windows](https://github.com/babashka/bbin/issues/37)
+## 0.1.4
+
+- [Replace `babashka.curl` with `org.httpkit.client`](https://github.com/babashka/bbin/commit/55f942bfccb8e3095ba715e242c99a1c030cf0e9)
+- [Add opt-in flag for "Use Freedesktop specification for default paths"](https://github.com/babashka/bbin/commit/6fde1b1dbfaef3063eb1eba4899a730bf703c792)
+    - We're currently working on making `bbin` follow the Freedesktop spec more closely, which means we need to change the default bin path ([\#35](https://github.com/babashka/bbin/issues/35))
+    - In a future `0.2.0` release, `bbin` will change its default bin path from `~/.babashka/bbin/bin` to `~/.local/bin`
+    - For versions `>=0.1.4`, the new default behavior can be enabled by setting an env variable:
+        ```
+        $ bbin bin
+        /Users/rads/.babashka/bbin/bin
+      
+        $ BABASHKA_BBIN_FLAG_XDG=true bbin bin
+        /Users/rads/.local/bin
+        ```
+    - The flag will not have any effect when used with `0.2.0`. It's only for previewing the upcoming changes
+- [Fix "local installs without aliases throw exception on Windows"](https://github.com/babashka/bbin/commit/748722178824d7e2ff76544bfc7c23def8ce708c) (thanks [@bobisageek](https://github.com/bobisageek)!)
 
 ## 0.1.3
 
