@@ -55,13 +55,13 @@ Usage: bbin <command>
 (defn print-legacy-path-warning []
   (binding [*out* *err*]
     (println (str/triml "
-WARNING: The $HOME/.babashka/bbin/bin path is deprecated in favor of ~/.local/bin.
+WARNING: The ~/.babashka/bbin/bin path is deprecated in favor of ~/.local/bin.
 WARNING:
 WARNING: To remove this message, you can either:
 WARNING:
 WARNING: Migrate:
-WARNING:   - Move ~/.babashka/bbin/bin to ~/.local/bin
-WARNING:   - Move ~/.babashka/bbin/jars to ~/.cache/babashka/bbin/jars (if it exists)
+WARNING:   - Move files in ~/.babashka/bbin/bin to ~/.local/bin
+WARNING:   - Move files in ~/.babashka/bbin/jars to ~/.cache/babashka/bbin/jars (if it exists)
 WARNING:
 WARNING: OR
 WARNING:
