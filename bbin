@@ -387,25 +387,27 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
     fs/strip-ext
     util/snake-case))
 
+(def bb-shebang-str "#!/usr/bin/env bb")
+
 (defn- bb-shebang? [s]
-  (str/starts-with? s "#!/usr/bin/env bb"))
+  (str/starts-with? s bb-shebang-str))
 
 (defn insert-script-header [script-contents header]
-  (let [
-        prev-lines (str/split-lines script-contents)
+  (let [prev-lines (str/split-lines script-contents)
         [prefix [shebang & code]] (split-with #(not (bb-shebang? %)) prev-lines)
-        next-lines (concat prefix [shebang]
-                           [""
-                            "; :bbin/start"
-                            ";"]
-                           (map #(str "; " %)
-                                (str/split-lines
-                                 (with-out-str
-                                   (pprint/pprint header))))
-                           [";"
-                            "; :bbin/end"
-                            ""]
-                           code)]
+        header (concat [""
+                        "; :bbin/start"
+                        ";"]
+                       (map #(str "; " %)
+                            (str/split-lines
+                              (with-out-str
+                                (pprint/pprint header))))
+                       [";"
+                        "; :bbin/end"
+                        ""])
+        next-lines (if shebang
+                     (concat prefix [shebang] header code)
+                     (concat [bb-shebang-str] header prefix))]
     (str/join "\n" next-lines)))
 
 (defn- install-script
