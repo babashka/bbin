@@ -12,7 +12,13 @@
 
 (def bbin-test-lib
   '{:lib io.github.rads/bbin-test-lib,
-    :coords {:git/url "https://github.com/rads/bbin-test-lib",
+    :coords {:git/url "https://github.com/rads/bbin-test-lib.git",
+             :git/tag "v0.0.1",
+             :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
+
+(def bbin-test-lib-private
+  '{:lib io.github.rads/bbin-test-lib-private,
+    :coords {:git/url "git@github.com:rads/bbin-test-lib-private.git",
              :git/tag "v0.0.1",
              :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
 
@@ -25,18 +31,7 @@
     (util/ensure-bbin-dirs cli-opts)
     (is (= {} (scripts/load-scripts cli-opts)))
     (spit (fs/file (util/bin-dir cli-opts) "test-script") test-script)
-    (is (= '{test-script
-             {:lib io.github.rads/bbin-test-lib,
-              :coords {:git/url "https://github.com/rads/bbin-test-lib",
-                       :git/tag "v0.0.1",
-                       :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}}}
-           (scripts/load-scripts cli-opts)))))
-
-(def test-lib
-  {:lib 'io.github.rads/bbin-test-lib
-   :coords {:git/url "https://github.com/rads/bbin-test-lib"
-            :git/tag "v0.0.1"
-            :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
+    (is (= {'test-script bbin-test-lib} (scripts/load-scripts cli-opts)))))
 
 (def portal-script-url
   (str "https://gist.githubusercontent.com"
@@ -56,14 +51,25 @@
         {:keys [out]} (sh args {:err :inherit})]
     (str/trim out)))
 
-(deftest install-from-qualified-lib-name-test
-  (testing "install */*"
+(deftest install-from-qualified-lib-name-public-test
+  (testing "install */* (public Git repo)"
     (reset-test-dir)
     (util/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib"}
           out (run-install cli-opts)
           bin-file (fs/file bin-dir "hello")]
-      (is (= test-lib out))
+      (is (= bbin-test-lib out))
+      (is (fs/exists? bin-file))
+      (is (= "Hello world!" (run-bin-script 'hello))))))
+
+(deftest install-from-qualified-lib-name-private-test
+  (testing "install */* (private Git repo)"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib-private"}
+          out (run-install cli-opts)
+          bin-file (fs/file bin-dir "hello")]
+      (is (= bbin-test-lib-private out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
 
