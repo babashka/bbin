@@ -6,4 +6,4 @@
         selmer/selmer {:mvn/version "1.12.53"}
         io.github.rads/deps-info {:git/tag "v0.0.11" :git/sha "a32493d"}}
  :aliases {:neil {:project {:name babashka/bbin
-                            :version "0.1.5"}}}}
+                            :version "0.1.6"}}}}
