@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6
+
+- [Bump `io.github.rads/deps-info` to `v0.0.11`](https://github.com/babashka/bbin/commit/82dbee1e0f472cf4f6dda82858c848ed5b4a0709)
+    - New features:
+        - [Support inference for private Git repos](https://github.com/babashka/bbin/issues/48)
+        - [Support all possible "lib to url" cases](https://github.com/babashka/bbin/issues/3)
+
 ## 0.1.5
 
 - [Support installing script files without shebang](https://github.com/babashka/bbin/commit/d4103e26db3c5c94f9ed7414c1d5fcd988b40e34)

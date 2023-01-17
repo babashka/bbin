@@ -2,7 +2,6 @@
   (:require [babashka.bbin.util :as util :refer [sh]]
             [babashka.deps :as deps]
             [babashka.fs :as fs]
-            [cheshire.core :as json]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.main]
@@ -372,16 +371,10 @@
     {:main-opts ["-m" (str top "." name)]
      :ns-default (str top "." name)}))
 
-(def ^:private deps-info-client
-  {:http-get-json #(json/parse-string (:body @(apply http/get %&)) true)})
-
-(defn- deps-info-infer [& {:as opts}]
-  (deps-info-infer/infer deps-info-client opts))
-
 (defn- install-deps-git-or-local [cli-opts {:keys [procurer] :as _summary}]
   (let [script-deps (if (and (#{:local} procurer) (not (:local/root cli-opts)))
                       {::no-lib {:local/root (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))}}
-                      (deps-info-infer (assoc cli-opts :lib (:script/lib cli-opts))))
+                      (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts))))
         lib (key (first script-deps))
         coords (val (first script-deps))
         header (merge {:coords coords} (when-not (#{::no-lib} lib) {:lib lib}))
