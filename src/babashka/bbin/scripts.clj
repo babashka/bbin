@@ -292,27 +292,17 @@
                                      {:nofollow-links true})]
     (install-script script-file script-contents (:dry-run cli-opts))))
 
-
-(defn main-ns [manifest-resource]
-  (with-open [is (io/input-stream manifest-resource)]
-    (some-> (java.util.jar.Manifest. is)
-                (.getMainAttributes)
-                ;; FIXME .getValue is missing in Babashka? Create issue. See https://docs.oracle.com/javase/7/docs/api/java/util/jar/Attributes.html
-                #_(.getValue "Main-Class")
-                (->> (into {}) (some (fn [[k v]]
-                                       (when (clojure.string/includes? k "Main-Class") v))))
-                (clojure.main/demunge))))
-
-
 (defn jar->main-ns [jar-path]
-  (let [jar-file (io/file jar-path)
-        manifest-path "META-INF/MANIFEST.MF"]
-    (or (with-open [jar (java.util.jar.JarFile. jar-file)]
-          (when (.getEntry jar manifest-path)
-            (main-ns (java.net.URL. "jar" nil (str "file:" (.getAbsolutePath jar-file) "!/" manifest-path)))))
-
+  (with-open [jar-file (java.util.jar.JarFile. (fs/file jar-path))]
+    (or (some-> (.getManifest jar-file)
+                (.getMainAttributes)
+                ;; TODO After July 17th 2023: Remove workaround below and start using (.getValue "Main-Class") instead
+                ;;      (see https://github.com/babashka/bbin/pull/47#discussion_r1071348344)
+                (->> (some (fn [[k v]]
+                             (when (clojure.string/includes? k "Main-Class")
+                               v))))
+                (clojure.main/demunge))
         (throw (ex-info "jar has no Main-Class" {:babashka/exit 1})))))
-
 
 (defn- install-http-jar [cli-opts]
   (fs/create-dirs (util/jars-dir cli-opts))
