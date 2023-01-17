@@ -310,10 +310,12 @@
         script-deps {:bbin/url http-url}
         header {:coords script-deps}
         script-name (or (:as cli-opts) (http-url->script-name http-url))
+        tmp-jar-path (doto (fs/file (fs/temp-dir) (str script-name ".jar"))
+                       (fs/delete-on-exit))
+        _ (io/copy (:body @(http/get http-url {:as :byte-array})) tmp-jar-path)
+        main-ns (jar->main-ns tmp-jar-path)
         cached-jar-path (fs/file (util/jars-dir cli-opts) (str script-name ".jar"))
-        ;; TODO copy jar to temp dir and validate it first before installing
-        _ (io/copy (:body @(http/get http-url {:as :byte-array})) cached-jar-path)
-        main-ns (jar->main-ns cached-jar-path)
+        _ (fs/move tmp-jar-path cached-jar-path)
         _ (pprint header cli-opts)
         script-edn-out (with-out-str
                          (binding [*print-namespace-maps* false]
