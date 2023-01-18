@@ -1,0 +1,16 @@
+#!/usr/bin/env bb
+
+(require '[babashka.fs :as fs]
+         '[babashka.process :as p])
+
+(def key-path (str (fs/file (fs/parent *file*) "id_ed25519_bbin_test_lib_private")))
+
+
+(if (and (#{"clone" "fetch"} (first *command-line-args*))
+         (some #{"git@bitbucket.org:radsmith/bbin-test-lib-private.git"} *command-line-args*))
+  (do
+    (when-not (fs/windows?)
+      (fs/set-posix-file-permissions key-path "rw-------"))
+    (apply p/exec (concat ["git" (first *command-line-args*) "-c" (str "core.sshCommand=ssh -o StrictHostKeyChecking=no -i '" key-path "'")]
+                          (rest *command-line-args*))))
+  (apply p/exec (concat ["git"] *command-line-args*)))
