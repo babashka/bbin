@@ -2,13 +2,15 @@
   (:require [babashka.bbin.scripts :as scripts]
             [babashka.bbin.test-util :refer [bbin-dirs-fixture
                                              bbin-private-keys-fixture
-                                             bin-dir reset-test-dir test-dir]]
+                                             bin-dir reset-test-dir test-dir
+                                             jars-dir]]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [babashka.process :refer [sh]]
             [clojure.edn :as edn]
             [clojure.string :as str]
-            [clojure.test :refer [deftest is testing use-fixtures]]))
+            [clojure.test :refer [deftest is testing use-fixtures]])
+  (:import (clojure.lang ExceptionInfo)))
 
 (use-fixtures :once
               (bbin-dirs-fixture)
@@ -153,7 +155,17 @@
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url (str "file://" (fs/canonicalize script-jar {:nofollow-links true}))}}
              out))
-      (is (= "Hello JAR" (run-bin-script :hello))))))
+      (is (= "Hello JAR" (run-bin-script :hello)))))
+  (testing "install ./*.jar (no main class)"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [script-jar (str "test-resources" fs/file-separator "hello-no-main-class.jar")
+          cli-opts {:script/lib script-jar}]
+      (is (thrown-with-msg? ExceptionInfo #"jar has no Main-Class" (run-install cli-opts)))
+      (is (not (fs/exists? (fs/file bin-dir "hello-no-main-class"))))
+      (is (not (fs/exists? (fs/file jars-dir "hello-no-main-class.jar")))))))
+
+(comment (clojure.test/run-test-var #'install-from-local-root-jar-test))
 
 (deftest install-from-url-clj-test
   (testing "install https://*.clj"
