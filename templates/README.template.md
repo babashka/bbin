@@ -99,8 +99,6 @@ $ bbin ls
 
 # Show the bin path
 $ bbin bin
-
-# TODO: Not implemented yet, but possibly supported in the future
 ```
 
 ## Docs
@@ -142,7 +140,7 @@ $ bbin bin
 
 *Note:* `bbin` will throw an error if conflicting options are provided, such as using both `--git/sha` and `--mvn/version` at the same time.
 
-If no `--git/tag` or `--git/sha` is provided, the latest Git tag from GitHub will be used.
+If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo will be used.
 
 - `--as`
     - The name of the script to be saved in the `bbin bin` path
@@ -153,7 +151,7 @@ If no `--git/tag` or `--git/sha` is provided, the latest Git tag from GitHub wil
 - `--git/url`
     - The URL for a Git repo
 - `--latest-sha`
-    - If provided, find the latest SHA from GitHub
+    - If provided, find the latest SHA from the Git repo
 - `--local/root`
     - The path of a local directory containing a `deps.edn` file
 - `--main-opts`
