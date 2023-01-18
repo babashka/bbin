@@ -315,7 +315,7 @@
         _ (io/copy (:body @(http/get http-url {:as :byte-array})) tmp-jar-path)
         main-ns (jar->main-ns tmp-jar-path)
         cached-jar-path (fs/file (util/jars-dir cli-opts) (str script-name ".jar"))
-        _ (fs/move tmp-jar-path cached-jar-path)
+        _ (fs/move tmp-jar-path cached-jar-path {:replace-existing true})
         _ (pprint header cli-opts)
         script-edn-out (with-out-str
                          (binding [*print-namespace-maps* false]

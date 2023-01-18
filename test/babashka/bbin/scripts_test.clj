@@ -185,6 +185,11 @@
     (let [cli-opts {:script/lib hello-jar-url}
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url hello-jar-url}} out))
+      (is (= "Hello JAR" (run-bin-script :hello)))))
+  (testing "install https://*.jar (reinstall)"
+    (let [cli-opts {:script/lib hello-jar-url}
+          out (run-install cli-opts)]
+      (is (= {:coords {:bbin/url hello-jar-url}} out))
       (is (= "Hello JAR" (run-bin-script :hello))))))
 
 (deftest install-tool-from-local-root-test
