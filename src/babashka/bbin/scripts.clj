@@ -4,7 +4,7 @@
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.main]
+            [clojure.main :as main]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [rads.deps-info.infer :as deps-info-infer]
@@ -12,7 +12,8 @@
             [org.httpkit.client :as http]
             [selmer.filters :as filters]
             [selmer.parser :as selmer]
-            [selmer.util :as selmer-util]))
+            [selmer.util :as selmer-util])
+  (:import (java.util.jar JarFile)))
 
 (defn- pprint [x _]
   (pprint/pprint x))
@@ -293,16 +294,15 @@
     (install-script script-file script-contents (:dry-run cli-opts))))
 
 (defn jar->main-ns [jar-path]
-  (with-open [jar-file (java.util.jar.JarFile. (fs/file jar-path))]
-    (or (some-> (.getManifest jar-file)
-                (.getMainAttributes)
-                ;; TODO After July 17th 2023: Remove workaround below and start using (.getValue "Main-Class") instead
-                ;;      (see https://github.com/babashka/bbin/pull/47#discussion_r1071348344)
-                (->> (some (fn [[k v]]
-                             (when (clojure.string/includes? k "Main-Class")
-                               v))))
-                (clojure.main/demunge))
-        (throw (ex-info "jar has no Main-Class" {:babashka/exit 1})))))
+  (with-open [jar-file (JarFile. (fs/file jar-path))]
+    (let [main-attributes (some-> jar-file .getManifest .getMainAttributes)
+          ;; TODO After July 17th 2023: Remove workaround below and start using (.getValue "Main-Class") instead
+          ;;      (see https://github.com/babashka/bbin/pull/47#discussion_r1071348344)
+          main-class (some (fn [[k v]] (when (str/includes? k "Main-Class") v))
+                           main-attributes)]
+      (if main-class
+        (main/demunge main-class)
+        (throw (ex-info "jar has no Main-Class" {:jar-path jar-path}))))))
 
 (defn- install-http-jar [cli-opts]
   (fs/create-dirs (util/jars-dir cli-opts))
