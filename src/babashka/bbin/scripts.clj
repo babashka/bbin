@@ -4,6 +4,7 @@
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
+            [clojure.main]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [rads.deps-info.infer :as deps-info-infer]
@@ -141,14 +142,14 @@
 ;
 ; :bbin/end
 
-(require '[babashka.process :as process])
+(require '[babashka.classpath :refer [add-classpath]])
 
 (def script-jar {{script/jar|pr-str}})
 
-(def base-command
-  [\"bb\" script-jar])
+(add-classpath script-jar)
 
-(process/exec (into base-command *command-line-args*))
+(require '[{{script/main-ns}}])
+(apply {{script/main-ns}}/-main *command-line-args*)
 "))
 
 (def ^:private local-dir-template-str
@@ -291,14 +292,31 @@
                                      {:nofollow-links true})]
     (install-script script-file script-contents (:dry-run cli-opts))))
 
+(defn jar->main-ns [jar-path]
+  (with-open [jar-file (java.util.jar.JarFile. (fs/file jar-path))]
+    (or (some-> (.getManifest jar-file)
+                (.getMainAttributes)
+                ;; TODO After July 17th 2023: Remove workaround below and start using (.getValue "Main-Class") instead
+                ;;      (see https://github.com/babashka/bbin/pull/47#discussion_r1071348344)
+                (->> (some (fn [[k v]]
+                             (when (clojure.string/includes? k "Main-Class")
+                               v))))
+                (clojure.main/demunge))
+        (throw (ex-info "jar has no Main-Class" {:babashka/exit 1})))))
+
 (defn- install-http-jar [cli-opts]
   (fs/create-dirs (util/jars-dir cli-opts))
   (let [http-url (:script/lib cli-opts)
         script-deps {:bbin/url http-url}
         header {:coords script-deps}
-        _ (pprint header cli-opts)
         script-name (or (:as cli-opts) (http-url->script-name http-url))
+        tmp-jar-path (doto (fs/file (fs/temp-dir) (str script-name ".jar"))
+                       (fs/delete-on-exit))
+        _ (io/copy (:body @(http/get http-url {:as :byte-array})) tmp-jar-path)
+        main-ns (jar->main-ns tmp-jar-path)
         cached-jar-path (fs/file (util/jars-dir cli-opts) (str script-name ".jar"))
+        _ (fs/move tmp-jar-path cached-jar-path)
+        _ (pprint header cli-opts)
         script-edn-out (with-out-str
                          (binding [*print-namespace-maps* false]
                            (clojure.pprint/pprint header)))
@@ -306,17 +324,18 @@
                                          str/split-lines
                                          (map #(str comment-char " " %))
                                          (str/join "\n"))
+                       :script/main-ns main-ns
                        :script/jar cached-jar-path}
         script-contents (selmer-util/without-escaping
                           (selmer/render local-jar-template-str template-opts))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
                                      {:nofollow-links true})]
-    (io/copy (:body @(http/get http-url {:as :byte-array})) cached-jar-path)
     (install-script script-file script-contents (:dry-run cli-opts))))
 
 (defn- install-local-jar [cli-opts]
   (fs/create-dirs (util/jars-dir cli-opts))
   (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
+        main-ns (jar->main-ns file-path)
         script-deps {:bbin/url (str "file://" file-path)}
         header {:coords script-deps}
         _ (pprint header cli-opts)
@@ -329,6 +348,7 @@
                                          str/split-lines
                                          (map #(str comment-char " " %))
                                          (str/join "\n"))
+                       :script/main-ns main-ns
                        :script/jar cached-jar-path}
         script-contents (selmer-util/without-escaping
                           (selmer/render local-jar-template-str template-opts))
