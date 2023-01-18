@@ -1,14 +1,18 @@
 (ns babashka.bbin.scripts-test
-  (:require [clojure.test :refer [deftest is testing use-fixtures]]
-            [babashka.bbin.test-util :refer [bbin-dirs-fixture bin-dir reset-test-dir test-dir]]
-            [babashka.bbin.scripts :as scripts]
+  (:require [babashka.bbin.scripts :as scripts]
+            [babashka.bbin.test-util :refer [bbin-dirs-fixture
+                                             bbin-private-keys-fixture
+                                             bin-dir reset-test-dir test-dir]]
+            [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [babashka.process :refer [sh]]
-            [babashka.bbin.util :as util]
+            [clojure.edn :as edn]
             [clojure.string :as str]
-            [clojure.edn :as edn]))
+            [clojure.test :refer [deftest is testing use-fixtures]]))
 
-(use-fixtures :once (bbin-dirs-fixture))
+(use-fixtures :once
+              (bbin-dirs-fixture)
+              (bbin-private-keys-fixture))
 
 (def bbin-test-lib
   '{:lib io.github.rads/bbin-test-lib,
@@ -17,8 +21,8 @@
              :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
 
 (def bbin-test-lib-private
-  '{:lib io.github.rads/bbin-test-lib-private,
-    :coords {:git/url "git@github.com:rads/bbin-test-lib-private.git",
+  '{:lib io.bitbucket.radsmith/bbin-test-lib-private,
+    :coords {:git/url "git@bitbucket.org:radsmith/bbin-test-lib-private.git"
              :git/tag "v0.0.1",
              :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
 
@@ -66,7 +70,7 @@
   (testing "install */* (private Git repo)"
     (reset-test-dir)
     (util/ensure-bbin-dirs {})
-    (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib-private"}
+    (let [cli-opts {:script/lib "io.bitbucket.radsmith/bbin-test-lib-private"}
           out (run-install cli-opts)
           bin-file (fs/file bin-dir "hello")]
       (is (= bbin-test-lib-private out))

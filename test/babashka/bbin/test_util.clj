@@ -18,6 +18,22 @@
               util/*jars-dir* jars-dir]
       (f))))
 
+(def git-wrapper-path
+  (-> (if (fs/windows?)
+        "test-resources/git-wrapper.bat"
+        "test-resources/git-wrapper")
+      fs/file
+      fs/canonicalize
+      str))
+
+(defn- set-gitlibs-command []
+  (System/setProperty "clojure.gitlibs.command" git-wrapper-path))
+
+(defn bbin-private-keys-fixture []
+  (fn [f]
+    (set-gitlibs-command)
+    (f)))
+
 (defn reset-test-dir []
   (fs/delete-tree test-dir))
 
