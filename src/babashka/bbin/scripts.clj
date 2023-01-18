@@ -18,12 +18,12 @@
 (defn- pprint [x _]
   (pprint/pprint x))
 
-(defn- local-lib-path [cli-opts script-deps]
+(defn- local-lib-path [script-deps]
   (let [lib (key (first script-deps))
         coords (val (first script-deps))]
     (if (#{::no-lib} lib)
       (:local/root coords)
-      (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (:script/lib cli-opts) (:git/sha coords)])))))
+      (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (namespace lib) (name lib) (:git/sha coords)])))))
 
 (def ^:private comment-char ";")
 (def windows-wrapper-extension ".bat")
@@ -363,9 +363,28 @@
     {:main-opts ["-m" (str top "." name)]
      :ns-default (str top "." name)}))
 
+(defn- generate-deps-lib-name [git-url]
+  (let [s (str "script-"
+               (.hashCode git-url)
+               "-"
+               (-> git-url
+                   (str/replace #"[^a-zA-Z0-9-]" "-")
+                   (str/replace #"--+" "-")))]
+    (symbol "org.babashka.bbin" s)))
+
 (defn- install-deps-git-or-local [cli-opts {:keys [procurer] :as _summary}]
-  (let [script-deps (if (and (#{:local} procurer) (not (:local/root cli-opts)))
+  (let [script-deps (cond
+                      (and (#{:local} procurer) (not (:local/root cli-opts)))
                       {::no-lib {:local/root (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))}}
+
+                      (deps-info-summary/git-repo-url? (:script/lib cli-opts))
+                      (deps-info-infer/infer
+                        (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
+                                                :git/url (:script/lib cli-opts))
+                                (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
+                                (assoc :latest-sha true)))
+
+                      :else
                       (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts))))
         lib (key (first script-deps))
         coords (val (first script-deps))
@@ -377,7 +396,7 @@
         _ (when-not (#{::no-lib} lib)
             (deps/add-deps {:deps script-deps}))
         script-root (fs/canonicalize (or (get-in header [:coords :local/root])
-                                         (local-lib-path cli-opts script-deps))
+                                         (local-lib-path script-deps))
                                      {:nofollow-links true})
         bb-file (fs/file script-root "bb.edn")
         bb-edn (when (fs/exists? bb-file)
@@ -471,7 +490,7 @@
                 :coords (val (first script-deps))}
         _ (pprint header cli-opts)
         _ (deps/add-deps {:deps script-deps})
-        script-root (fs/canonicalize (or (:local/root cli-opts) (local-lib-path cli-opts script-deps)) {:nofollow-links true})
+        script-root (fs/canonicalize (or (:local/root cli-opts) (local-lib-path script-deps)) {:nofollow-links true})
         script-name (or (:as cli-opts) (second (str/split (:script/lib cli-opts) #"/")))
         script-config (default-script-config cli-opts)
         script-edn-out (with-out-str

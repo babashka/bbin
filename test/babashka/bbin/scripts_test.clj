@@ -79,6 +79,38 @@
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
 
+(def git-http-url-lib
+  '{:lib org.babashka.bbin/script-1039504783-https-github-com-rads-bbin-test-lib-git
+    :coords {:git/url "https://github.com/rads/bbin-test-lib.git"
+             :git/sha "cefb15e3320dd4c599e8be62f7a01a00b07e2e72"}})
+
+(deftest install-from-git-http-url-test
+  (testing "install https://*.git"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [cli-opts {:script/lib (get-in git-http-url-lib [:coords :git/url])}
+          out (run-install cli-opts)
+          bin-file (fs/file bin-dir "hello")]
+      (is (= git-http-url-lib out))
+      (is (fs/exists? bin-file))
+      (is (= "Hello world!" (run-bin-script 'hello))))))
+
+(def git-ssh-url-lib
+  '{:lib org.babashka.bbin/script-1166637990-git-bitbucket-org-radsmith-bbin-test-lib-private-git
+    :coords {:git/url "git@bitbucket.org:radsmith/bbin-test-lib-private.git"
+             :git/sha "cefb15e3320dd4c599e8be62f7a01a00b07e2e72"}})
+
+(deftest install-from-git-ssh-url-test
+  (testing "install git@*:*.git"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [cli-opts {:script/lib (get-in git-ssh-url-lib [:coords :git/url])}
+          out (run-install cli-opts)
+          bin-file (fs/file bin-dir "hello")]
+      (is (= git-ssh-url-lib out))
+      (is (fs/exists? bin-file))
+      (is (= "Hello world!" (run-bin-script 'hello))))))
+
 (def maven-lib
   {:lib 'org.babashka/http-server
    :coords {:mvn/version "0.1.11"}})
@@ -164,8 +196,6 @@
       (is (thrown-with-msg? ExceptionInfo #"jar has no Main-Class" (run-install cli-opts)))
       (is (not (fs/exists? (fs/file bin-dir "hello-no-main-class"))))
       (is (not (fs/exists? (fs/file jars-dir "hello-no-main-class.jar")))))))
-
-(comment (clojure.test/run-test-var #'install-from-local-root-jar-test))
 
 (deftest install-from-url-clj-test
   (testing "install https://*.clj"
