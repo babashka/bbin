@@ -2,7 +2,7 @@
 
 ## 0.1.7
 
-- [Validate `:bbin/bin` config](https://github.com/babashka/bbin/commit/61b9fe5ee3105bd6d93738e385f6fcddb18a3fbf)
+- [Validate `:bbin/bin` config](https://github.com/babashka/bbin/commit/b6fe7dc6ce2bc4ee56205e181e71634d503cca02)
 - [Add support for Git URLs without explicit lib name](https://github.com/babashka/bbin/commit/2ef56e19109fab3e8150819a0eaa8f63298da43b)
 - [Run jars without process/exec](https://github.com/babashka/bbin/commit/af7d140d4dfb109ca1930e1f77115289ec067967) (thanks [@jeroenvandijk](https://github.com/jeroenvandijk)!)
 
