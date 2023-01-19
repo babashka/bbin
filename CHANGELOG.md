@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8
+
+- [Fix missing `babashka.bbin.specs` ns in generated script](https://github.com/babashka/bbin/commit/9a67b1ed2e7c90fc4eedf2710d9ee8df34ea896b)
+
 ## 0.1.7
 
 - [Validate `:bbin/bin` config](https://github.com/babashka/bbin/commit/b6fe7dc6ce2bc4ee56205e181e71634d503cca02)
