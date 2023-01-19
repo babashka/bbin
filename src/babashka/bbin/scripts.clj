@@ -372,6 +372,18 @@
                    (str/replace #"--+" "-")))]
     (symbol "org.babashka.bbin" s)))
 
+(defn- load-bin-config [script-root]
+  (require 'babashka.bbin.specs)
+  (let [bb-file (fs/file script-root "bb.edn")
+        bb-edn (when (fs/exists? bb-file)
+                 (some-> bb-file slurp edn/read-string))
+        bin-config (:bbin/bin bb-edn)]
+    (when bin-config
+      (if (util/valid? :bbin/bin bin-config)
+        bin-config
+        (throw (ex-info (util/explain-str :bbin/bin bin-config)
+                        {:bbin/bin bin-config}))))))
+
 (defn- install-deps-git-or-local [cli-opts {:keys [procurer] :as _summary}]
   (let [script-deps (cond
                       (and (#{:local} procurer) (not (:local/root cli-opts)))
@@ -398,11 +410,9 @@
         script-root (fs/canonicalize (or (get-in header [:coords :local/root])
                                          (local-lib-path script-deps))
                                      {:nofollow-links true})
-        bb-file (fs/file script-root "bb.edn")
-        bb-edn (when (fs/exists? bb-file)
-                 (some-> bb-file slurp edn/read-string))
+        bin-config (load-bin-config script-root)
         script-name (or (:as cli-opts)
-                        (some-> (:bbin/bin bb-edn) first key str)
+                        (some-> bin-config first key str)
                         (and (not (#{::no-lib} lib))
                              (second (str/split (:script/lib cli-opts) #"/"))))
         _ (when (str/blank? script-name)
@@ -410,15 +420,15 @@
                             header)))
         script-config (merge (when-not (#{::no-lib} lib)
                                (default-script-config cli-opts))
-                             (some-> (:bbin/bin bb-edn) first val)
+                             (some-> bin-config first val)
                              (when (:ns-default cli-opts)
                                {:ns-default (edn/read-string (:ns-default cli-opts))}))
         script-edn-out (with-out-str
                          (binding [*print-namespace-maps* false]
                            (clojure.pprint/pprint header')))
         tool-mode (or (:tool cli-opts)
-                      (and (some-> (:bbin/bin bb-edn) first val :ns-default)
-                           (not (some-> (:bbin/bin bb-edn) first val :main-opts))))
+                      (and (some-> bin-config first val :ns-default)
+                           (not (some-> bin-config first val :main-opts))))
         main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
                       (:main-opts script-config))
         _ (when (and (not tool-mode) (not (seq main-opts)))

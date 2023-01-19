@@ -143,6 +143,20 @@
                out))
         (is (fs/exists? (fs/file bin-dir "foo")))))))
 
+(deftest invalid-bin-config-test
+  (testing "install */* --local/root * (invalid bin config)"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [local-root (str (fs/file test-dir "foo"))
+          invalid-config 123]
+      (fs/create-dir local-root)
+      (spit (fs/file local-root "bb.edn") (pr-str {:bbin/bin invalid-config}))
+      (spit (fs/file local-root "deps.edn") (pr-str {}))
+      (let [cli-opts {:script/lib "babashka/foo"
+                      :local/root local-root}]
+        (is (thrown-with-msg? ExceptionInfo #"Spec failed"
+                              (run-install cli-opts)))))))
+
 (deftest install-from-no-lib-local-root-dir-test
   (testing "install ./"
     (reset-test-dir)

@@ -137,3 +137,9 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
 
 (defn snake-case [s]
   (str/replace s "_" "-"))
+
+(defn valid? [spec form]
+  ((requiring-resolve 'babashka.bbin.specs/valid?) spec form))
+
+(defn explain-str [spec form]
+  ((requiring-resolve 'babashka.bbin.specs/explain-str) spec form))
