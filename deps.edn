@@ -7,4 +7,4 @@
         org.babashka/cli {:mvn/version "0.3.35"}
         selmer/selmer {:mvn/version "1.12.53"}}
  :aliases {:neil {:project {:name babashka/bbin
-                            :version "0.1.7-SNAPSHOT"}}}}
+                            :version "0.1.7"}}}}
