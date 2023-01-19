@@ -2,7 +2,7 @@
  :paths ["src" "test" "test-resources" "dev"]
  :pods {org.babashka/fswatcher {:version "0.0.3"}}
  :deps {org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
-                                 :git/sha "8df0712896f596680da7a32ae44bb000b7e45e68"}
+                                 :git/sha "951b49b8c173244e66443b8188e3ff928a0a71e7"}
         local/deps {:local/root "."}}
  :bbin/bin {bbin {:main-opts ["-f" "bbin"]}}
  :tasks {bbin {:requires ([babashka.bbin :as bbin])
