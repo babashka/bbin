@@ -45,11 +45,13 @@
             (str/join "\n" (cons (first lines) (map #(str "          " %) (rest lines)))))))
 
 (defn gen-script []
-  (let [util (slurp "src/babashka/bbin/util.clj")
+  (let [specs (slurp "src/babashka/bbin/specs.clj")
+        util (slurp "src/babashka/bbin/util.clj")
         scripts (slurp "src/babashka/bbin/scripts.clj")
         cli (slurp "src/babashka/bbin/cli.clj")]
     (spit "bbin" (str/join "\n" [prelude-str
                                  meta-str
+                                 specs
                                  util
                                  scripts
                                  cli]))))
