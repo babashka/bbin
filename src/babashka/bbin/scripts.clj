@@ -184,7 +184,34 @@
 (process/exec (into base-command *command-line-args*))
 "))
 
-(def ^:private git-or-local-template-str
+(def ^:private git-or-local-template-str-f
+  (str/trim "
+#!/usr/bin/env bb
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+(def script-root {{script/root|pr-str}})
+(def script-lib '{{script/lib}})
+(def script-coords {{script/coords|str}})
+(def script-main-opts-first {{script/main-opts.0|pr-str}})
+(def script-main-opts-second {{script/main-opts.1|pr-str}})
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (fs/delete-on-exit)))
+(def base-command
+  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)
+        script-main-opts-first script-main-opts-second
+        \"--\"])
+(process/exec (into base-command *command-line-args*))
+"))
+
+(def ^:private git-or-local-template-str-m
   (str/trim "
 #!/usr/bin/env bb
 
@@ -428,26 +455,28 @@
                        :script/root script-root
                        :script/lib (pr-str (key (first script-deps)))
                        :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))}
+        load-file-mode? (= "-f" (first main-opts))
         template-opts' (if tool-mode
                          (assoc template-opts :script/ns-default (:ns-default script-config))
-                         (let [main-fn (symbol (second main-opts))
-                               main-ns (namespace main-fn)]
-                           (-> template-opts
-                               (assoc :script/main-ns main-ns)
-                               (assoc :script/main-fn main-fn)
-                               (assoc :script/main-opts
-                                      [(first main-opts)
-                                       (if (= "-f" (first main-opts))
-                                         (fs/canonicalize (fs/file script-root (second main-opts))
-                                                          {:nofollow-links true})
-                                         (second main-opts))]))))
+                         (if load-file-mode?
+                           (assoc template-opts :script/main-opts
+                                  ["-f" (fs/canonicalize (fs/file script-root (second main-opts))
+                                                         {:nofollow-links true})])
+                           (let [main-fn (symbol (second main-opts))
+                                 main-ns (namespace main-fn)]
+                             (-> template-opts
+                                 (assoc :script/main-fn main-fn)
+                                 (assoc :script/main-ns main-ns)
+                                 (assoc :script/main-opts [(first main-opts) (second main-opts)])))))
         template-str (if tool-mode
                        (if (#{::no-lib} lib)
                          local-dir-tool-template-str
                          deps-tool-template-str)
                        (if (#{::no-lib} lib)
                          local-dir-template-str
-                         git-or-local-template-str))
+                         (if load-file-mode?
+                           git-or-local-template-str-f
+                           git-or-local-template-str-m)))
         template-out (selmer-util/without-escaping
                       (selmer/render template-str template-opts'))
         script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
