@@ -194,12 +194,27 @@
 ;
 ; :bbin/end
 
-(require '[babashka.deps :refer [add-deps]])
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
 
-(add-deps '{{script/deps}})
+(def script-root {{script/root|pr-str}})
+(def script-lib '{{script/lib}})
+(def script-coords {{script/coords|str}})
+(def script-main-opts-first {{script/main-opts.0|pr-str}})
+(def script-main-opts-second {{script/main-opts.1|pr-str}})
 
-(require '[{{script/main-ns}}])
-(apply {{script/main-ns}}/-main *command-line-args*)
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)
+        script-main-opts-first script-main-opts-second
+        \"--\"])
+
+(process/exec (into base-command *command-line-args*))
 "))
 
 (defn- http-url->script-name [http-url]
@@ -419,9 +434,7 @@
         _ (when (and (not tool-mode) (not (seq main-opts)))
             (throw (ex-info "Main opts not found. Use --main-opts or :bbin/bin to provide main opts."
                             {})))
-        template-opts {:script/deps (pr-str {:deps script-deps})
-
-                       :script/meta (->> script-edn-out
+        template-opts {:script/meta (->> script-edn-out
                                          str/split-lines
                                          (map #(str comment-char " " %))
                                          (str/join "\n"))
@@ -430,17 +443,12 @@
                        :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))}
         template-opts' (if tool-mode
                          (assoc template-opts :script/ns-default (:ns-default script-config))
-                         (let [main-fn (symbol (second main-opts))
-                               main-ns (namespace main-fn)]
-                           (-> template-opts
-                               (assoc :script/main-ns main-ns)
-                               (assoc :script/main-fn main-fn)
-                               (assoc :script/main-opts
-                                      [(first main-opts)
-                                       (if (= "-f" (first main-opts))
-                                         (fs/canonicalize (fs/file script-root (second main-opts))
-                                                          {:nofollow-links true})
-                                         (second main-opts))]))))
+                         (assoc template-opts :script/main-opts
+                                              [(first main-opts)
+                                               (if (= "-f" (first main-opts))
+                                                 (fs/canonicalize (fs/file script-root (second main-opts))
+                                                                  {:nofollow-links true})
+                                                 (second main-opts))]))
         template-str (if tool-mode
                        (if (#{::no-lib} lib)
                          local-dir-tool-template-str
