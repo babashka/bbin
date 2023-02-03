@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.9
+
+- [Bump `deps-info` version to `0.1.0`](https://github.com/babashka/bbin/commit/a1291ab9a61996bcafb135ebadc775a3a07f92b0)
+    - Fixes an error when encountering Git tags named without a `v` prefix (thanks [@eval](https://github.com/eval))
+- [Upgrade dependency versions](https://github.com/babashka/bbin/commit/178fadcc4cfd0e239b279651a4dcfe5e85ab9633)
+
 ## 0.1.8
 
 - [Fix missing `babashka.bbin.specs` ns in generated script](https://github.com/babashka/bbin/commit/9a67b1ed2e7c90fc4eedf2710d9ee8df34ea896b)
