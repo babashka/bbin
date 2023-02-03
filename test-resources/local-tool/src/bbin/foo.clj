@@ -2,8 +2,10 @@
 
 (defn k
   "just `keys`"
-  [m] (keys m))
+  [m]
+  (prn (keys m)))
 
 (defn v
   "just `vals`"
-  [m] (vals m))
+  [m]
+  (prn (vals m)))
