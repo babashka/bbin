@@ -18,7 +18,8 @@
   (log/merge-config! {:min-level (if debug :debug :warn)}))
 
 (defn pprint [x & _]
-  (pprint/pprint x))
+  (binding [*print-namespace-maps* false]
+    (pprint/pprint x)))
 
 (defn upgrade-enabled? []
   (some-> (System/getenv "BABASHKA_BBIN_FLAG_UPGRADE")
