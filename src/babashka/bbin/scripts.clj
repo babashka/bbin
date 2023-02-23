@@ -38,9 +38,29 @@
        (filter second)
        (into {})))
 
+(defn- printable-scripts [scripts]
+  (map (fn [[bin {coords :coords lib :lib}]]
+         (cond-> (assoc {} :bin bin)
+           lib    (assoc :lib lib)
+           coords (merge coords)))
+       scripts))
+
+(defn- print-scripts [printable-scripts {:as _cli-opts :keys [no-color plain]}]
+  (let [piping?          (not (util/is-tty 1 :out))
+        skip-header?     (or plain piping?)
+        no-color?        (or plain no-color piping?
+                             (System/getenv "NO_COLOR") (= "dumb" (System/getenv "TERM")))
+        column-atts      '(:bin :lib :bbin/url :local/root :git/url :git/tag :git/sha)
+        column-coercions {:git/sha #(if (or plain piping?) % (subs % 0 7))}]
+    (util/print-table  column-atts (sort-by :bin printable-scripts) {:skip-header      skip-header?
+                                                                     :column-coercions column-coercions
+                                                                     :no-color         no-color?})))
+
 (defn ls [cli-opts]
-  (-> (load-scripts cli-opts)
-      (util/pprint cli-opts)))
+  (let [scripts (load-scripts cli-opts)]
+    (if (:edn cli-opts)
+      (util/pprint scripts cli-opts)
+      (print-scripts (printable-scripts scripts) cli-opts))))
 
 (defn bin [cli-opts]
   (println (str (util/bin-dir cli-opts))))
