@@ -51,7 +51,7 @@
 
 (def tmp-edn
   (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-    (spit (str \"{:deps {local/deps {:local/root \\\"\" script-root \"\\\"}}}\"))
+    (spit (str \"{:deps {local/deps {:local/root \" (pr-str script-root) \"}}}\"))
     (fs/delete-on-exit)))
 
 (def base-command
@@ -173,7 +173,7 @@
 
 (def tmp-edn
   (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-    (spit (str \"{:deps {local/deps {:local/root \\\"\" script-root \"\\\"}}}\"))
+    (spit (str \"{:deps {local/deps {:local/root \" (pr-str script-root) \"}}}\"))
     (fs/delete-on-exit)))
 
 (def base-command

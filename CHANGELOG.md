@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- [Fix #57: escaping issue with local/root install on Windows](https://github.com/babashka/bbin/issues/57)
+
 ## 0.1.9
 
 - [Bump `deps-info` version to `0.1.0`](https://github.com/babashka/bbin/commit/a1291ab9a61996bcafb135ebadc775a3a07f92b0)
