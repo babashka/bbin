@@ -3,7 +3,7 @@
         com.taoensso/timbre {:mvn/version "5.2.1"}
         expound/expound {:mvn/version "0.9.0"}
         fipp/fipp {:mvn/version "0.6.26"}
-        io.github.rads/deps-info {:git/tag "v0.1.0" :git/sha "ea0da4d"}
+        io.github.rads/deps-info {:git/tag "v0.1.1" :git/sha "21975f1"}
         org.babashka/cli {:mvn/version "0.6.43"}
         selmer/selmer {:mvn/version "1.12.55"}}
  :aliases {:neil {:project {:name babashka/bbin
