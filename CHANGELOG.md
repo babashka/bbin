@@ -3,6 +3,7 @@
 ## Unreleased
 
 - [Fix #57: escaping issue with local/root install on Windows](https://github.com/babashka/bbin/issues/57)
+- [Fix #52: git url install does not handle a dot in the name](https://github.com/babashka/bbin/issues/52)
 
 ## 0.1.9
 
