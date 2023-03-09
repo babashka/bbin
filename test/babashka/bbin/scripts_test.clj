@@ -22,6 +22,11 @@
              :git/tag "v0.0.1",
              :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
 
+(def bbin-test-lib-no-tag
+  '{:lib io.github.rads/bbin-test-lib-no-tag,
+    :coords {:git/url "https://github.com/rads/bbin-test-lib-no-tag.git",
+             :git/sha "cefb15e3320dd4c599e8be62f7a01a00b07e2e72"}})
+
 (def bbin-test-lib-private
   '{:lib io.bitbucket.radsmith/bbin-test-lib-private,
     :coords {:git/url "git@bitbucket.org:radsmith/bbin-test-lib-private.git"
@@ -65,6 +70,17 @@
           out (run-install cli-opts)
           bin-file (fs/file bin-dir "hello")]
       (is (= bbin-test-lib out))
+      (is (fs/exists? bin-file))
+      (is (= "Hello world!" (run-bin-script 'hello))))))
+
+(deftest install-from-qualified-lib-name-no-tag-test
+  (testing "install */* (public Git repo, no tags)"
+    (reset-test-dir)
+    (util/ensure-bbin-dirs {})
+    (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib-no-tag"}
+          out (run-install cli-opts)
+          bin-file (fs/file bin-dir "hello")]
+      (is (= bbin-test-lib-no-tag out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
 
