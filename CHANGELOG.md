@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.11
+
+- [Fix #55: Error when installing from a Git repo with no tags](https://github.com/babashka/bbin/issues/55)
+    - [infer: Use latest SHA when no tag is found](https://github.com/rads/deps-info/commit/6d323ba978502635c4cf2f8f1da4ff04f48240ca)
+
 ## 0.1.10
 
 - [Fix #57: escaping issue with local/root install on Windows](https://github.com/babashka/bbin/issues/57)
