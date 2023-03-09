@@ -140,7 +140,7 @@ $ bbin bin
 
 *Note:* `bbin` will throw an error if conflicting options are provided, such as using both `--git/sha` and `--mvn/version` at the same time.
 
-If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo will be used.
+If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo will be used. If no tags exist, the latest SHA will be used.
 
 - `--as`
     - The name of the script to be saved in the `bbin bin` path
