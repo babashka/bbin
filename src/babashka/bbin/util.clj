@@ -62,12 +62,17 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
   (when (using-legacy-paths?)
     (print-legacy-path-warning)))
 
+(defn- override-dir []
+  (some-> (or (System/getenv "BABASHKA_BBIN_DIR")
+              (some-> (System/getenv "XDG_DATA_HOME") (fs/file ".babashka" "bbin")))
+          (fs/canonicalize {:nofollow-links true})))
+
 (defn bin-dir-base [_]
   (if (xdg-flag-enabled?)
     (if-let [override (System/getenv "BABASHKA_BBIN_BIN_DIR")]
       (fs/file override)
       (fs/file (user-home) ".local" "bin"))
-    (if-let [override (System/getenv "BABASHKA_BBIN_DIR")]
+    (if-let [override (override-dir)]
       (fs/file override "bin")
       (fs/file (user-home) ".babashka" "bbin" "bin"))))
 
@@ -86,7 +91,7 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
     (if-let [override (System/getenv "BABASHKA_BBIN_JARS_DIR")]
       (fs/file override)
       (fs/file (xdg-cache-home) "babashka" "bbin" "jars"))
-    (if-let [override (System/getenv "BABASHKA_BBIN_DIR")]
+    (if-let [override (override-dir)]
       (fs/file override "jars")
       (fs/file (user-home) ".babashka" "bbin" "jars"))))
 
