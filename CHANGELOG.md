@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.12
+
+- [Fix #60: `XDG_DATA_HOME` does not work](https://github.com/babashka/bbin/issues/60)
+
 ## 0.1.11
 
 - [Fix #55: Error when installing from a Git repo with no tags](https://github.com/babashka/bbin/issues/55)
