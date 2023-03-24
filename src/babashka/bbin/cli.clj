@@ -16,7 +16,7 @@
   (map #(assoc-in % [:aliases :h] :help) commands))
 
 (defn- base-commands
-  [& {:keys [install-fn uninstall-fn ls-fn bin-fn]}]
+  [& {:keys [install-fn uninstall-fn upgrade-fn ls-fn bin-fn]}]
   [{:cmds ["commands"]
     :fn #(run print-commands %)}
 
@@ -27,6 +27,10 @@
     :fn #(run install-fn %)
     :args->opts [:script/lib]
     :aliases {:T :tool}}
+
+   {:cmds ["upgrade"]
+    :fn #(run upgrade-fn %)
+    :args->opts [:script/lib]}
 
    {:cmds ["uninstall"]
     :fn #(run uninstall-fn %)
@@ -52,6 +56,7 @@
 
 (def default-run-opts
   {:install-fn scripts/install
+   :upgrade-fn scripts/upgrade
    :uninstall-fn scripts/uninstall
    :ls-fn scripts/ls
    :bin-fn scripts/bin})

@@ -75,5 +75,8 @@
           script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
       (common/install-script script-file template-out (:dry-run cli-opts))))
 
+  (upgrade [_]
+    (throw (ex-info "Not implemented" {})))
+
   (uninstall [_]
     (common/delete-files cli-opts)))

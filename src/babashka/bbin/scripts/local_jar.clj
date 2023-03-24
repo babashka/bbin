@@ -27,7 +27,7 @@
 (apply {{script/main-ns}}/-main *command-line-args*)
 "))
 
-(defrecord LocalJar [cli-opts]
+(defrecord LocalJar [cli-opts coords]
   p/Script
   (install [_]
     (fs/create-dirs (util/jars-dir cli-opts))
@@ -53,6 +53,10 @@
                                        {:nofollow-links true})]
       (fs/copy file-path cached-jar-path {:replace-existing true})
       (common/install-script script-file script-contents (:dry-run cli-opts))))
+
+  (upgrade [_]
+    (p/install (map->LocalJar {:cli-opts {:script/lib (:bbin/url coords)}
+                               :coords coords})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))

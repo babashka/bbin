@@ -2,4 +2,5 @@
 
 (defprotocol Script
   (install [script])
+  (upgrade [script])
   (uninstall [script]))

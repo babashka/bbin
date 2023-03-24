@@ -22,6 +22,7 @@
 
 (defprotocol Script
   (install [script])
+  (upgrade [script])
   (uninstall [script]))
 
 (ns babashka.bbin.specs
@@ -65,6 +66,7 @@
 Usage: bbin <command>
 
   bbin install    Install a script
+  bbin upgrade    Upgrade a script
   bbin uninstall  Remove a script
   bbin ls         List installed scripts
   bbin bin        Display bbin bin folder
@@ -559,10 +561,15 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
   (:require [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]))
 
-(defrecord GitDir [cli-opts summary]
+(defrecord GitDir [cli-opts summary coords]
   p/Script
   (install [_]
     (common/install-deps-git-or-local cli-opts summary))
+
+  (upgrade [_]
+    (throw (ex-info "Not implemented" {:cli-opts cli-opts
+                                       :summary summary
+                                       :coords coords})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))
@@ -573,7 +580,7 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
             [babashka.bbin.scripts.common :as common]
             [babashka.fs :as fs]))
 
-(defrecord HttpFile [cli-opts]
+(defrecord HttpFile [cli-opts coords]
   p/Script
   (install [_]
     (let [http-url (:script/lib cli-opts)
@@ -586,6 +593,10 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
           script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (common/install-script script-file script-contents (:dry-run cli-opts))))
+
+  (upgrade [_]
+    (p/install (map->HttpFile {:cli-opts {:script/lib (:bbin/url coords)}
+                               :coords coords})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))
@@ -621,7 +632,7 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
 (apply {{script/main-ns}}/-main *command-line-args*)
 "))
 
-(defrecord HttpJar [cli-opts]
+(defrecord HttpJar [cli-opts coords]
   p/Script
   (install [_]
     (fs/create-dirs (util/jars-dir cli-opts))
@@ -651,6 +662,10 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
                                        {:nofollow-links true})]
       (common/install-script script-file script-contents (:dry-run cli-opts))))
 
+  (upgrade [_]
+    (p/install (map->HttpJar {:cli-opts {:script/lib (:bbin/url coords)}
+                              :coords coords})))
+
   (uninstall [_]
     (common/delete-files cli-opts)))
 
@@ -663,6 +678,9 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
   (install [_]
     (common/install-deps-git-or-local cli-opts summary))
 
+  (upgrade [_]
+    (throw (ex-info "Not implemented" {})))
+
   (uninstall [_]
     (common/delete-files cli-opts)))
 
@@ -672,7 +690,7 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]))
 
-(defrecord LocalFile [cli-opts]
+(defrecord LocalFile [cli-opts coords]
   p/Script
   (install [_]
     (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
@@ -685,6 +703,10 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
           script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (common/install-script script-file script-contents (:dry-run cli-opts))))
+
+  (upgrade [_]
+    (p/install (map->LocalFile {:cli-opts {:script/lib (:bbin/url coords)}
+                                :coords coords})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))
@@ -718,7 +740,7 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
 (apply {{script/main-ns}}/-main *command-line-args*)
 "))
 
-(defrecord LocalJar [cli-opts]
+(defrecord LocalJar [cli-opts coords]
   p/Script
   (install [_]
     (fs/create-dirs (util/jars-dir cli-opts))
@@ -744,6 +766,10 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
                                        {:nofollow-links true})]
       (fs/copy file-path cached-jar-path {:replace-existing true})
       (common/install-script script-file script-contents (:dry-run cli-opts))))
+
+  (upgrade [_]
+    (p/install (map->LocalJar {:cli-opts {:script/lib (:bbin/url coords)}
+                               :coords coords})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))
@@ -825,6 +851,9 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
           script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
       (common/install-script script-file template-out (:dry-run cli-opts))))
 
+  (upgrade [_]
+    (throw (ex-info "Not implemented" {})))
+
   (uninstall [_]
     (common/delete-files cli-opts)))
 
@@ -904,13 +933,54 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
             script (new-script cli-opts')]
         (p/install script)))))
 
-(defn- load-script [cli-opts]
-  ; TODO: Use correct type based on script metadata
+(defn- default-script [cli-opts]
   (reify
     p/Script
     (install [_])
+    (upgrade [_]
+      (throw (ex-info "Not implemented" {})))
     (uninstall [_]
       (common/delete-files cli-opts))))
+
+(defn- load-script [cli-opts]
+  (let [script-name (:script/lib cli-opts)
+        script-file (fs/file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true}))
+        parsed (parse-script (slurp script-file))]
+    (cond
+      (-> parsed :coords :bbin/url)
+      (let [summary (deps-info-summary/summary {:script/lib (-> parsed :coords :bbin/url)})
+            {:keys [procurer artifact]} summary]
+        (case [procurer artifact]
+          [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)})
+          [:http :file] (map->HttpFile {:cli-opts cli-opts :coords (:coords parsed)})
+          [:http :jar] (map->HttpJar {:cli-opts cli-opts :coords (:coords parsed)})
+          [:local :dir] (map->LocalDir {:cli-opts cli-opts :summary summary})
+          [:local :file] (map->LocalFile {:cli-opts cli-opts})
+          [:local :jar] (map->LocalJar {:cli-opts cli-opts})
+          (throw-invalid-script summary cli-opts)))
+
+      (-> parsed :coords :mvn/version)
+      (map->MavenJar cli-opts)
+
+      (-> parsed :coords :git/tag)
+      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
+                                                :git/tag (-> parsed :coords :git/tag)})]
+        (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
+
+      (-> parsed :coords :git/sha)
+      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
+                                                :git/sha (-> parsed :coords :git/sha)})]
+        (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
+
+      :else (default-script cli-opts))))
+
+(defn upgrade [cli-opts]
+  (if-not (:script/lib cli-opts)
+    (util/print-help)
+    (do
+      (util/ensure-bbin-dirs cli-opts)
+      (let [script (load-script cli-opts)]
+        (p/upgrade script)))))
 
 (defn uninstall [cli-opts]
   (if-not (:script/lib cli-opts)
@@ -938,7 +1008,7 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
   (map #(assoc-in % [:aliases :h] :help) commands))
 
 (defn- base-commands
-  [& {:keys [install-fn uninstall-fn ls-fn bin-fn]}]
+  [& {:keys [install-fn uninstall-fn upgrade-fn ls-fn bin-fn]}]
   [{:cmds ["commands"]
     :fn #(run print-commands %)}
 
@@ -949,6 +1019,10 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
     :fn #(run install-fn %)
     :args->opts [:script/lib]
     :aliases {:T :tool}}
+
+   {:cmds ["upgrade"]
+    :fn #(run upgrade-fn %)
+    :args->opts [:script/lib]}
 
    {:cmds ["uninstall"]
     :fn #(run uninstall-fn %)
@@ -974,6 +1048,7 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
 
 (def default-run-opts
   {:install-fn scripts/install
+   :upgrade-fn scripts/upgrade
    :uninstall-fn scripts/uninstall
    :ls-fn scripts/ls
    :bin-fn scripts/bin})

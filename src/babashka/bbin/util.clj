@@ -25,6 +25,7 @@
 Usage: bbin <command>
 
   bbin install    Install a script
+  bbin upgrade    Upgrade a script
   bbin uninstall  Remove a script
   bbin ls         List installed scripts
   bbin bin        Display bbin bin folder

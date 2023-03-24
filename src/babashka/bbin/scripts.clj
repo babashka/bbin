@@ -74,13 +74,54 @@
             script (new-script cli-opts')]
         (p/install script)))))
 
-(defn- load-script [cli-opts]
-  ; TODO: Use correct type based on script metadata
+(defn- default-script [cli-opts]
   (reify
     p/Script
     (install [_])
+    (upgrade [_]
+      (throw (ex-info "Not implemented" {})))
     (uninstall [_]
       (common/delete-files cli-opts))))
+
+(defn- load-script [cli-opts]
+  (let [script-name (:script/lib cli-opts)
+        script-file (fs/file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true}))
+        parsed (parse-script (slurp script-file))]
+    (cond
+      (-> parsed :coords :bbin/url)
+      (let [summary (deps-info-summary/summary {:script/lib (-> parsed :coords :bbin/url)})
+            {:keys [procurer artifact]} summary]
+        (case [procurer artifact]
+          [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)})
+          [:http :file] (map->HttpFile {:cli-opts cli-opts :coords (:coords parsed)})
+          [:http :jar] (map->HttpJar {:cli-opts cli-opts :coords (:coords parsed)})
+          [:local :dir] (map->LocalDir {:cli-opts cli-opts :summary summary})
+          [:local :file] (map->LocalFile {:cli-opts cli-opts})
+          [:local :jar] (map->LocalJar {:cli-opts cli-opts})
+          (throw-invalid-script summary cli-opts)))
+
+      (-> parsed :coords :mvn/version)
+      (map->MavenJar cli-opts)
+
+      (-> parsed :coords :git/tag)
+      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
+                                                :git/tag (-> parsed :coords :git/tag)})]
+        (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
+
+      (-> parsed :coords :git/sha)
+      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
+                                                :git/sha (-> parsed :coords :git/sha)})]
+        (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
+
+      :else (default-script cli-opts))))
+
+(defn upgrade [cli-opts]
+  (if-not (:script/lib cli-opts)
+    (util/print-help)
+    (do
+      (util/ensure-bbin-dirs cli-opts)
+      (let [script (load-script cli-opts)]
+        (p/upgrade script)))))
 
 (defn uninstall [cli-opts]
   (if-not (:script/lib cli-opts)

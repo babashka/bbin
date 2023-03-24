@@ -7,5 +7,8 @@
   (install [_]
     (common/install-deps-git-or-local cli-opts summary))
 
+  (upgrade [_]
+    (throw (ex-info "Not implemented" {})))
+
   (uninstall [_]
     (common/delete-files cli-opts)))

@@ -29,7 +29,7 @@
 (apply {{script/main-ns}}/-main *command-line-args*)
 "))
 
-(defrecord HttpJar [cli-opts]
+(defrecord HttpJar [cli-opts coords]
   p/Script
   (install [_]
     (fs/create-dirs (util/jars-dir cli-opts))
@@ -58,6 +58,10 @@
           script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (common/install-script script-file script-contents (:dry-run cli-opts))))
+
+  (upgrade [_]
+    (p/install (map->HttpJar {:cli-opts {:script/lib (:bbin/url coords)}
+                              :coords coords})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))

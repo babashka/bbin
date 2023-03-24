@@ -4,7 +4,7 @@
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]))
 
-(defrecord LocalFile [cli-opts]
+(defrecord LocalFile [cli-opts coords]
   p/Script
   (install [_]
     (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
@@ -17,6 +17,10 @@
           script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (common/install-script script-file script-contents (:dry-run cli-opts))))
+
+  (upgrade [_]
+    (p/install (map->LocalFile {:cli-opts {:script/lib (:bbin/url coords)}
+                                :coords coords})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))
