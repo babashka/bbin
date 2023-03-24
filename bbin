@@ -615,9 +615,9 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
             [babashka.bbin.scripts.common :as common]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
+            [babashka.http-client :as http]
             [clojure.java.io :as io]
             [clojure.string :as str]
-            [org.httpkit.client :as http]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]))
 
@@ -651,7 +651,7 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
           script-name (or (:as cli-opts) (common/http-url->script-name http-url))
           tmp-jar-path (doto (fs/file (fs/temp-dir) (str script-name ".jar"))
                          (fs/delete-on-exit))
-          _ (io/copy (:body @(http/get http-url {:as :byte-array})) tmp-jar-path)
+          _ (io/copy (:body (http/get http-url {:as :bytes})) tmp-jar-path)
           main-ns (common/jar->main-ns tmp-jar-path)
           cached-jar-path (fs/file (util/jars-dir cli-opts) (str script-name ".jar"))
           _ (fs/move tmp-jar-path cached-jar-path {:replace-existing true})
