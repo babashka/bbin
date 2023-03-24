@@ -1,8 +1,7 @@
 (ns babashka.bbin.scripts.common
   (:require [babashka.fs :as fs]
             [babashka.deps :as deps]
-            [babashka.process :refer [sh]]
-            [babashka.bbin.util :as util]
+            [babashka.bbin.util :as util :refer [sh]]
             [clojure.edn :as edn]
             [clojure.main :as main]
             [clojure.string :as str]
