@@ -1,5 +1,6 @@
 (ns babashka.bbin.scripts-test
   (:require [babashka.bbin.scripts :as scripts]
+            [babashka.bbin.scripts.common :as common]
             [babashka.bbin.test-util :refer [bbin-dirs-fixture
                                              bbin-private-keys-fixture
                                              bin-dir reset-test-dir test-dir
@@ -34,7 +35,7 @@
              :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
 
 (def test-script
-  (scripts/insert-script-header "#!/usr/bin/env bb" bbin-test-lib))
+  (common/insert-script-header "#!/usr/bin/env bb" bbin-test-lib))
 
 (deftest load-scripts-test
   (let [cli-opts {}]

@@ -44,14 +44,22 @@
             (if (str/ends-with? version "-SNAPSHOT") "main" (str "v" version))
             (str/join "\n" (cons (first lines) (map #(str "          " %) (rest lines)))))))
 
+(def all-scripts
+  [prelude-str
+   meta-str
+   (slurp "src/babashka/bbin/protocols.clj")
+   (slurp "src/babashka/bbin/specs.clj")
+   (slurp "src/babashka/bbin/util.clj")
+   (slurp "src/babashka/bbin/scripts/common.clj")
+   (slurp "src/babashka/bbin/scripts/git_dir.clj")
+   (slurp "src/babashka/bbin/scripts/http_file.clj")
+   (slurp "src/babashka/bbin/scripts/http_jar.clj")
+   (slurp "src/babashka/bbin/scripts/local_dir.clj")
+   (slurp "src/babashka/bbin/scripts/local_file.clj")
+   (slurp "src/babashka/bbin/scripts/local_jar.clj")
+   (slurp "src/babashka/bbin/scripts/maven_jar.clj")
+   (slurp "src/babashka/bbin/scripts.clj")
+   (slurp "src/babashka/bbin/cli.clj")])
+
 (defn gen-script []
-  (let [specs (slurp "src/babashka/bbin/specs.clj")
-        util (slurp "src/babashka/bbin/util.clj")
-        scripts (slurp "src/babashka/bbin/scripts.clj")
-        cli (slurp "src/babashka/bbin/cli.clj")]
-    (spit "bbin" (str/join "\n" [prelude-str
-                                 meta-str
-                                 specs
-                                 util
-                                 scripts
-                                 cli]))))
+  (spit "bbin" (str/join "\n" all-scripts)))

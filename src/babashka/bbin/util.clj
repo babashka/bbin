@@ -17,7 +17,7 @@
 (defn set-logging-config! [{:keys [debug]}]
   (log/merge-config! {:min-level (if debug :debug :warn)}))
 
-(defn pprint [x _]
+(defn pprint [x & _]
   (pprint/pprint x))
 
 (defn print-help [& _]
