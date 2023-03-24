@@ -5,8 +5,8 @@
                                  :git/sha "951b49b8c173244e66443b8188e3ff928a0a71e7"}
         local/deps {:local/root "."}}
  :bbin/bin {bbin {:main-opts ["-f" "bbin"]}}
- :tasks {bbin {:requires ([babashka.bbin :as bbin])
-               :task (bbin/-main)}
+ :tasks {bbin {:requires ([babashka.bbin.cli :as bbin])
+               :task (apply bbin/-main *command-line-args*)}
          dev {:doc "Starts watcher to auto-build bbin script"
               :requires ([babashka.bbin.dev :as dev])
               :task (dev/dev)}
