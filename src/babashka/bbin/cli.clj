@@ -17,36 +17,38 @@
 
 (defn- base-commands
   [& {:keys [install-fn uninstall-fn upgrade-fn ls-fn bin-fn]}]
-  [{:cmds ["commands"]
-    :fn #(run print-commands %)}
+  (->> [{:cmds ["commands"]
+         :fn #(run print-commands %)}
 
-   {:cmds ["help"]
-    :fn #(run util/print-help %)}
+        {:cmds ["help"]
+         :fn #(run util/print-help %)}
 
-   {:cmds ["install"]
-    :fn #(run install-fn %)
-    :args->opts [:script/lib]
-    :aliases {:T :tool}}
+        {:cmds ["install"]
+         :fn #(run install-fn %)
+         :args->opts [:script/lib]
+         :aliases {:T :tool}}
 
-   {:cmds ["upgrade"]
-    :fn #(run upgrade-fn %)
-    :args->opts [:script/lib]}
+        (when (util/upgrade-enabled?)
+          {:cmds ["upgrade"]
+           :fn #(run upgrade-fn %)
+           :args->opts [:script/lib]})
 
-   {:cmds ["uninstall"]
-    :fn #(run uninstall-fn %)
-    :args->opts [:script/lib]}
+        {:cmds ["uninstall"]
+         :fn #(run uninstall-fn %)
+         :args->opts [:script/lib]}
 
-   {:cmds ["ls"]
-    :fn #(run ls-fn %)}
+        {:cmds ["ls"]
+         :fn #(run ls-fn %)}
 
-   {:cmds ["bin"]
-    :fn #(run bin-fn %)}
+        {:cmds ["bin"]
+         :fn #(run bin-fn %)}
 
-   {:cmds ["version"]
-    :fn #(run util/print-version %)}
+        {:cmds ["version"]
+         :fn #(run util/print-version %)}
 
-   {:cmds []
-    :fn #(run util/print-help %)}])
+        {:cmds []
+         :fn #(run util/print-help %)}]
+       (remove nil?)))
 
 (defn- full-commands [& {:as run-opts}]
   (add-global-aliases (base-commands run-opts)))

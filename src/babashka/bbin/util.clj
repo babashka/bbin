@@ -20,17 +20,27 @@
 (defn pprint [x & _]
   (pprint/pprint x))
 
-(defn print-help [& _]
-  (println (str/trim "
-Usage: bbin <command>
+(defn upgrade-enabled? []
+  (some-> (System/getenv "BABASHKA_BBIN_FLAG_UPGRADE")
+          edn/read-string))
 
-  bbin install    Install a script
-  bbin upgrade    Upgrade a script
-  bbin uninstall  Remove a script
-  bbin ls         List installed scripts
-  bbin bin        Display bbin bin folder
-  bbin version    Display bbin version
-  bbin help       Display bbin help")))
+(def help-commands
+  (->> [{:command "bbin install" :doc "Install a script"}
+        (when (upgrade-enabled?)
+          {:command "bbin upgrade" :doc "Upgrade a script"})
+        {:command "bbin uninstall" :doc "Remove a script"}
+        {:command "bbin ls" :doc "List installed scripts"}
+        {:command "bbin bin" :doc "Display bbin bin folder"}
+        {:command "bbin version" :doc "Display bbin version"}
+        {:command "bbin help" :doc "Display bbin help"}]
+       (remove nil?)))
+
+(defn print-help [& _]
+  (let [max-width (apply max (map #(count (:command %)) help-commands))
+        lines (->> help-commands
+                   (map (fn [{:keys [command doc]}]
+                          (format (str "  %-" (inc max-width) "s %s") command doc))))]
+    (println (str "Usage: bbin <command>\n\n" (str/join "\n" lines)))))
 
 (def ^:dynamic *bin-dir* nil)
 
