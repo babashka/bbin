@@ -3,6 +3,8 @@
             [babashka.bbin.scripts.common :as common]
             [babashka.bbin.util :as util]
             [babashka.deps :as deps]
+            [babashka.json :as json]
+            [babashka.http-client :as http]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.string :as str]
@@ -41,7 +43,49 @@
 (process/exec (into base-command *command-line-args*))
 "))
 
-(defrecord MavenJar [cli-opts]
+(defn- first-stable-version [versions]
+  (let [vparse (requiring-resolve 'version-clj.core/parse)]
+    (some (fn [version]
+            (let [{:keys [qualifiers]} (vparse version)]
+              (when-not
+                  ;; assume all qualifiers indicate non-stable version
+                  (some #{"rc" "alpha" "beta" "snapshot" "milestone"} qualifiers)
+                version)))
+          versions)))
+
+(defn- search-mvn [qlib limit]
+  (let [url (format "https://search.maven.org/solrsearch/select?q=g:%s+AND+a:%s&rows=%s&core=gav&wt=json"
+                    (namespace qlib)
+                    (name qlib)
+                    (str limit))]
+    (json/read-str (:body (http/get url)))))
+
+(defn- mvn-versions [qlib {:keys [limit] :or {limit 10}}]
+  (let [payload (search-mvn qlib limit)]
+    (->> payload
+         :docs
+         (map :v))))
+
+(defn- latest-stable-mvn-version [qlib]
+  (first-stable-version (mvn-versions qlib {:limit 100})))
+
+(defn- get-clojars-artifact [qlib]
+  (let [url (format "https://clojars.org/api/artifacts/%s"
+                    qlib)]
+    (json/read-str (:body (http/get url)))))
+
+(defn- clojars-versions [qlib {:keys [limit] :or {limit 10}}]
+  (let [body (get-clojars-artifact qlib)]
+    (->> body
+         :recent_versions
+         (map :version)
+         (take limit))))
+
+(defn- latest-stable-clojars-version
+  [qlib]
+  (first-stable-version (clojars-versions qlib {:limit 100})))
+
+(defrecord MavenJar [cli-opts lib]
   p/Script
   (install [_]
     (let [script-deps {(edn/read-string (:script/lib cli-opts))
@@ -76,7 +120,11 @@
       (common/install-script script-file template-out (:dry-run cli-opts))))
 
   (upgrade [_]
-    (throw (ex-info "Not implemented" {})))
+    (let [latest-version (or (latest-stable-clojars-version lib)
+                             (latest-stable-mvn-version lib))]
+      (p/install (map->MavenJar {:cli-opts {:script/lib (str lib)
+                                            :mvn/version latest-version}
+                                 :lib lib}))))
 
   (uninstall [_]
     (common/delete-files cli-opts)))

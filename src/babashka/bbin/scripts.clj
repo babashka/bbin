@@ -101,7 +101,7 @@
           (throw-invalid-script summary cli-opts)))
 
       (-> parsed :coords :mvn/version)
-      (map->MavenJar cli-opts)
+      (map->MavenJar {:cli-opts cli-opts :lib (:lib parsed)})
 
       (-> parsed :coords :git/tag)
       (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
