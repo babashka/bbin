@@ -183,7 +183,8 @@ If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo w
 **List installed scripts**
 
 - By default, this shows all installed scripts in a human readable table.
-- When piping this output to another program, e.g. `bbin ls | wc -l`, the table header is omitted, git shas are shown in full and no escape characters are used. Flag `--plain` shows what this looks like.
+- Depending on the width of the terminal, values (i.e. git shas, script locations) may be truncated.
+- When piping this output to another program, e.g. `bbin ls | wc -l`, the table header is omitted, no escape characters are used and script locations and git shas are shown in full. Flag `--plain` shows what this looks like.
 
 
 **Supported Options:**

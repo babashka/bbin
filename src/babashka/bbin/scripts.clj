@@ -39,22 +39,42 @@
        (into {})))
 
 (defn- printable-scripts [scripts]
-  (map (fn [[bin {coords :coords lib :lib}]]
+  (map (fn [[bin {{lroot :local/root
+                   gtag  :git/tag
+                   gsha  :git/sha
+                   gurl  :git/url
+                   burl  :bbin/url} :coords}]]
          (cond-> (assoc {} :bin bin)
-           lib    (assoc :lib lib)
-           coords (merge coords)))
+           gurl  (assoc :location gurl)
+           burl  (assoc :location burl)
+           lroot (assoc :location (str "file://" lroot))
+           gsha  (assoc :version gsha)
+           gtag  (assoc :version gtag)))
        scripts))
 
 (defn- print-scripts [printable-scripts {:as _cli-opts :keys [no-color plain]}]
-  (let [piping?          (not (util/is-tty 1 :out))
-        skip-header?     (or plain piping?)
-        no-color?        (or plain no-color piping?
-                             (System/getenv "NO_COLOR") (= "dumb" (System/getenv "TERM")))
-        column-atts      '(:bin :lib :bbin/url :local/root :git/url :git/tag :git/sha)
-        column-coercions {:git/sha #(if (or plain piping?) % (subs % 0 7))}]
-    (util/print-table  column-atts (sort-by :bin printable-scripts) {:skip-header      skip-header?
-                                                                     :column-coercions column-coercions
-                                                                     :no-color         no-color?})))
+  (let [tty?              (util/is-tty 1 :out)
+        plain-mode?       (or plain (not tty?))
+        skip-header?      plain-mode?
+        no-color?         (or no-color plain-mode?
+                              (System/getenv "NO_COLOR") (= "dumb" (System/getenv "TERM")))
+        column-atts       '(:bin :location :version)
+        column-coercions  {:version #(if (or plain-mode? (not= 40 (count %)))
+                                       %
+                                       (subs % 0 7))}
+        max-width         (when-not plain-mode?
+                            (:cols (util/terminal-dimensions)))
+        location-truncate #(-> %1
+                               (str/replace #"^(file|https?):\/\/" "")
+                               (util/truncate {:truncate-to       %2
+                                               :omission          "…"
+                                               :omission-position :center}))]
+    (util/print-table column-atts (sort-by :bin printable-scripts) {:skip-header         skip-header?
+                                                                    :max-width           max-width
+                                                                    :width-reduce-column :location
+                                                                    :width-reduce-fn     location-truncate
+                                                                    :column-coercions    column-coercions
+                                                                    :no-color            no-color?})))
 
 (defn ls [cli-opts]
   (let [scripts (load-scripts cli-opts)]
