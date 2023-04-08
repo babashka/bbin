@@ -38,9 +38,51 @@
        (filter second)
        (into {})))
 
+(defn- printable-scripts [scripts]
+  (map (fn [[bin {{lroot :local/root
+                   gtag  :git/tag
+                   gsha  :git/sha
+                   gurl  :git/url
+                   burl  :bbin/url} :coords}]]
+         (cond-> (assoc {} :bin bin)
+           gurl  (assoc :location gurl)
+           burl  (assoc :location burl)
+           lroot (assoc :location (str "file://" lroot))
+           gsha  (assoc :version gsha)
+           gtag  (assoc :version gtag)))
+       scripts))
+
+(defn- print-scripts [printable-scripts {:as _cli-opts :keys [no-color plain]}]
+  (let [tty?              (util/is-tty 1 :out)
+        plain-mode?       (or plain (not tty?))
+        skip-header?      plain-mode?
+        no-color?         (or no-color plain-mode?
+                              (System/getenv "NO_COLOR") (= "dumb" (System/getenv "TERM")))
+        column-atts       '(:bin :version :location)
+        column-coercions  {:version #(if (or plain-mode? (not= 40 (count %)))
+                                       %
+                                       (subs % 0 7))}
+        max-width         (when-not plain-mode?
+                            (:cols (util/terminal-dimensions)))
+        location-truncate #(-> %1
+                               (str/replace #"^(file|https?):\/\/" "")
+                               (util/truncate {:truncate-to       %2
+                                               :omission          "…"
+                                               :omission-position :center}))]
+    (util/print-table column-atts (sort-by :bin printable-scripts) {:skip-header         skip-header?
+                                                                    :max-width           max-width
+                                                                    :width-reduce-column :location
+                                                                    :width-reduce-fn     location-truncate
+                                                                    :column-coercions    column-coercions
+                                                                    :no-color            no-color?})))
+
 (defn ls [cli-opts]
-  (-> (load-scripts cli-opts)
-      (util/pprint cli-opts)))
+  (let [scripts (load-scripts cli-opts)]
+    (if (util/pretty-ls-enabled?)
+      (if (:edn cli-opts)
+        (util/pprint scripts cli-opts)
+        (print-scripts (printable-scripts scripts) cli-opts))
+      (util/pprint scripts cli-opts))))
 
 (defn bin [cli-opts]
   (println (str (util/bin-dir cli-opts))))

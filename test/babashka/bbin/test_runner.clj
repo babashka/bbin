@@ -4,10 +4,12 @@
 
 (def test-namespaces
   '[babashka.bbin.cli-test
-    babashka.bbin.scripts-test])
+    babashka.bbin.scripts-test
+    babashka.bbin.util-test])
 
 (doseq [ns test-namespaces]
   (require ns))
+
 
 (defn run-tests [& {:keys [nses]}]
   (let [selected-tests (if nses
