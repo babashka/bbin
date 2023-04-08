@@ -1,5 +1,6 @@
 {:paths ["src"]
- :deps {babashka/process {:mvn/version "0.4.14"}
+ :deps {babashka/fs {:mvn/version "0.3.17"}
+        babashka/process {:mvn/version "0.4.14"}
         com.taoensso/timbre {:mvn/version "5.2.1"}
         expound/expound {:mvn/version "0.9.0"}
         fipp/fipp {:mvn/version "0.6.26"}
