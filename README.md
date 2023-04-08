@@ -17,7 +17,7 @@ $ bbin install https://gist.githubusercontent.com/rads/da8ecbce63fe305f352063781
 {:coords {:bbin/url "https://gist.githubusercontent.com/rads/da8ecbce63fe305f3520637810ff9506/raw/25e47ce2fb5f9a7f9d12a20423e801b64c20e787/portal.clj"}}
 
 # Open a Portal window with all installed scripts
-$ portal <(bbin ls --edn)
+$ portal <(bbin ls)
 ```
 
 📦 See the [**Scripts and Projects**](https://github.com/babashka/bbin/wiki/Scripts-and-Projects) wiki page for a list of CLI tools from the community. This list is just a starting point — any existing Babashka script or project can be installed out-of-the-box!
@@ -96,7 +96,6 @@ $ bbin uninstall watch
 
 # Show installed scripts
 $ bbin ls
-$ bbin ls --edn
 
 # Show the bin path
 $ bbin bin
@@ -181,20 +180,6 @@ If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo w
 ### `bbin ls`
 
 **List installed scripts**
-
-- By default, this shows all installed scripts in a human readable table.
-- Depending on the width of the terminal, values (i.e. git shas, script locations) may be truncated.
-- When piping this output to another program, e.g. `bbin ls | wc -l`, the table header is omitted, no escape characters are used and script locations and git shas are shown in full. Flag `--plain` shows what this looks like.
-
-
-**Supported Options:**
-
-- `--edn`
-    - Format as edn.
-- `--no-color`
-    - Ensure the output contains no escape characters (setting environment variable `NO_COLOR` has the same effect).
-- `--plain`
-    - Show what the table looks like when piped to another program, e.g. what `wc` sees when doing `bbin ls | wc -l`.
 
 ---
 
