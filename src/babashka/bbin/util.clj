@@ -45,8 +45,8 @@
   (some-> (System/getenv "BABASHKA_BBIN_FLAG_UPGRADE")
           edn/read-string))
 
-(defn pretty-ls-enabled? []
-  (some-> (System/getenv "BABASHKA_BBIN_FLAG_PRETTY_LS")
+(defn pretty-output-enabled? []
+  (some-> (System/getenv "BABASHKA_BBIN_FLAG_PRETTY_OUTPUT")
           edn/read-string))
 
 (defn truncate

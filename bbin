@@ -89,8 +89,8 @@
   (some-> (System/getenv "BABASHKA_BBIN_FLAG_UPGRADE")
           edn/read-string))
 
-(defn pretty-ls-enabled? []
-  (some-> (System/getenv "BABASHKA_BBIN_FLAG_PRETTY_LS")
+(defn pretty-output-enabled? []
+  (some-> (System/getenv "BABASHKA_BBIN_FLAG_PRETTY_OUTPUT")
           edn/read-string))
 
 (defn truncate
@@ -1178,7 +1178,7 @@ WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbi
 
 (defn ls [cli-opts]
   (let [scripts (load-scripts cli-opts)]
-    (if (util/pretty-ls-enabled?)
+    (if (util/pretty-output-enabled?)
       (if (:edn cli-opts)
         (util/pprint scripts cli-opts)
         (print-scripts (printable-scripts scripts) cli-opts))
