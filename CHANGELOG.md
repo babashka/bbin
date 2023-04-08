@@ -7,7 +7,7 @@
   - [#54: `bbin ls` prints human readable text](https://github.com/babashka/bbin/pull/54) ([@eval](http://github.com/eval))
       - The new output format is currently disabled by default in `0.1.x` releases.
       - Set `BABASHKA_BBIN_FLAG_PRETTY_OUTPUT=true` to enable the new behavior. See the PR for [updated docs](https://github.com/eval/bbin/blob/afd33ed720f84dccae907f1b59d51c19536448e5/README.md#bbin-ls).
-      - Since changing the default ouptut format is a breaking change, the flag will be removed in an upcoming `0.2.0` release.
+      - Since changing the default output format is a breaking change, the flag will be removed in an upcoming `0.2.0` release.
       - We're adding an `--edn` option to existing `bbin` commands to support raw data as output.
 
 ## 0.1.12
