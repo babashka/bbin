@@ -78,9 +78,11 @@
 
 (defn ls [cli-opts]
   (let [scripts (load-scripts cli-opts)]
-    (if (:edn cli-opts)
-      (util/pprint scripts cli-opts)
-      (print-scripts (printable-scripts scripts) cli-opts))))
+    (if (util/pretty-ls-enabled?)
+      (if (:edn cli-opts)
+        (util/pprint scripts cli-opts)
+        (print-scripts (printable-scripts scripts) cli-opts))
+      (util/pprint scripts cli-opts))))
 
 (defn bin [cli-opts]
   (println (str (util/bin-dir cli-opts))))
