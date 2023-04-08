@@ -58,7 +58,7 @@
         skip-header?      plain-mode?
         no-color?         (or no-color plain-mode?
                               (System/getenv "NO_COLOR") (= "dumb" (System/getenv "TERM")))
-        column-atts       '(:bin :location :version)
+        column-atts       '(:bin :version :location)
         column-coercions  {:version #(if (or plain-mode? (not= 40 (count %)))
                                        %
                                        (subs % 0 7))}
