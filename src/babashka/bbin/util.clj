@@ -5,7 +5,18 @@
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [taoensso.timbre :as log]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn])
+  (:import (java.time Instant)))
+
+(def ^:dynamic *now* nil)
+
+(defn now []
+  (or *now* (Instant/now)))
+
+(defn canonicalized-cli-opts [cli-opts]
+  (merge cli-opts
+         (when-let [v (:local/root cli-opts)]
+           {:local/root (str (fs/canonicalize v {:nofollow-links true}))})))
 
 (defn is-tty
   [fd key]
@@ -26,9 +37,6 @@
    (str/split #" ")
    (->> (map #(Integer/parseInt %))
         (zipmap [:rows :cols]))))
-
-(defn user-home []
-  (System/getProperty "user.home"))
 
 (defn sh [cmd & {:as opts}]
   (doto (p/sh cmd (merge {:err :inherit} opts))
@@ -213,7 +221,8 @@
         {:command "bbin ls" :doc "List installed scripts"}
         {:command "bbin bin" :doc "Display bbin bin folder"}
         {:command "bbin version" :doc "Display bbin version"}
-        {:command "bbin help" :doc "Display bbin help"}]
+        {:command "bbin help" :doc "Display bbin help"}
+        {:command "bbin migrate" :doc "Migrate from bbin v0.1.x"}]
        (remove nil?)))
 
 (defn print-help [& _]
@@ -224,76 +233,6 @@
     (println (str "Version: " meta/version))
     (println)
     (println (str "Usage: bbin <command>\n\n" (str/join "\n" lines)))))
-
-(def ^:dynamic *bin-dir* nil)
-
-(defn print-legacy-path-warning []
-  (binding [*out* *err*]
-    (println (str/triml "
-WARNING: The ~/.babashka/bbin/bin path is deprecated in favor of ~/.local/bin.
-WARNING:
-WARNING: To remove this message, you can either:
-WARNING:
-WARNING: Migrate:
-WARNING:   - Move files in ~/.babashka/bbin/bin to ~/.local/bin
-WARNING:   - Move files in ~/.babashka/bbin/jars to ~/.cache/babashka/bbin/jars (if it exists)
-WARNING:
-WARNING: OR
-WARNING:
-WARNING: Override:
-WARNING:   - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbin\"
-"))))
-
-(defn- xdg-flag-enabled? []
-  (some-> (System/getenv "BABASHKA_BBIN_FLAG_XDG")
-          edn/read-string))
-
-(defn- using-legacy-paths? []
-  (and (xdg-flag-enabled?)
-       (fs/exists? (fs/file (user-home) ".babashka" "bbin" "bin"))))
-
-(defn check-legacy-paths []
-  (when (using-legacy-paths?)
-    (print-legacy-path-warning)))
-
-(defn- override-dir []
-  (some-> (or (System/getenv "BABASHKA_BBIN_DIR")
-              (some-> (System/getenv "XDG_DATA_HOME") (fs/file ".babashka" "bbin")))
-          (fs/canonicalize {:nofollow-links true})))
-
-(defn bin-dir-base [_]
-  (if (xdg-flag-enabled?)
-    (if-let [override (System/getenv "BABASHKA_BBIN_BIN_DIR")]
-      (fs/file override)
-      (fs/file (user-home) ".local" "bin"))
-    (if-let [override (override-dir)]
-      (fs/file override "bin")
-      (fs/file (user-home) ".babashka" "bbin" "bin"))))
-
-(defn bin-dir [opts]
-  (or *bin-dir* (bin-dir-base opts)))
-
-(def ^:dynamic *jars-dir* nil)
-
-(defn jars-dir-base [_]
-  (if (xdg-flag-enabled?)
-    (if-let [override (System/getenv "BABASHKA_BBIN_JARS_DIR")]
-      (fs/file override)
-      (fs/file (fs/xdg-cache-home) "babashka" "bbin" "jars"))
-    (if-let [override (override-dir)]
-      (fs/file override "jars")
-      (fs/file (user-home) ".babashka" "bbin" "jars"))))
-
-(defn jars-dir [opts]
-  (or *jars-dir* (jars-dir-base opts)))
-
-(defn canonicalized-cli-opts [cli-opts]
-  (merge cli-opts
-         (when-let [v (:local/root cli-opts)]
-           {:local/root (str (fs/canonicalize v {:nofollow-links true}))})))
-
-(defn ensure-bbin-dirs [cli-opts]
-  (fs/create-dirs (bin-dir cli-opts)))
 
 (def windows?
   (some-> (System/getProperty "os.name")

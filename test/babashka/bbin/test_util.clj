@@ -3,19 +3,25 @@
             [clojure.string :as str]
             [clojure.edn :as edn]
             [babashka.bbin.cli :as bbin]
-            [babashka.bbin.util :as util]))
+            [babashka.bbin.dirs :as dirs]))
 
-(def test-dir
-  (doto (str (fs/file (fs/temp-dir) "bbin-test"))
-    (fs/delete-on-exit)))
+(defn reset-test-dir []
+  (let [path (str (fs/file (fs/temp-dir) "bbin-test"))]
+    (fs/delete-tree path)
+    (fs/create-dirs path)
+    (doto path (fs/delete-on-exit))))
 
-(def bin-dir (fs/file test-dir (fs/relativize (util/user-home) (util/bin-dir-base nil))))
-(def jars-dir (fs/file test-dir (fs/relativize (util/user-home) (util/jars-dir-base nil))))
+(def test-dir (reset-test-dir))
+
+(defn- relativize [original]
+  (fs/file test-dir (fs/relativize (dirs/user-home) original)))
 
 (defn bbin-dirs-fixture []
   (fn [f]
-    (binding [util/*bin-dir* bin-dir
-              util/*jars-dir* jars-dir]
+    (binding [dirs/*legacy-bin-dir* (relativize (dirs/legacy-bin-dir))
+              dirs/*legacy-jars-dir* (relativize (dirs/legacy-jars-dir))
+              dirs/*xdg-bin-dir* (relativize (dirs/xdg-bin-dir nil))
+              dirs/*xdg-jars-dir* (relativize (dirs/xdg-jars-dir nil))]
       (f))))
 
 (def git-wrapper-path
@@ -33,9 +39,6 @@
   (fn [f]
     (set-gitlibs-command)
     (f)))
-
-(defn reset-test-dir []
-  (fs/delete-tree test-dir))
 
 (defn bbin [main-args & {:as opts}]
   (let [out (str/trim (with-out-str (bbin/bbin main-args opts)))]

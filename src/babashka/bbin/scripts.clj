@@ -2,6 +2,7 @@
   (:require
     [babashka.bbin.scripts.common :as common]
     [babashka.bbin.util :as util]
+    [babashka.bbin.dirs :as dirs]
     [babashka.bbin.protocols :as p]
     [babashka.bbin.scripts.git-dir :refer [map->GitDir]]
     [babashka.bbin.scripts.local-file :refer [map->LocalFile]]
@@ -19,7 +20,7 @@
 ;; selmer filter for clojure escaping for e.g. files
 (filters/add-filter! :pr-str (comp pr-str str))
 
-(defn- parse-script [s]
+(defn parse-script [s]
   (let [lines (str/split-lines s)
         prefix (if (str/ends-with? (first lines) "bb") ";" "#")]
     (->> lines
@@ -30,15 +31,15 @@
          (str/join "\n")
          edn/read-string)))
 
-(defn load-scripts [cli-opts]
-  (->> (file-seq (util/bin-dir cli-opts))
+(defn load-scripts [dir]
+  (->> (file-seq dir)
        (filter #(.isFile %))
-       (map (fn [x] [(symbol (str (fs/relativize (util/bin-dir cli-opts) x)))
+       (map (fn [x] [(symbol (str (fs/relativize dir x)))
                      (parse-script (slurp x))]))
        (filter second)
        (into {})))
 
-(defn- printable-scripts [scripts]
+(defn printable-scripts [scripts]
   (map (fn [[bin {{lroot :local/root
                    gtag  :git/tag
                    gsha  :git/sha
@@ -52,7 +53,7 @@
            gtag  (assoc :version gtag)))
        scripts))
 
-(defn- print-scripts [printable-scripts {:as _cli-opts :keys [no-color plain]}]
+(defn print-scripts [printable-scripts {:as _cli-opts :keys [no-color plain]}]
   (let [tty?              (util/is-tty 1 :out)
         plain-mode?       (or plain (not tty?))
         skip-header?      plain-mode?
@@ -77,7 +78,7 @@
                                                                     :no-color            no-color?})))
 
 (defn ls [cli-opts]
-  (let [scripts (load-scripts cli-opts)]
+  (let [scripts (load-scripts (dirs/bin-dir cli-opts))]
     (if (util/pretty-output-enabled?)
       (if (:edn cli-opts)
         (util/pprint scripts cli-opts)
@@ -85,7 +86,7 @@
       (util/pprint scripts cli-opts))))
 
 (defn bin [cli-opts]
-  (println (str (util/bin-dir cli-opts))))
+  (println (str (dirs/bin-dir cli-opts))))
 
 (defn- throw-invalid-script [summary cli-opts]
   (let [{:keys [procurer artifact]} summary]
@@ -111,7 +112,7 @@
   (if-not (:script/lib cli-opts)
     (util/print-help)
     (do
-      (util/ensure-bbin-dirs cli-opts)
+      (dirs/ensure-bbin-dirs cli-opts)
       (let [cli-opts' (util/canonicalized-cli-opts cli-opts)
             script (new-script cli-opts')]
         (p/install script)))))
@@ -127,7 +128,7 @@
 
 (defn- load-script [cli-opts]
   (let [script-name (:script/lib cli-opts)
-        script-file (fs/file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true}))
+        script-file (fs/file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true}))
         parsed (parse-script (slurp script-file))]
     (cond
       (-> parsed :coords :bbin/url)
@@ -161,7 +162,7 @@
   (if-not (:script/lib cli-opts)
     (util/print-help)
     (do
-      (util/ensure-bbin-dirs cli-opts)
+      (dirs/ensure-bbin-dirs cli-opts)
       (let [script (load-script cli-opts)]
         (p/upgrade script)))))
 
@@ -169,6 +170,6 @@
   (if-not (:script/lib cli-opts)
     (util/print-help)
     (do
-      (util/ensure-bbin-dirs cli-opts)
+      (dirs/ensure-bbin-dirs cli-opts)
       (let [script (load-script cli-opts)]
         (p/uninstall script)))))

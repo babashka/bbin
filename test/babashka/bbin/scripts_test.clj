@@ -3,8 +3,9 @@
             [babashka.bbin.scripts.common :as common]
             [babashka.bbin.test-util :refer [bbin-dirs-fixture
                                              bbin-private-keys-fixture
-                                             bin-dir reset-test-dir test-dir
-                                             jars-dir]]
+                                             reset-test-dir
+                                             test-dir]]
+            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [babashka.process :refer [sh]]
@@ -40,10 +41,10 @@
 (deftest load-scripts-test
   (let [cli-opts {}]
     (reset-test-dir)
-    (util/ensure-bbin-dirs cli-opts)
-    (is (= {} (scripts/load-scripts cli-opts)))
-    (spit (fs/file (util/bin-dir cli-opts) "test-script") test-script)
-    (is (= {'test-script bbin-test-lib} (scripts/load-scripts cli-opts)))))
+    (dirs/ensure-bbin-dirs cli-opts)
+    (is (= {} (scripts/load-scripts (dirs/bin-dir nil))))
+    (spit (fs/file (dirs/bin-dir nil) "test-script") test-script)
+    (is (= {'test-script bbin-test-lib} (scripts/load-scripts (dirs/bin-dir nil))))))
 
 (def portal-script-url
   (str "https://gist.githubusercontent.com"
@@ -56,7 +57,7 @@
 
 (defn exec-cmd-line [script-name]
   (concat (when util/windows? ["cmd" "/c"])
-          [(str (fs/canonicalize (fs/file bin-dir (name script-name)) {:nofollow-links true}))]))
+          [(str (fs/canonicalize (fs/file (dirs/bin-dir nil) (name script-name)) {:nofollow-links true}))]))
 
 (defn run-bin-script [script-name & script-args]
   (let [args (concat (exec-cmd-line script-name) script-args)
@@ -66,10 +67,10 @@
 (deftest install-from-qualified-lib-name-public-test
   (testing "install */* (public Git repo)"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib"}
           out (run-install cli-opts)
-          bin-file (fs/file bin-dir "hello")]
+          bin-file (fs/file (dirs/bin-dir nil) "hello")]
       (is (= bbin-test-lib out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
@@ -77,10 +78,10 @@
 (deftest install-from-qualified-lib-name-no-tag-test
   (testing "install */* (public Git repo, no tags)"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib-no-tag"}
           out (run-install cli-opts)
-          bin-file (fs/file bin-dir "hello")]
+          bin-file (fs/file (dirs/bin-dir nil) "hello")]
       (is (= bbin-test-lib-no-tag out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
@@ -88,10 +89,10 @@
 (deftest install-from-qualified-lib-name-private-test
   (testing "install */* (private Git repo)"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib "io.bitbucket.radsmith/bbin-test-lib-private"}
           out (run-install cli-opts)
-          bin-file (fs/file bin-dir "hello")]
+          bin-file (fs/file (dirs/bin-dir nil) "hello")]
       (is (= bbin-test-lib-private out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
@@ -104,10 +105,10 @@
 (deftest install-from-git-http-url-test
   (testing "install https://*.git"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib (get-in git-http-url-lib [:coords :git/url])}
           out (run-install cli-opts)
-          bin-file (fs/file bin-dir "hello")]
+          bin-file (fs/file (dirs/bin-dir nil) "hello")]
       (is (= git-http-url-lib out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
@@ -120,10 +121,10 @@
 (deftest install-from-git-ssh-url-test
   (testing "install git@*:*.git"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib (get-in git-ssh-url-lib [:coords :git/url])}
           out (run-install cli-opts)
-          bin-file (fs/file bin-dir "hello")]
+          bin-file (fs/file (dirs/bin-dir nil) "hello")]
       (is (= git-ssh-url-lib out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
@@ -135,19 +136,19 @@
 (deftest install-from-mvn-version-test
   (testing "install */* --mvn/version *"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib (str (:lib maven-lib))
                     :mvn/version (-> maven-lib :coords :mvn/version)}
           out (run-install cli-opts)]
       (is (= maven-lib out))
-      (is (fs/exists? (fs/file bin-dir (name (:lib maven-lib)))))
+      (is (fs/exists? (fs/file (dirs/bin-dir nil) (name (:lib maven-lib)))))
       (is (str/starts-with? (run-bin-script (:lib maven-lib) "--help")
                             "Serves static assets using web server.")))))
 
 (deftest install-from-lib-local-root-dir-test
   (testing "install */* --local/root *"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [local-root (str (fs/file test-dir "foo"))]
       (fs/create-dir local-root)
       (spit (fs/file local-root "bb.edn") (pr-str {}))
@@ -158,12 +159,12 @@
         (is (= {:lib 'babashka/foo
                 :coords {:local/root local-root}}
                out))
-        (is (fs/exists? (fs/file bin-dir "foo")))))))
+        (is (fs/exists? (fs/file (dirs/bin-dir nil) "foo")))))))
 
 (deftest invalid-bin-config-test
   (testing "install */* --local/root * (invalid bin config)"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [local-root (str (fs/file test-dir "foo"))
           invalid-config 123]
       (fs/create-dir local-root)
@@ -177,7 +178,7 @@
 (deftest install-from-no-lib-local-root-dir-test
   (testing "install ./"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [local-root (str (fs/file test-dir "foo"))]
       (fs/create-dir local-root)
       (spit (fs/file local-root "bb.edn")
@@ -187,12 +188,12 @@
             out (run-install cli-opts)]
         (is (= {:coords {:bbin/url (str "file://" local-root)}}
                out))
-        (is (fs/exists? (fs/file bin-dir "foo")))))))
+        (is (fs/exists? (fs/file (dirs/bin-dir nil) "foo")))))))
 
 (deftest install-from-local-root-clj-test
   (testing "install ./*.clj (with shebang)"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [script-file (doto (fs/file test-dir "hello.clj")
                         (spit "#!/usr/bin/env bb\n(println \"Hello world\")"))
           cli-opts {:script/lib (str script-file)}
@@ -201,7 +202,7 @@
       (is (= "Hello world" (run-bin-script :hello)))))
   (testing "install ./*.clj (without shebang)"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [script-file (doto (fs/file test-dir "hello.clj")
                         (spit "(println \"Hello world\")"))
           cli-opts {:script/lib (str script-file)}
@@ -212,7 +213,7 @@
 (deftest install-from-local-root-jar-test
   (testing "install ./*.jar"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [script-jar (str "test-resources" fs/file-separator "hello.jar")
           cli-opts {:script/lib script-jar}
           out (run-install cli-opts)]
@@ -221,28 +222,28 @@
       (is (= "Hello JAR" (run-bin-script :hello)))))
   (testing "install ./*.jar (no main class)"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [script-jar (str "test-resources" fs/file-separator "hello-no-main-class.jar")
           cli-opts {:script/lib script-jar}]
       (is (thrown-with-msg? ExceptionInfo #"jar has no Main-Class" (run-install cli-opts)))
-      (is (not (fs/exists? (fs/file bin-dir "hello-no-main-class"))))
-      (is (not (fs/exists? (fs/file jars-dir "hello-no-main-class.jar")))))))
+      (is (not (fs/exists? (fs/file (dirs/bin-dir nil) "hello-no-main-class"))))
+      (is (not (fs/exists? (fs/file (dirs/jars-dir nil) "hello-no-main-class.jar")))))))
 
 (deftest install-from-url-clj-test
   (testing "install https://*.clj"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib portal-script-url}
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url portal-script-url}} out))
-      (is (fs/exists? (fs/file bin-dir "portal"))))))
+      (is (fs/exists? (fs/file (dirs/bin-dir nil) "portal"))))))
 
 (def hello-jar-url "https://raw.githubusercontent.com/rads/bbin-test-lib/main/hello.jar")
 
 (deftest install-from-url-jar-test
   (testing "install https://*.jar"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib hello-jar-url}
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url hello-jar-url}} out))
@@ -256,13 +257,13 @@
 (deftest install-tool-from-local-root-test
   (testing "install ./ --tool"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
+    (dirs/ensure-bbin-dirs {})
     (let [opts {:script/lib "bbin/foo"
                 :local/root (str "test-resources" fs/file-separator "local-tool")
                 :as "footool"
                 :tool true}
           _ (run-install opts)]
-      (is (fs/exists? (fs/file bin-dir "footool")))
+      (is (fs/exists? (fs/file (dirs/bin-dir nil) "footool")))
       (let [usage-out (run-bin-script "footool")]
         (is (every? #(str/includes? usage-out %) ["`keys`" "`vals`"])))
       (is (str/includes? (run-bin-script "footool" "k" ":a" "1") "(:a)"))
@@ -271,8 +272,8 @@
 (deftest uninstall-test
   (testing "uninstall foo"
     (reset-test-dir)
-    (util/ensure-bbin-dirs {})
-    (let [script-file (fs/file bin-dir "foo")]
+    (dirs/ensure-bbin-dirs {})
+    (let [script-file (fs/file (dirs/bin-dir nil) "foo")]
       (spit script-file "#!/usr/bin/env bb")
       (let [cli-opts {:script/lib "foo"}
             out (str/trim (with-out-str (scripts/uninstall cli-opts)))]

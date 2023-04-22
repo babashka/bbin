@@ -1,6 +1,7 @@
 (ns babashka.bbin.scripts.local-file
   (:require [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
+            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]))
 
@@ -14,7 +15,7 @@
           script-name (or (:as cli-opts) (common/file-path->script-name file-path))
           script-contents (-> (slurp file-path)
                               (common/insert-script-header header))
-          script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
+          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (common/install-script script-file script-contents (:dry-run cli-opts))))
 

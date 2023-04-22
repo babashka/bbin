@@ -1,6 +1,7 @@
 (ns babashka.bbin.scripts.local-jar
   (:require [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
+            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [clojure.string :as str]
@@ -30,14 +31,14 @@
 (defrecord LocalJar [cli-opts coords]
   p/Script
   (install [_]
-    (fs/create-dirs (util/jars-dir cli-opts))
+    (fs/create-dirs (dirs/jars-dir cli-opts))
     (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
           main-ns (common/jar->main-ns file-path)
           script-deps {:bbin/url (str "file://" file-path)}
           header {:coords script-deps}
           _ (util/pprint header cli-opts)
           script-name (or (:as cli-opts) (common/file-path->script-name file-path))
-          cached-jar-path (fs/file (util/jars-dir cli-opts) (str script-name ".jar"))
+          cached-jar-path (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar"))
           script-edn-out (with-out-str
                            (binding [*print-namespace-maps* false]
                              (util/pprint header)))
@@ -49,7 +50,7 @@
                          :script/jar cached-jar-path}
           script-contents (selmer-util/without-escaping
                             (selmer/render local-jar-template-str template-opts))
-          script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name)
+          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (fs/copy file-path cached-jar-path {:replace-existing true})
       (common/install-script script-file script-contents (:dry-run cli-opts))))

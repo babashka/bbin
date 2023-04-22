@@ -1,22 +1,26 @@
 (ns babashka.bbin.cli
   (:require [babashka.cli :as cli]
             [babashka.bbin.scripts :as scripts]
+            [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.migrate :as migrate]
             [babashka.bbin.util :as util]
             [clojure.string :as str]))
 
 (declare print-commands)
 
-(defn- run [command-fn {:keys [opts]}]
-  (util/check-legacy-paths)
-  (if (and (:version opts) (not (:help opts)))
-    (util/print-version)
-    (command-fn opts)))
+(defn- run [command-fn parsed & {:keys [disable-legacy-paths-check]}]
+  (let [cli-opts (:opts parsed)]
+    (when-not disable-legacy-paths-check
+      (dirs/check-legacy-paths))
+    (if (and (:version cli-opts) (not (:help cli-opts)))
+      (util/print-version)
+      (command-fn cli-opts))))
 
 (defn- add-global-aliases [commands]
   (map #(assoc-in % [:aliases :h] :help) commands))
 
 (defn- base-commands
-  [& {:keys [install-fn uninstall-fn upgrade-fn ls-fn bin-fn]}]
+  [& {:as opts}]
   (->> [{:cmds ["commands"]
          :fn #(run print-commands %)}
 
@@ -24,24 +28,32 @@
          :fn #(run util/print-help %)}
 
         {:cmds ["install"]
-         :fn #(run install-fn %)
+         :fn #(run (:install-fn opts) %)
          :args->opts [:script/lib]
          :aliases {:T :tool}}
 
+        {:cmds ["migrate" "auto"]
+         :fn #(run (partial (:migrate-fn opts) :auto) %
+                   :disable-legacy-paths-check true)}
+
+        {:cmds ["migrate"]
+         :fn #(run (:migrate-fn opts) %
+                   :disable-legacy-paths-check true)}
+
         (when (util/upgrade-enabled?)
           {:cmds ["upgrade"]
-           :fn #(run upgrade-fn %)
+           :fn #(run (:upgrade-fn opts) %)
            :args->opts [:script/lib]})
 
         {:cmds ["uninstall"]
-         :fn #(run uninstall-fn %)
+         :fn #(run (:uninstall-fn opts) %)
          :args->opts [:script/lib]}
 
         {:cmds ["ls"]
-         :fn #(run ls-fn %)}
+         :fn #(run (:ls-fn opts) %)}
 
         {:cmds ["bin"]
-         :fn #(run bin-fn %)}
+         :fn #(run (:bin-fn opts) %)}
 
         {:cmds ["version"]
          :fn #(run util/print-version %)}
@@ -61,7 +73,8 @@
    :upgrade-fn scripts/upgrade
    :uninstall-fn scripts/uninstall
    :ls-fn scripts/ls
-   :bin-fn scripts/bin})
+   :bin-fn scripts/bin
+   :migrate-fn migrate/migrate})
 
 (defn bbin [main-args & {:as run-opts}]
   (let [run-opts' (merge default-run-opts run-opts)]

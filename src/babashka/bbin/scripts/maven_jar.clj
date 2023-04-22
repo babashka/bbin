@@ -1,6 +1,7 @@
 (ns babashka.bbin.scripts.maven-jar
   (:require [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
+            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.deps :as deps]
             [babashka.json :as json]
@@ -116,7 +117,7 @@
                                               (second main-opts))]}
           template-out (selmer-util/without-escaping
                          (selmer/render maven-template-str template-opts))
-          script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
+          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
       (common/install-script script-file template-out (:dry-run cli-opts))))
 
   (upgrade [_]

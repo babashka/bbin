@@ -5,6 +5,7 @@
 (def test-namespaces
   '[babashka.bbin.cli-test
     babashka.bbin.scripts-test
+    babashka.bbin.migrate-test
     babashka.bbin.util-test])
 
 (doseq [ns test-namespaces]

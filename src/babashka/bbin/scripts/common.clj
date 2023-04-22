@@ -1,6 +1,7 @@
 (ns babashka.bbin.scripts.common
   (:require [babashka.fs :as fs]
             [babashka.deps :as deps]
+            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util :refer [sh]]
             [clojure.edn :as edn]
             [clojure.main :as main]
@@ -341,7 +342,7 @@
                          git-or-local-template-str))
         template-out (selmer-util/without-escaping
                        (selmer/render template-str template-opts'))
-        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
+        script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
     (install-script script-file template-out (:dry-run cli-opts))))
 
 (defn jar->main-ns [jar-path]
@@ -357,8 +358,8 @@
 
 (defn delete-files [cli-opts]
   (let [script-name (:script/lib cli-opts)
-        script-file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true})]
+        script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
     (when (fs/delete-if-exists script-file)
       (when util/windows? (fs/delete-if-exists (fs/file (str script-file windows-wrapper-extension))))
-      (fs/delete-if-exists (fs/file (util/jars-dir cli-opts) (str script-name ".jar")))
+      (fs/delete-if-exists (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar")))
       (println "Removing" (str script-file)))))
