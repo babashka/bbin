@@ -53,10 +53,6 @@
   (some-> (System/getenv "BABASHKA_BBIN_FLAG_UPGRADE")
           edn/read-string))
 
-(defn pretty-output-enabled? []
-  (some-> (System/getenv "BABASHKA_BBIN_FLAG_PRETTY_OUTPUT")
-          edn/read-string))
-
 (defn truncate
   "Truncates `s` when it exceeds length `truncate-to` by inserting `omission` at the given `omission-position`.
 
