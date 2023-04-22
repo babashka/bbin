@@ -16,7 +16,8 @@
 (deftest help-test
   (doseq [args [["help"] ["install"] ["uninstall"]]]
     (let [out (bbin args :out :string)]
-      (is (str/starts-with? out "Usage: bbin <command>")))))
+      (is (str/starts-with? out (str "Version: " meta/version "\n\n"
+                                     "Usage: bbin <command>"))))))
 
 (deftest version-test
   (let [out (bbin ["--version"] :out :string)]

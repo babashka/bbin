@@ -221,6 +221,8 @@
         lines (->> help-commands
                    (map (fn [{:keys [command doc]}]
                           (format (str "  %-" (inc max-width) "s %s") command doc))))]
+    (println (str "Version: " meta/version))
+    (println)
     (println (str "Usage: bbin <command>\n\n" (str/join "\n" lines)))))
 
 (def ^:dynamic *bin-dir* nil)
