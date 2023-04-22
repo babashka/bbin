@@ -81,7 +81,10 @@
   (let [scripts (load-scripts (dirs/bin-dir cli-opts))]
     (if (:edn cli-opts)
       (util/pprint scripts cli-opts)
-      (print-scripts (printable-scripts scripts) cli-opts))))
+      (do
+        (println)
+        (print-scripts (printable-scripts scripts) cli-opts)
+        (println)))))
 
 (defn bin [cli-opts]
   (println (str (dirs/bin-dir cli-opts))))
