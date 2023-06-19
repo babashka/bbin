@@ -53,7 +53,7 @@ WARNING: (We won't make any changes without asking you first.)
 (defn xdg-bin-dir [_]
   (or *xdg-bin-dir*
       (if-let [override (System/getenv "BABASHKA_BBIN_BIN_DIR")]
-        (fs/file override)
+        (fs/file (fs/expand-home override))
         (fs/file (user-home) ".local" "bin"))))
 
 (defn bin-dir [opts]
@@ -66,7 +66,7 @@ WARNING: (We won't make any changes without asking you first.)
 (defn xdg-jars-dir [_]
   (or *xdg-jars-dir*
       (if-let [override (System/getenv "BABASHKA_BBIN_JARS_DIR")]
-        (fs/file override)
+        (fs/file (fs/expand-home override))
         (fs/file (fs/xdg-cache-home) "babashka" "bbin" "jars"))))
 
 (defn jars-dir [opts]
