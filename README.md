@@ -42,9 +42,9 @@ $ portal <(bbin ls)
 brew install babashka/brew/bbin
 ```
 
-**2. Add `~/.babashka/bbin/bin` to `PATH`:**
+**2. Add `~/.local/bin` to `PATH`:**
 ```shell
-echo 'export PATH="$PATH:$HOME/.babashka/bbin/bin"' >> ~/.$(basename $SHELL)rc && exec $SHELL
+echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.$(basename $SHELL)rc && exec $SHELL
 ```
 
 ### Scoop (Windows)
@@ -55,7 +55,7 @@ scoop bucket add scoop-clojure https://github.com/littleli/scoop-clojure
 scoop install bbin
 ```
 
-The Scoop package will automatically update your `Path` with `%HOMEDRIVE%%HOMEPATH%\.babashka\bbin\bin`, but you will have to restart your terminal for this to take effect.
+The Scoop package will automatically update your `Path` with `%HOMEDRIVE%%HOMEPATH%\.local\bin`, but you will have to restart your terminal for this to take effect.
 
 ### Manual (Linux, macOS, and Windows)
 
@@ -124,9 +124,8 @@ $ bbin bin
 
 **Install a script**
 
-- By default, scripts will be installed to `~/.babashka/bbin/bin`
-    - If `$BABASHKA_BBIN_DIR` is set, then use `$BABASHKA_BBIN_DIR` (explicit override)
-    - If `$XDG_DATA_HOME` is set, then use `$XDG_DATA_HOME/.babashka/bbin/bin` (Freedesktop conventions)
+- By default, scripts will be installed to `~/.local/bin`
+    - If `$BABASHKA_BBIN_BIN_DIR` is set, then use `$BABASHKA_BBIN_BIN_DIR` (explicit override)
 - Each bin script is a self-contained shell script that fetches deps and invokes `bb` with the correct arguments.
 - The bin scripts can be configured using the CLI options or the `:bbin/bin` key in `bb.edn`
 - [See the FAQ for additional info on setting up your code to work with bbin](docs/faq.md#how-do-i-get-my-software-onto-bbin)
@@ -187,7 +186,7 @@ If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo w
 
 **Display bbin bin folder**
 
-- The default folder is `~/.babashka/bbin/bin`
+- The default folder is `~/.local/bin`
 
 ---
 
