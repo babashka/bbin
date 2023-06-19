@@ -1417,8 +1417,12 @@ Otherwise, you can either a) migrate manually or b) override:
     (util/print-help)
     (do
       (dirs/ensure-bbin-dirs cli-opts)
-      (let [script (load-script cli-opts)]
-        (p/uninstall script)))))
+      (let [script-name (:script/lib cli-opts)
+            script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
+        (when (fs/delete-if-exists script-file)
+          (when util/windows? (fs/delete-if-exists (fs/file (str script-file common/windows-wrapper-extension))))
+          (fs/delete-if-exists (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar")))
+          (println "Removing" (str script-file)))))))
 
 (ns babashka.bbin.cli
   (:require [babashka.cli :as cli]
