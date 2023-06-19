@@ -26,6 +26,8 @@
       :exit
       (= 0)))
 
+(def tty-out? (memoize #(is-tty 1 :out)))
+
 (defn terminal-dimensions
   "Yields e.g. `{:cols 30 :rows 120}`"
   []
@@ -92,6 +94,18 @@
       (str (subs s 0 lsub-len)
            omission
            (subs s (- (count s) rsub-len) (count s))))))
+
+(defn plain-mode? [{:keys [plain] :as _cli-opts}]
+  (or plain (not (tty-out?))))
+
+(defn no-color? [{:keys [color] :as cli-opts}]
+  (or (false? color)
+      (plain-mode? cli-opts)
+      (System/getenv "NO_COLOR")
+      (= "dumb" (System/getenv "TERM"))))
+
+(defn bold [s cli-opts]
+  (if (no-color? cli-opts) s (str "\033[1m" s "\033[0m")))
 
 (defn print-table
   "Print table to stdout.

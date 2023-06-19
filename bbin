@@ -71,6 +71,8 @@
       :exit
       (= 0)))
 
+(def tty-out? (memoize #(is-tty 1 :out)))
+
 (defn terminal-dimensions
   "Yields e.g. `{:cols 30 :rows 120}`"
   []
@@ -137,6 +139,18 @@
       (str (subs s 0 lsub-len)
            omission
            (subs s (- (count s) rsub-len) (count s))))))
+
+(defn plain-mode? [{:keys [plain] :as _cli-opts}]
+  (or plain (not (tty-out?))))
+
+(defn no-color? [{:keys [color] :as cli-opts}]
+  (or (false? color)
+      (plain-mode? cli-opts)
+      (System/getenv "NO_COLOR")
+      (= "dumb" (System/getenv "TERM"))))
+
+(defn bold [s cli-opts]
+  (if (no-color? cli-opts) s (str "\033[1m" s "\033[0m")))
 
 (defn print-table
   "Print table to stdout.
@@ -1229,12 +1243,10 @@ Otherwise, you can either a) migrate manually or b) override:
            gtag  (assoc :version gtag)))
        scripts))
 
-(defn print-scripts [printable-scripts {:as _cli-opts :keys [no-color plain]}]
-  (let [tty?              (util/is-tty 1 :out)
-        plain-mode?       (or plain (not tty?))
+(defn print-scripts [printable-scripts cli-opts]
+  (let [no-color?         (util/no-color? cli-opts)
+        plain-mode?       (util/plain-mode? cli-opts)
         skip-header?      plain-mode?
-        no-color?         (or no-color plain-mode?
-                              (System/getenv "NO_COLOR") (= "dumb" (System/getenv "TERM")))
         column-atts       '(:bin :version :location)
         column-coercions  {:version #(if (or plain-mode? (not= 40 (count %)))
                                        %

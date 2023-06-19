@@ -53,12 +53,10 @@
            gtag  (assoc :version gtag)))
        scripts))
 
-(defn print-scripts [printable-scripts {:as _cli-opts :keys [no-color plain]}]
-  (let [tty?              (util/is-tty 1 :out)
-        plain-mode?       (or plain (not tty?))
+(defn print-scripts [printable-scripts cli-opts]
+  (let [no-color?         (util/no-color? cli-opts)
+        plain-mode?       (util/plain-mode? cli-opts)
         skip-header?      plain-mode?
-        no-color?         (or no-color plain-mode?
-                              (System/getenv "NO_COLOR") (= "dumb" (System/getenv "TERM")))
         column-atts       '(:bin :version :location)
         column-coercions  {:version #(if (or plain-mode? (not= 40 (count %)))
                                        %
