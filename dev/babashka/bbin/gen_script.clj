@@ -58,6 +58,7 @@
    (slurp "src/babashka/bbin/scripts/local_file.clj")
    (slurp "src/babashka/bbin/scripts/local_jar.clj")
    (slurp "src/babashka/bbin/scripts/maven_jar.clj")
+   (slurp "src/babashka/bbin/migrate.clj")
    (slurp "src/babashka/bbin/scripts.clj")
    (slurp "src/babashka/bbin/cli.clj")])
 
