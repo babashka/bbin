@@ -19,7 +19,7 @@
 
    :printable-scripts
    (fn [{:keys [scripts cli-opts]}]
-     (scripts/print-scripts (scripts/printable-scripts scripts) cli-opts))
+     (util/print-scripts (util/printable-scripts scripts) cli-opts))
 
    :prompt-move
    (fn [{:keys [cli-opts]}]

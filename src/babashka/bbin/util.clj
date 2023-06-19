@@ -107,6 +107,20 @@
 (defn bold [s cli-opts]
   (if (no-color? cli-opts) s (str "\033[1m" s "\033[0m")))
 
+(defn printable-scripts [scripts]
+  (map (fn [[bin {{lroot :local/root
+                   gtag  :git/tag
+                   gsha  :git/sha
+                   gurl  :git/url
+                   burl  :bbin/url} :coords}]]
+         (cond-> (assoc {} :bin bin)
+                 gurl  (assoc :location gurl)
+                 burl  (assoc :location burl)
+                 lroot (assoc :location (str "file://" lroot))
+                 gsha  (assoc :version gsha)
+                 gtag  (assoc :version gtag)))
+       scripts))
+
 (defn print-table
   "Print table to stdout.
 
@@ -222,6 +236,31 @@
          (recur ks rows (assoc opts
                                :max-width nil
                                :column-coercions {width-reduce-column coercion-fn})))))))
+
+(defn edn? [cli-opts]
+  (:edn cli-opts))
+
+(defn print-scripts [printable-scripts cli-opts]
+  (let [no-color?         (no-color? cli-opts)
+        plain-mode?       (plain-mode? cli-opts)
+        skip-header?      plain-mode?
+        column-atts       '(:bin :version :location)
+        column-coercions  {:version #(if (or plain-mode? (not= 40 (count %)))
+                                       %
+                                       (subs % 0 7))}
+        max-width         (when-not plain-mode?
+                            (:cols (terminal-dimensions)))
+        location-truncate #(-> %1
+                               (str/replace #"^(file|https?):\/\/" "")
+                               (truncate {:truncate-to       %2
+                                          :omission          "…"
+                                          :omission-position :center}))]
+    (print-table column-atts (sort-by :bin printable-scripts) {:skip-header         skip-header?
+                                                               :max-width           max-width
+                                                               :width-reduce-column :location
+                                                               :width-reduce-fn     location-truncate
+                                                               :column-coercions    column-coercions
+                                                               :no-color            no-color?})))
 
 (def help-commands
   (->> [{:command "bbin install" :doc "Install a script"}

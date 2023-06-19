@@ -93,7 +93,6 @@
                        (select-keys cli-opts [:mvn/version])}
           header {:lib (key (first script-deps))
                   :coords (val (first script-deps))}
-          _ (util/pprint header cli-opts)
           _ (deps/add-deps {:deps script-deps})
           script-root (fs/canonicalize (or (:local/root cli-opts) (common/local-lib-path script-deps)) {:nofollow-links true})
           script-name (or (:as cli-opts) (second (str/split (:script/lib cli-opts) #"/")))
@@ -118,7 +117,7 @@
           template-out (selmer-util/without-escaping
                          (selmer/render maven-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
-      (common/install-script script-file template-out (:dry-run cli-opts))))
+      (common/install-script script-name header script-file template-out cli-opts)))
 
   (upgrade [_]
     (let [latest-version (or (latest-stable-clojars-version lib)

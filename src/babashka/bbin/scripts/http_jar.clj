@@ -44,7 +44,6 @@
           main-ns (common/jar->main-ns tmp-jar-path)
           cached-jar-path (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar"))
           _ (fs/move tmp-jar-path cached-jar-path {:replace-existing true})
-          _ (util/pprint header cli-opts)
           script-edn-out (with-out-str
                            (binding [*print-namespace-maps* false]
                              (util/pprint header)))
@@ -58,7 +57,7 @@
                             (selmer/render local-jar-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
-      (common/install-script script-file script-contents (:dry-run cli-opts))))
+      (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
     (p/install (map->HttpJar {:cli-opts {:script/lib (:bbin/url coords)}

@@ -152,6 +152,20 @@
 (defn bold [s cli-opts]
   (if (no-color? cli-opts) s (str "\033[1m" s "\033[0m")))
 
+(defn printable-scripts [scripts]
+  (map (fn [[bin {{lroot :local/root
+                   gtag  :git/tag
+                   gsha  :git/sha
+                   gurl  :git/url
+                   burl  :bbin/url} :coords}]]
+         (cond-> (assoc {} :bin bin)
+                 gurl  (assoc :location gurl)
+                 burl  (assoc :location burl)
+                 lroot (assoc :location (str "file://" lroot))
+                 gsha  (assoc :version gsha)
+                 gtag  (assoc :version gtag)))
+       scripts))
+
 (defn print-table
   "Print table to stdout.
 
@@ -267,6 +281,31 @@
          (recur ks rows (assoc opts
                                :max-width nil
                                :column-coercions {width-reduce-column coercion-fn})))))))
+
+(defn edn? [cli-opts]
+  (:edn cli-opts))
+
+(defn print-scripts [printable-scripts cli-opts]
+  (let [no-color?         (no-color? cli-opts)
+        plain-mode?       (plain-mode? cli-opts)
+        skip-header?      plain-mode?
+        column-atts       '(:bin :version :location)
+        column-coercions  {:version #(if (or plain-mode? (not= 40 (count %)))
+                                       %
+                                       (subs % 0 7))}
+        max-width         (when-not plain-mode?
+                            (:cols (terminal-dimensions)))
+        location-truncate #(-> %1
+                               (str/replace #"^(file|https?):\/\/" "")
+                               (truncate {:truncate-to       %2
+                                          :omission          "…"
+                                          :omission-position :center}))]
+    (print-table column-atts (sort-by :bin printable-scripts) {:skip-header         skip-header?
+                                                               :max-width           max-width
+                                                               :width-reduce-column :location
+                                                               :width-reduce-fn     location-truncate
+                                                               :column-coercions    column-coercions
+                                                               :no-color            no-color?})))
 
 (def help-commands
   (->> [{:command "bbin install" :doc "Install a script"}
@@ -387,17 +426,27 @@
   "Spits `contents` to `path` (adding an extension on Windows), or
   pprints them if `dry-run?` is truthy.
   Side-effecting."
-  [path contents dry-run?]
+  [script-name header path contents & {:keys [dry-run] :as cli-opts}]
   (let [path-str (str path)]
-    (if dry-run?
+    (if dry-run
       (util/pprint {:script-file     path-str
                     :script-contents contents}
-                   dry-run?)
+                   dry-run)
       (do
         (spit path-str contents)
         (when-not util/windows? (sh ["chmod" "+x" path-str]))
         (when util/windows?
-          (spit (str path-str windows-wrapper-extension) (str "@bb -f %~dp0" (fs/file-name path-str) " -- %*")))
+          (spit (str path-str windows-wrapper-extension)
+                (str "@bb -f %~dp0" (fs/file-name path-str) " -- %*")))
+        (if (util/edn? cli-opts)
+          (util/pprint header)
+          (do
+            (println)
+            (util/print-scripts (util/printable-scripts {script-name header})
+                                cli-opts)
+            (println)
+            (println (util/bold "Install complete." cli-opts))
+            (println)))
         nil))))
 
 (defn- generate-deps-lib-name [git-url]
@@ -622,7 +671,6 @@
         header' (if (#{::no-lib} lib)
                   {:coords {:bbin/url (str "file://" (get-in header [:coords :local/root]))}}
                   header)
-        _ (util/pprint header' cli-opts)
         _ (when-not (#{::no-lib} lib)
             (deps/add-deps {:deps script-deps}))
         script-root (fs/canonicalize (or (get-in header [:coords :local/root])
@@ -677,7 +725,7 @@
         template-out (selmer-util/without-escaping
                        (selmer/render template-str template-opts'))
         script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
-    (install-script script-file template-out (:dry-run cli-opts))))
+    (install-script script-name header' script-file template-out cli-opts)))
 
 (defn jar->main-ns [jar-path]
   (with-open [jar-file (JarFile. (fs/file jar-path))]
@@ -718,7 +766,6 @@
 (ns babashka.bbin.scripts.http-file
   (:require [babashka.bbin.protocols :as p]
             [babashka.bbin.dirs :as dirs]
-            [babashka.bbin.util :as util]
             [babashka.bbin.scripts.common :as common]
             [babashka.fs :as fs]))
 
@@ -728,13 +775,12 @@
     (let [http-url (:script/lib cli-opts)
           script-deps {:bbin/url http-url}
           header {:coords script-deps}
-          _ (util/pprint header cli-opts)
           script-name (or (:as cli-opts) (common/http-url->script-name http-url))
           script-contents (-> (slurp (:bbin/url script-deps))
                               (common/insert-script-header header))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
-      (common/install-script script-file script-contents (:dry-run cli-opts))))
+      (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
     (p/install (map->HttpFile {:cli-opts {:script/lib (:bbin/url coords)}
@@ -789,7 +835,6 @@
           main-ns (common/jar->main-ns tmp-jar-path)
           cached-jar-path (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar"))
           _ (fs/move tmp-jar-path cached-jar-path {:replace-existing true})
-          _ (util/pprint header cli-opts)
           script-edn-out (with-out-str
                            (binding [*print-namespace-maps* false]
                              (util/pprint header)))
@@ -803,7 +848,7 @@
                             (selmer/render local-jar-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
-      (common/install-script script-file script-contents (:dry-run cli-opts))))
+      (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
     (p/install (map->HttpJar {:cli-opts {:script/lib (:bbin/url coords)}
@@ -831,7 +876,6 @@
   (:require [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
             [babashka.bbin.dirs :as dirs]
-            [babashka.bbin.util :as util]
             [babashka.fs :as fs]))
 
 (defrecord LocalFile [cli-opts coords]
@@ -840,13 +884,12 @@
     (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
           script-deps {:bbin/url (str "file://" file-path)}
           header {:coords script-deps}
-          _ (util/pprint header cli-opts)
           script-name (or (:as cli-opts) (common/file-path->script-name file-path))
           script-contents (-> (slurp file-path)
                               (common/insert-script-header header))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
-      (common/install-script script-file script-contents (:dry-run cli-opts))))
+      (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
     (p/install (map->LocalFile {:cli-opts {:script/lib (:bbin/url coords)}
@@ -893,7 +936,6 @@
           main-ns (common/jar->main-ns file-path)
           script-deps {:bbin/url (str "file://" file-path)}
           header {:coords script-deps}
-          _ (util/pprint header cli-opts)
           script-name (or (:as cli-opts) (common/file-path->script-name file-path))
           cached-jar-path (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar"))
           script-edn-out (with-out-str
@@ -910,7 +952,7 @@
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (fs/copy file-path cached-jar-path {:replace-existing true})
-      (common/install-script script-file script-contents (:dry-run cli-opts))))
+      (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
     (p/install (map->LocalJar {:cli-opts {:script/lib (:bbin/url coords)}
@@ -1014,7 +1056,6 @@
                        (select-keys cli-opts [:mvn/version])}
           header {:lib (key (first script-deps))
                   :coords (val (first script-deps))}
-          _ (util/pprint header cli-opts)
           _ (deps/add-deps {:deps script-deps})
           script-root (fs/canonicalize (or (:local/root cli-opts) (common/local-lib-path script-deps)) {:nofollow-links true})
           script-name (or (:as cli-opts) (second (str/split (:script/lib cli-opts) #"/")))
@@ -1039,7 +1080,7 @@
           template-out (selmer-util/without-escaping
                          (selmer/render maven-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
-      (common/install-script script-file template-out (:dry-run cli-opts))))
+      (common/install-script script-name header script-file template-out cli-opts)))
 
   (upgrade [_]
     (let [latest-version (or (latest-stable-clojars-version lib)
@@ -1072,7 +1113,7 @@
 
    :printable-scripts
    (fn [{:keys [scripts cli-opts]}]
-     (scripts/print-scripts (scripts/printable-scripts scripts) cli-opts))
+     (util/print-scripts (util/printable-scripts scripts) cli-opts))
 
    :prompt-move
    (fn [{:keys [cli-opts]}]
@@ -1277,41 +1318,6 @@ Otherwise, you can either a) migrate manually or b) override:
        (filter second)
        (into {})))
 
-(defn printable-scripts [scripts]
-  (map (fn [[bin {{lroot :local/root
-                   gtag  :git/tag
-                   gsha  :git/sha
-                   gurl  :git/url
-                   burl  :bbin/url} :coords}]]
-         (cond-> (assoc {} :bin bin)
-           gurl  (assoc :location gurl)
-           burl  (assoc :location burl)
-           lroot (assoc :location (str "file://" lroot))
-           gsha  (assoc :version gsha)
-           gtag  (assoc :version gtag)))
-       scripts))
-
-(defn print-scripts [printable-scripts cli-opts]
-  (let [no-color?         (util/no-color? cli-opts)
-        plain-mode?       (util/plain-mode? cli-opts)
-        skip-header?      plain-mode?
-        column-atts       '(:bin :version :location)
-        column-coercions  {:version #(if (or plain-mode? (not= 40 (count %)))
-                                       %
-                                       (subs % 0 7))}
-        max-width         (when-not plain-mode?
-                            (:cols (util/terminal-dimensions)))
-        location-truncate #(-> %1
-                               (str/replace #"^(file|https?):\/\/" "")
-                               (util/truncate {:truncate-to       %2
-                                               :omission          "…"
-                                               :omission-position :center}))]
-    (util/print-table column-atts (sort-by :bin printable-scripts) {:skip-header         skip-header?
-                                                                    :max-width           max-width
-                                                                    :width-reduce-column :location
-                                                                    :width-reduce-fn     location-truncate
-                                                                    :column-coercions    column-coercions
-                                                                    :no-color            no-color?})))
 
 (defn ls [cli-opts]
   (let [scripts (load-scripts (dirs/bin-dir cli-opts))]
@@ -1319,7 +1325,7 @@ Otherwise, you can either a) migrate manually or b) override:
       (util/pprint scripts cli-opts)
       (do
         (println)
-        (print-scripts (printable-scripts scripts) cli-opts)
+        (util/print-scripts (util/printable-scripts scripts) cli-opts)
         (println)))))
 
 (defn bin [cli-opts]
@@ -1350,6 +1356,9 @@ Otherwise, you can either a) migrate manually or b) override:
     (util/print-help)
     (do
       (dirs/ensure-bbin-dirs cli-opts)
+      (when-not (util/edn? cli-opts)
+        (println)
+        (println (util/bold "Starting install..." cli-opts)))
       (let [cli-opts' (util/canonicalized-cli-opts cli-opts)
             script (new-script cli-opts')]
         (p/install script)))))

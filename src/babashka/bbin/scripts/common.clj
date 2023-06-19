@@ -53,17 +53,27 @@
   "Spits `contents` to `path` (adding an extension on Windows), or
   pprints them if `dry-run?` is truthy.
   Side-effecting."
-  [path contents dry-run?]
+  [script-name header path contents & {:keys [dry-run] :as cli-opts}]
   (let [path-str (str path)]
-    (if dry-run?
+    (if dry-run
       (util/pprint {:script-file     path-str
                     :script-contents contents}
-                   dry-run?)
+                   dry-run)
       (do
         (spit path-str contents)
         (when-not util/windows? (sh ["chmod" "+x" path-str]))
         (when util/windows?
-          (spit (str path-str windows-wrapper-extension) (str "@bb -f %~dp0" (fs/file-name path-str) " -- %*")))
+          (spit (str path-str windows-wrapper-extension)
+                (str "@bb -f %~dp0" (fs/file-name path-str) " -- %*")))
+        (if (util/edn? cli-opts)
+          (util/pprint header)
+          (do
+            (println)
+            (util/print-scripts (util/printable-scripts {script-name header})
+                                cli-opts)
+            (println)
+            (println (util/bold "Install complete." cli-opts))
+            (println)))
         nil))))
 
 (defn- generate-deps-lib-name [git-url]
@@ -288,7 +298,6 @@
         header' (if (#{::no-lib} lib)
                   {:coords {:bbin/url (str "file://" (get-in header [:coords :local/root]))}}
                   header)
-        _ (util/pprint header' cli-opts)
         _ (when-not (#{::no-lib} lib)
             (deps/add-deps {:deps script-deps}))
         script-root (fs/canonicalize (or (get-in header [:coords :local/root])
@@ -343,7 +352,7 @@
         template-out (selmer-util/without-escaping
                        (selmer/render template-str template-opts'))
         script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
-    (install-script script-file template-out (:dry-run cli-opts))))
+    (install-script script-name header' script-file template-out cli-opts)))
 
 (defn jar->main-ns [jar-path]
   (with-open [jar-file (JarFile. (fs/file jar-path))]

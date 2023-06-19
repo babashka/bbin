@@ -52,7 +52,7 @@
        "/raw/e83305656f2d145430085d5414e2c3bff776b6e8/portal.clj"))
 
 (defn run-install [cli-opts]
-  (some-> (with-out-str (scripts/install cli-opts))
+  (some-> (with-out-str (scripts/install (assoc cli-opts :edn true)))
           edn/read-string))
 
 (defn exec-cmd-line [script-name]

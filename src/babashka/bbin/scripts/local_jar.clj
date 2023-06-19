@@ -36,7 +36,6 @@
           main-ns (common/jar->main-ns file-path)
           script-deps {:bbin/url (str "file://" file-path)}
           header {:coords script-deps}
-          _ (util/pprint header cli-opts)
           script-name (or (:as cli-opts) (common/file-path->script-name file-path))
           cached-jar-path (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar"))
           script-edn-out (with-out-str
@@ -53,7 +52,7 @@
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (fs/copy file-path cached-jar-path {:replace-existing true})
-      (common/install-script script-file script-contents (:dry-run cli-opts))))
+      (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
     (p/install (map->LocalJar {:cli-opts {:script/lib (:bbin/url coords)}
