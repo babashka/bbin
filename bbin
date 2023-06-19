@@ -1097,8 +1097,7 @@
             [babashka.bbin.scripts :as scripts]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
-            [clojure.string :as str]
-            [taoensso.timbre :as log]))
+            [clojure.string :as str]))
 
 (def templates
   {:found-scripts
@@ -1211,15 +1210,14 @@
     (if-not (dirs/using-legacy-paths?)
       (t :up-to-date)
       (let [scripts (scripts/load-scripts (dirs/legacy-bin-dir))]
-        (if (seq scripts)
-          (do
+        (when (seq scripts)
+          (println)
+          (t :printable-scripts {:scripts scripts})
+          (println)
+          (t :found-scripts)
+          (when-not overwrite
             (println)
-            (t :printable-scripts {:scripts scripts})
-            (println)
-            (t :found-scripts)
-            (when-not overwrite
-              (println)
-              (t :prompt-move))))
+            (t :prompt-move)))
         (flush)
         (if (or overwrite (= "yes" (str/trim (read-line))))
           (do
