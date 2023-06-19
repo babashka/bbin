@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.2.0
+
+**BREAKING CHANGES:**
+
+- `bbin` now follows the [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html).
+    - Migration: 
+        - If you're still using `~/.babashka/bbin/bin`, `bbin` will print a warning.
+        - To remove this warning, run `bbin migrate` for instructions on how to
+            a. run an automatic migration
+            b. migrate manually
+            c. override paths
+    - Paths:
+        - Before:
+            - Scripts: `~/.babashka/bbin/bin`
+            - Cached JARs: `~/.babashka/bbin/jars`
+        - After:
+            - Scripts: `~/.local/bin`
+            - Cached JARs: `~/.cache/babashka/bbin/jars`
+- `bbin ls` and `bbin install` now print human-readable text by default.
+    - Pass in the `--edn` option to revert to the `0.1.x` behavior.
+    - The `BABASHKA_BBIN_FLAG_PRETTY_OUTPUT` flag is no longer used.
+
+Fixed issues:
+
+- [Fix #53: bbin should print human-readable text first and edn as an optional format](https://github.com/babashka/bbin/issues/53)
+
 ## 0.1.13
 
 - [Fix #61: Disable `*print-namespace-maps*` when printing EDN](https://github.com/babashka/bbin/issues/61) ([@eval](http://github.com/eval))
