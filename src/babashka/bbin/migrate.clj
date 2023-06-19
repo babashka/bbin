@@ -3,109 +3,157 @@
             [babashka.bbin.scripts :as scripts]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [taoensso.timbre :as log]))
 
-(defmulti print-template (fn [k & _] k))
+(def templates
+  {:found-scripts
+   (fn [{:keys [cli-opts]}]
+     (let [{:keys [overwrite]} cli-opts]
+       (println (util/bold "We found scripts in ~/.babashka/bbin/bin." cli-opts))
+       (if overwrite
+         (println "The --overwrite option was enabled. We'll continue the migration without prompting.")
+         (do
+           (println "We'll ask you to confirm each script individually before overwriting.")
+           (println "Re-run this command with --overwrite to migrate all scripts without confirming.")))))
 
-(defmethod print-template :confirm [& _]
-  (println (str "We found a legacy bin dir at ~/.babashka/bbin/bin."))
-  (println)
-  (print "Please confirm if you'd like to start the migration steps: (yes/no) "))
+   :printable-scripts
+   (fn [{:keys [scripts cli-opts]}]
+     (scripts/print-scripts (scripts/printable-scripts scripts) cli-opts))
 
-(defmethod print-template :found-scripts [& _]
-  (println "We found scripts in ~/.babashka/bbin/bin."))
+   :prompt-move
+   (fn [{:keys [cli-opts]}]
+     (println (util/bold "Would you like to move your scripts to ~/.local/bin? (yes/no)" cli-opts))
+     (print "> "))
 
-(defmethod print-template :printable-scripts [_ & {:keys [cli-opts scripts]}]
-  (scripts/print-scripts (scripts/printable-scripts scripts) cli-opts))
+   :migrating
+   (fn [{:keys [cli-opts]}]
+     (println (util/bold "Migrating..." cli-opts)))
 
-(defmethod print-template :prompt-move [& _]
-  (println "Would you like to move these to ~/.local/bin? (yes/no)")
-  (print "> "))
+   :up-to-date
+   (fn [_]
+     (println "Up-to-date."))
 
-(defmethod print-template :migrating [& _]
-  (println "Migrating..."))
+   :copying
+   (fn [{:keys [src dest]}]
+     (println "Copying" src "to" dest))
 
-(defmethod print-template :up-to-date [& _]
-  (println "Up-to-date."))
+   :moving
+   (fn [{:keys [src dest]}]
+     (println "Moving" src "to" dest))
 
-(defmethod print-template :script-migrated [_ & {:keys [src dest]}]
-  (println src "->" dest))
+   :canceled
+   (fn [{:keys [cli-opts]}]
+     (println (util/bold "Migration canceled." cli-opts)))
 
-(defmethod print-template :backup [_ & {:keys [src dest]}]
-  (println src "->" dest))
+   :done
+   (fn [{:keys [cli-opts]}]
+     (println (util/bold "Migration complete." cli-opts)))
 
-(defmethod print-template :cancel [& _]
-  (println "Migration canceled."))
+   :confirm-overwrite
+   (fn [{:keys [dest cli-opts]}]
+     (println (util/bold (str dest " already exists. Overwrite? (yes/no) ")
+                         cli-opts))
+     (print "> ")
+     (flush))
 
-(defmethod print-template :done [& _]
-  (println "Migration complete."))
+   :skipping
+   (fn [{:keys [src]}]
+     (println "Skipping" src))})
+
+(defn- printer [cli-opts]
+  (if (:edn cli-opts)
+    (fn [k & {:as opts}] (prn (if opts [k opts] [k])))
+    (fn [k & {:as opts}] ((get templates k) (assoc opts :cli-opts cli-opts)))))
 
 (defn backup-path [s]
   (str s ".backup-" (inst-ms (util/now))))
 
-(defn- migrate-backup [t]
+(defn- create-backup [t]
   (let [src (str (dirs/legacy-bin-dir))
         dest (backup-path (dirs/legacy-bin-dir))]
-    (fs/move src dest)
-    (t :backup {:src src :dest dest}))
+    (t :moving {:src src :dest dest})
+    (fs/move src dest))
   (when (fs/exists? (dirs/legacy-jars-dir))
     (let [src (str (dirs/legacy-jars-dir))
           dest (backup-path (dirs/legacy-jars-dir))]
       (fs/move src dest)
-      (t :backup {:src src :dest dest}))))
+      (t :moving {:src src :dest dest}))))
 
-(defn- migrate-script [script-name cli-opts t]
+(defn- confirm-one-script [script-name {:keys [overwrite] :as cli-opts} t]
+  (let [bin-dest (str (fs/file (dirs/xdg-bin-dir cli-opts) (name script-name)))]
+    (if (or overwrite (not (fs/exists? bin-dest)))
+      true
+      (do
+        (println)
+        (t :confirm-overwrite {:dest bin-dest})
+        (= "yes" (str/trim (read-line)))))))
+
+(defn- confirm-all-scripts [scripts cli-opts t]
+  (->> scripts
+       (map (fn [[script-name _]]
+              [script-name (confirm-one-script script-name cli-opts t)]))
+       (remove (fn [[_ confirmed]] (nil? confirmed)))
+       doall))
+
+(defn- copy-script [script-name confirmed cli-opts t]
   (let [bin-src (str (fs/file (dirs/legacy-bin-dir) (name script-name)))
         bin-dest (str (fs/file (dirs/xdg-bin-dir cli-opts) (name script-name)))
         jar-src (str (fs/file (dirs/legacy-jars-dir) (str script-name ".jar")))
-        jar-dest (str (fs/file (dirs/xdg-jars-dir cli-opts) (str script-name ".jar")))]
-    (fs/copy bin-src bin-dest {:replace-existing (:overwrite cli-opts)})
-    (t :script-migrated {:src bin-src :dest bin-dest})
-    (when (fs/exists? jar-src)
-      (spit bin-dest (str/replace (slurp bin-dest) jar-src jar-dest))
-      (fs/copy jar-src jar-dest {:replace-existing (:overwrite cli-opts)})
-      (t :script-migrated {:src jar-src :dest jar-dest}))))
+        jar-dest (str (fs/file (dirs/xdg-jars-dir cli-opts) (str script-name ".jar")))
+        copy-jar #(when (fs/exists? jar-src)
+                    (t :copying {:src jar-src :dest jar-dest})
+                    (spit bin-dest (str/replace (slurp bin-dest) jar-src jar-dest))
+                    (fs/copy jar-src jar-dest {:replace-existing true}))]
+    (if-not confirmed
+      (t :skipping {:src bin-src})
+      (do
+        (t :copying {:src bin-src :dest bin-dest})
+        (fs/copy bin-src bin-dest {:replace-existing true})
+        (copy-jar)))))
 
-(defn migrate-auto [cli-opts]
-  (let [t (if (:edn cli-opts)
-            (fn [k & {:as opts}] (prn (if opts [k opts] [k])))
-            print-template)]
+(defn migrate-auto [{:keys [overwrite] :as cli-opts}]
+  (let [t (printer cli-opts)]
     (if-not (dirs/using-legacy-paths?)
       (t :up-to-date)
       (let [scripts (scripts/load-scripts (dirs/legacy-bin-dir))]
-        (if-not (seq scripts)
-          (t :confirm)
+        (if (seq scripts)
           (do
             (println)
-            (t :printable-scripts {:cli-opts cli-opts
-                                   :scripts scripts})
+            (t :printable-scripts {:scripts scripts})
             (println)
             (t :found-scripts)
-            (println)
-            (t :prompt-move)))
+            (when-not overwrite
+              (println)
+              (t :prompt-move))))
         (flush)
-        (if-not (= "yes" (str/trim (read-line)))
-          (do
-            (println)
-            (t :cancel))
+        (if (or overwrite (= "yes" (str/trim (read-line))))
           (do
             (dirs/ensure-xdg-dirs cli-opts)
             (if-not (seq scripts)
               (do
                 (println)
                 (t :migrating)
-                (migrate-backup cli-opts)
                 (println)
-                (t :done))
+                (create-backup cli-opts)
+                (println)
+                (t :done)
+                (println))
               (do
                 (flush)
+                (let [confirm-results (confirm-all-scripts scripts cli-opts t)]
+                  (println)
+                  (t :migrating)
+                  (doseq [[script-name confirmed] confirm-results]
+                    (copy-script script-name confirmed cli-opts t)))
+                (create-backup t)
                 (println)
-                (t :migrating)
-                (doseq [[script-name _] scripts]
-                  (migrate-script script-name cli-opts t))
-                (migrate-backup t)
-                (println)
-                (t :done)))))))))
+                (t :done)
+                (println))))
+          (do
+            (println)
+            (t :canceled)
+            (println)))))))
 
 (defn migrate-help [_]
   (println (str/triml "
