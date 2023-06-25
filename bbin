@@ -141,7 +141,7 @@
            (subs s (- (count s) rsub-len) (count s))))))
 
 (defn plain-mode? [{:keys [plain] :as _cli-opts}]
-  (or plain (not (tty-out?))))
+  (or (fs/windows?) plain (not (tty-out?))))
 
 (defn no-color? [{:keys [color] :as cli-opts}]
   (or (false? color)
