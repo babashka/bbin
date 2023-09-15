@@ -125,6 +125,29 @@
     (uninstall [_]
       (common/delete-files cli-opts))))
 
+(comment
+  ;; crashes:
+  (uninstall {:script/lib "jals"})
+
+  (let [cli-opts {:script/lib "jals"}]
+    (let [script-name (:script/lib cli-opts)
+          script-file (fs/file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true}))
+          parsed (parse-script (slurp script-file))]
+      {:parsed parsed :script-file script-file}
+      )
+    )
+
+  (let [cli-opts {:script/lib "jals"}]
+    (let [script-name (:script/lib cli-opts)
+          script-file (fs/file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true}))
+          parsed (parse-script (slurp script-file))]
+      (cond
+        (-> parsed :coords :bbin/url)
+        (let [summary (deps-info-summary/summary {:script/lib (-> parsed :coords :bbin/url)})
+              {:keys [procurer artifact]} summary]
+          [:HERE procurer artifact] ;; bbin couldn't identify procurer and artifact.
+          )))))
+
 (defn- load-script [cli-opts]
   (let [script-name (:script/lib cli-opts)
         script-file (fs/file (fs/canonicalize (fs/file (util/bin-dir cli-opts) script-name) {:nofollow-links true}))
@@ -170,5 +193,24 @@
     (util/print-help)
     (do
       (util/ensure-bbin-dirs cli-opts)
-      (let [script (load-script cli-opts)]
-        (p/uninstall script)))))
+      (try
+        (let [script (load-script cli-opts)]
+          (p/uninstall script))
+        (catch Exception exc
+          (let [e (ex-data exc)]
+            (if (and (:script/lib e)
+                     (= :unknown-procurer (:procurer e))
+                     (= :unknown-artifact (:artifact e))
+                     (fs/which (:script/lib e)))
+              ;; try uninstalling a local file.
+              (fs/delete-if-exists (fs/which (:script/lib e)))
+              ;; Otherwise, give up.
+              (throw exc))))))))
+
+(comment
+  (uninstall {:script/lib "jals"})
+
+  ;; example ex-data
+
+  {:script/lib "jals", :procurer :unknown-procurer, :artifact :unknown-artifact}
+  )
