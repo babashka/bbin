@@ -131,8 +131,7 @@
     (testing "scenario: changes needed, user accepts, script exists, overwrite"
       (reset-test-dir)
       (fs/create-dirs (dirs/legacy-bin-dir))
-      (let [test-script (doto (fs/file test-dir "hello.clj")
-                          (spit "#!/usr/bin/env bb\n(println \"Hello world\")"))]
+      (let [test-script (str "test-resources" fs/file-separator "hello.jar")]
         (with-out-str (scripts/install {:script/lib (str (fs/canonicalize test-script))}))
         (dirs/ensure-xdg-dirs nil)
         (fs/copy (fs/file (dirs/legacy-bin-dir) "hello") (fs/file (dirs/xdg-bin-dir nil) "hello"))
@@ -151,9 +150,15 @@
                                                            "hello"))}]
                             [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))
                                        :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
+                            [:copying {:src (str (fs/file (dirs/legacy-jars-dir) "hello.jar"))
+                                       :dest (str (fs/file (dirs/xdg-jars-dir nil) "hello.jar"))}]
                             [:moving {:src (str (dirs/legacy-bin-dir))
                                       :dest (str (migrate/src-backup-path
                                                    (dirs/legacy-bin-dir)
+                                                   (inst-ms (util/now))))}]
+                            [:moving {:src (str (dirs/legacy-jars-dir))
+                                      :dest (str (migrate/src-backup-path
+                                                   (dirs/legacy-jars-dir)
                                                    (inst-ms (util/now))))}]
                             [:done]]
                 commands-2 [[:up-to-date]]]
