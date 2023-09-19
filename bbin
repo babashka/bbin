@@ -1154,22 +1154,29 @@
    (fn [{:keys [src]}]
      (println "Skipping" src))})
 
-(defn- printer [cli-opts]
-  (if (:edn cli-opts)
-    (fn [k & {:as opts}] (prn (if opts [k opts] [k])))
-    (fn [k & {:as opts}] ((get templates k) (assoc opts :cli-opts cli-opts)))))
+(defn- printer [log-path cli-opts]
+  (fn [k & {:as opts}]
+    (let [cmd (if opts [k opts] [k])]
+      (when log-path
+        (spit log-path (prn-str cmd) :append true))
+      (if (:edn cli-opts)
+        (prn cmd)
+        ((get templates k) (assoc opts :cli-opts cli-opts))))))
 
-(defn backup-path [s]
-  (str s ".backup-" (inst-ms (util/now))))
+(defn log-path [s migration-id]
+  (str s "." migration-id ".log"))
 
-(defn- create-backup [t]
+(defn backup-path [s migration-id]
+  (str s "." migration-id ".backup"))
+
+(defn- create-backup [t migration-id]
   (let [src (str (dirs/legacy-bin-dir))
-        dest (backup-path (dirs/legacy-bin-dir))]
+        dest (backup-path (dirs/legacy-bin-dir) migration-id)]
     (t :moving {:src src :dest dest})
     (fs/move src dest))
   (when (fs/exists? (dirs/legacy-jars-dir))
     (let [src (str (dirs/legacy-jars-dir))
-          dest (backup-path (dirs/legacy-jars-dir))]
+          dest (backup-path (dirs/legacy-jars-dir) migration-id)]
       (fs/move src dest)
       (t :moving {:src src :dest dest}))))
 
@@ -1206,7 +1213,10 @@
         (copy-jar)))))
 
 (defn migrate-auto [{:keys [overwrite] :as cli-opts}]
-  (let [t (printer cli-opts)]
+  (let [migration-id (inst-ms (util/now))
+        logp (when (dirs/using-legacy-paths?)
+               (log-path (dirs/legacy-bin-dir) migration-id))
+        t (printer logp cli-opts)]
     (if-not (dirs/using-legacy-paths?)
       (t :up-to-date)
       (let [scripts (scripts/load-scripts (dirs/legacy-bin-dir))]
@@ -1227,7 +1237,7 @@
                 (println)
                 (t :migrating)
                 (println)
-                (create-backup cli-opts)
+                (create-backup t migration-id)
                 (println)
                 (t :done)
                 (println))
@@ -1238,7 +1248,7 @@
                   (t :migrating)
                   (doseq [[script-name confirmed] confirm-results]
                     (copy-script script-name confirmed cli-opts t)))
-                (create-backup t)
+                (create-backup t migration-id)
                 (println)
                 (t :done)
                 (println))))
