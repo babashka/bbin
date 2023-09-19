@@ -72,7 +72,9 @@
                             [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))
                                        :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
                             [:moving {:src (str (dirs/legacy-bin-dir))
-                                      :dest (migrate/backup-path (dirs/legacy-bin-dir) (inst-ms (util/now)))}]
+                                      :dest (str (migrate/src-backup-path
+                                                   (dirs/legacy-bin-dir)
+                                                   (inst-ms (util/now))))}]
                             [:done]]
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
@@ -103,11 +105,13 @@
                 commands-1 [[:printable-scripts {:scripts {'hello parsed-script}}]
                             [:found-scripts]
                             [:prompt-move]
-                            [:confirm-overwrite {:dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
+                            [:confirm-replace {:dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
                             [:migrating]
                             [:skipping {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))}]
                             [:moving {:src (str (dirs/legacy-bin-dir))
-                                      :dest (migrate/backup-path (dirs/legacy-bin-dir) (inst-ms (util/now)))}]
+                                      :dest (str (migrate/src-backup-path
+                                                   (dirs/legacy-bin-dir)
+                                                   (inst-ms (util/now))))}]
                             [:done]]
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
@@ -138,12 +142,19 @@
                 commands-1 [[:printable-scripts {:scripts {'hello parsed-script}}]
                             [:found-scripts]
                             [:prompt-move]
-                            [:confirm-overwrite {:dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
+                            [:confirm-replace {:dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
                             [:migrating]
+                            [:copying {:src (str (fs/file (dirs/xdg-bin-dir nil) "hello"))
+                                       :dest (str (fs/file (migrate/dest-backup-path
+                                                             (dirs/legacy-bin-dir)
+                                                             (inst-ms (util/now)))
+                                                           "hello"))}]
                             [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))
                                        :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
                             [:moving {:src (str (dirs/legacy-bin-dir))
-                                      :dest (migrate/backup-path (dirs/legacy-bin-dir) (inst-ms (util/now)))}]
+                                      :dest (str (migrate/src-backup-path
+                                                   (dirs/legacy-bin-dir)
+                                                   (inst-ms (util/now))))}]
                             [:done]]
                 commands-2 [[:up-to-date]]]
             (is (= commands-1

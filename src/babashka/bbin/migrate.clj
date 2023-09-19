@@ -8,13 +8,13 @@
 (def templates
   {:found-scripts
    (fn [{:keys [cli-opts]}]
-     (let [{:keys [overwrite]} cli-opts]
+     (let [{:keys [force]} cli-opts]
        (println (util/bold "We found scripts in ~/.babashka/bbin/bin." cli-opts))
-       (if overwrite
-         (println "The --overwrite option was enabled. We'll continue the migration without prompting.")
+       (if force
+         (println "The --force option was enabled. We'll continue the migration without prompting.")
          (do
-           (println "We'll ask you to confirm each script individually before overwriting.")
-           (println "Re-run this command with --overwrite to migrate all scripts without confirming.")))))
+           (println "We'll ask you to confirm each script individually and back up the original before replacement.")
+           (println "Re-run this command with --force to migrate all scripts without confirming.")))))
 
    :printable-scripts
    (fn [{:keys [scripts cli-opts]}]
@@ -49,9 +49,9 @@
    (fn [{:keys [cli-opts]}]
      (println (util/bold "Migration complete." cli-opts)))
 
-   :confirm-overwrite
+   :confirm-replace
    (fn [{:keys [dest cli-opts]}]
-     (println (util/bold (str dest " already exists. Overwrite? (yes/no) ")
+     (println (util/bold (str dest " already exists. Do you want to replace it? (yes/no) ")
                          cli-opts))
      (print "> ")
      (flush))
@@ -72,27 +72,19 @@
 (defn log-path [s migration-id]
   (str s "." migration-id ".log"))
 
-(defn backup-path [s migration-id]
-  (str s "." migration-id ".backup"))
+(defn src-backup-path [s migration-id]
+  (str s ".src." migration-id ".backup"))
 
-(defn- create-backup [t migration-id]
-  (let [src (str (dirs/legacy-bin-dir))
-        dest (backup-path (dirs/legacy-bin-dir) migration-id)]
-    (t :moving {:src src :dest dest})
-    (fs/move src dest))
-  (when (fs/exists? (dirs/legacy-jars-dir))
-    (let [src (str (dirs/legacy-jars-dir))
-          dest (backup-path (dirs/legacy-jars-dir) migration-id)]
-      (fs/move src dest)
-      (t :moving {:src src :dest dest}))))
+(defn dest-backup-path [s migration-id]
+  (str s ".dest." migration-id ".backup"))
 
-(defn- confirm-one-script [script-name {:keys [overwrite] :as cli-opts} t]
+(defn- confirm-one-script [script-name {:keys [force] :as cli-opts} t]
   (let [bin-dest (str (fs/file (dirs/xdg-bin-dir cli-opts) (name script-name)))]
-    (if (or overwrite (not (fs/exists? bin-dest)))
+    (if (or force (not (fs/exists? bin-dest)))
       true
       (do
         (println)
-        (t :confirm-overwrite {:dest bin-dest})
+        (t :confirm-replace {:dest bin-dest})
         (= "yes" (str/trim (read-line)))))))
 
 (defn- confirm-all-scripts [scripts cli-opts t]
@@ -102,23 +94,46 @@
        (remove (fn [[_ confirmed]] (nil? confirmed)))
        doall))
 
-(defn- copy-script [script-name confirmed cli-opts t]
+(defn- copy-script [script-name confirmed migration-id cli-opts t]
   (let [bin-src (str (fs/file (dirs/legacy-bin-dir) (name script-name)))
         bin-dest (str (fs/file (dirs/xdg-bin-dir cli-opts) (name script-name)))
+        bin-dest-backup (str (fs/file (dest-backup-path (dirs/legacy-bin-dir) migration-id)
+                                      (name script-name)))
         jar-src (str (fs/file (dirs/legacy-jars-dir) (str script-name ".jar")))
         jar-dest (str (fs/file (dirs/xdg-jars-dir cli-opts) (str script-name ".jar")))
+        jar-dest-backup (str (fs/file (dest-backup-path (dirs/legacy-jars-dir) migration-id)
+                                      (name script-name)))
         copy-jar #(when (fs/exists? jar-src)
+                    (when (fs/exists? jar-dest)
+                      (fs/create-dirs (fs/parent jar-dest-backup))
+                      (t :copying {:src jar-dest :dest jar-dest-backup})
+                      (fs/copy jar-dest jar-dest-backup {:replace-existing true}))
                     (t :copying {:src jar-src :dest jar-dest})
                     (spit bin-dest (str/replace (slurp bin-dest) jar-src jar-dest))
                     (fs/copy jar-src jar-dest {:replace-existing true}))]
     (if-not confirmed
       (t :skipping {:src bin-src})
       (do
+        (when (fs/exists? bin-dest)
+          (fs/create-dirs (fs/parent bin-dest-backup))
+          (t :copying {:src bin-dest :dest bin-dest-backup})
+          (fs/copy bin-dest bin-dest-backup {:replace-existing true}))
         (t :copying {:src bin-src :dest bin-dest})
         (fs/copy bin-src bin-dest {:replace-existing true})
         (copy-jar)))))
 
-(defn migrate-auto [{:keys [overwrite] :as cli-opts}]
+(defn move-legacy-dirs [t migration-id]
+  (let [bin-src (str (dirs/legacy-bin-dir))
+        bin-dest (src-backup-path bin-src migration-id)
+        jars-src (str (dirs/legacy-jars-dir))
+        jars-dest (src-backup-path jars-src migration-id)]
+    (t :moving {:src bin-src :dest bin-dest})
+    (fs/move bin-src bin-dest)
+    (when (fs/exists? jars-src)
+      (t :moving {:src jars-src :dest jars-dest})
+      (fs/move jars-src jars-dest))))
+
+(defn migrate-auto [{:keys [force] :as cli-opts}]
   (let [migration-id (inst-ms (util/now))
         logp (when (dirs/using-legacy-paths?)
                (log-path (dirs/legacy-bin-dir) migration-id))
@@ -131,11 +146,11 @@
           (t :printable-scripts {:scripts scripts})
           (println)
           (t :found-scripts)
-          (when-not overwrite
+          (when-not force
             (println)
             (t :prompt-move)))
         (flush)
-        (if (or overwrite (= "yes" (str/trim (read-line))))
+        (if (or force (= "yes" (str/trim (read-line))))
           (do
             (dirs/ensure-xdg-dirs cli-opts)
             (if-not (seq scripts)
@@ -143,7 +158,7 @@
                 (println)
                 (t :migrating)
                 (println)
-                (create-backup t migration-id)
+                (move-legacy-dirs t migration-id)
                 (println)
                 (t :done)
                 (println))
@@ -153,8 +168,8 @@
                   (println)
                   (t :migrating)
                   (doseq [[script-name confirmed] confirm-results]
-                    (copy-script script-name confirmed cli-opts t)))
-                (create-backup t migration-id)
+                    (copy-script script-name confirmed migration-id cli-opts t)))
+                (move-legacy-dirs t migration-id)
                 (println)
                 (t :done)
                 (println))))
