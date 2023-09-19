@@ -11,4 +11,4 @@
         selmer/selmer {:mvn/version "1.12.55"}
         version-clj/version-clj {:mvn/version "2.0.2"}}
  :aliases {:neil {:project {:name babashka/bbin
-                            :version "0.2.0-beta1"}}}}
+                            :version "0.2.0-beta2"}}}}
