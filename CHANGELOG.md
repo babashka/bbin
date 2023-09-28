@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- [Fix error in compiled script when installing from Homebrew](https://github.com/babashka/bbin/commit/ba1749a3308744c9dcecc1f032214aeb109bb073)
+
 ## 0.2.0
 
 **BREAKING CHANGES:**
