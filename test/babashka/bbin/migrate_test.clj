@@ -65,17 +65,21 @@
         (binding [util/*now* (Instant/ofEpochSecond 123)]
           (let [parsed-script (scripts/parse-script
                                 (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
-                commands-1 [[:printable-scripts {:scripts {'hello parsed-script}}]
-                            [:found-scripts]
-                            [:prompt-move]
-                            [:migrating]
-                            [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))
-                                       :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
-                            [:moving {:src (str (dirs/legacy-bin-dir))
-                                      :dest (str (migrate/src-backup-path
-                                                   (dirs/legacy-bin-dir)
-                                                   (inst-ms (util/now))))}]
-                            [:done]]
+                commands-1 (filter identity
+                                   [[:printable-scripts {:scripts {'hello parsed-script}}]
+                                    [:found-scripts]
+                                    [:prompt-move]
+                                    [:migrating]
+                                    [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))
+                                               :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
+                                    (when (fs/windows?)
+                                      [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello.bat"))
+                                                 :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello.bat"))}])
+                                    [:moving {:src (str (dirs/legacy-bin-dir))
+                                              :dest (str (migrate/src-backup-path
+                                                           (dirs/legacy-bin-dir)
+                                                           (inst-ms (util/now))))}]
+                                    [:done]])
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
                    (->> (migrate/migrate :auto {:edn true})
@@ -138,29 +142,33 @@
         (binding [util/*now* (Instant/ofEpochSecond 123)]
           (let [parsed-script (scripts/parse-script
                                 (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
-                commands-1 [[:printable-scripts {:scripts {'hello parsed-script}}]
-                            [:found-scripts]
-                            [:prompt-move]
-                            [:confirm-replace {:dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
-                            [:migrating]
-                            [:copying {:src (str (fs/file (dirs/xdg-bin-dir nil) "hello"))
-                                       :dest (str (fs/file (migrate/dest-backup-path
-                                                             (dirs/legacy-bin-dir)
-                                                             (inst-ms (util/now)))
-                                                           "hello"))}]
-                            [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))
-                                       :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
-                            [:copying {:src (str (fs/file (dirs/legacy-jars-dir) "hello.jar"))
-                                       :dest (str (fs/file (dirs/xdg-jars-dir nil) "hello.jar"))}]
-                            [:moving {:src (str (dirs/legacy-bin-dir))
-                                      :dest (str (migrate/src-backup-path
-                                                   (dirs/legacy-bin-dir)
-                                                   (inst-ms (util/now))))}]
-                            [:moving {:src (str (dirs/legacy-jars-dir))
-                                      :dest (str (migrate/src-backup-path
-                                                   (dirs/legacy-jars-dir)
-                                                   (inst-ms (util/now))))}]
-                            [:done]]
+                commands-1 (filter identity
+                                   [[:printable-scripts {:scripts {'hello parsed-script}}]
+                                    [:found-scripts]
+                                    [:prompt-move]
+                                    [:confirm-replace {:dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
+                                    [:migrating]
+                                    [:copying {:src (str (fs/file (dirs/xdg-bin-dir nil) "hello"))
+                                               :dest (str (fs/file (migrate/dest-backup-path
+                                                                     (dirs/legacy-bin-dir)
+                                                                     (inst-ms (util/now)))
+                                                                   "hello"))}]
+                                    [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))
+                                               :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
+                                    (when (fs/windows?)
+                                      [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello.bat"))
+                                                 :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello.bat"))}])
+                                    [:copying {:src (str (fs/file (dirs/legacy-jars-dir) "hello.jar"))
+                                               :dest (str (fs/file (dirs/xdg-jars-dir nil) "hello.jar"))}]
+                                    [:moving {:src (str (dirs/legacy-bin-dir))
+                                              :dest (str (migrate/src-backup-path
+                                                           (dirs/legacy-bin-dir)
+                                                           (inst-ms (util/now))))}]
+                                    [:moving {:src (str (dirs/legacy-jars-dir))
+                                              :dest (str (migrate/src-backup-path
+                                                           (dirs/legacy-jars-dir)
+                                                           (inst-ms (util/now))))}]
+                                    [:done]])
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
                    (->> (migrate/migrate :auto {:edn true})
