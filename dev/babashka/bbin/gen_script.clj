@@ -47,6 +47,7 @@
 (def all-scripts
   [prelude-str
    meta-str
+   (slurp "src/babashka/bbin/dirs.clj")
    (slurp "src/babashka/bbin/protocols.clj")
    (slurp "src/babashka/bbin/specs.clj")
    (slurp "src/babashka/bbin/util.clj")
@@ -58,8 +59,8 @@
    (slurp "src/babashka/bbin/scripts/local_file.clj")
    (slurp "src/babashka/bbin/scripts/local_jar.clj")
    (slurp "src/babashka/bbin/scripts/maven_jar.clj")
-   (slurp "src/babashka/bbin/migrate.clj")
    (slurp "src/babashka/bbin/scripts.clj")
+   (slurp "src/babashka/bbin/migrate.clj")
    (slurp "src/babashka/bbin/cli.clj")])
 
 (defn gen-script []
