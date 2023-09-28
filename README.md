@@ -202,6 +202,12 @@ If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo w
 
 ---
 
+### `bbin migrate`
+
+**Migrate from bbin v0.1.x**
+
+---
+
 ## Contributing
 
 If you'd like to contribute to `bbin`, you're welcome to create [issues for ideas, feature requests, and bug reports](https://github.com/babashka/bbin/issues).
