@@ -1196,7 +1196,7 @@
         jar-src (str (fs/file (dirs/legacy-jars-dir) (str script-name ".jar")))
         jar-dest (str (fs/file (dirs/xdg-jars-dir cli-opts) (str script-name ".jar")))
         jar-dest-backup (str (fs/file (dest-backup-path (dirs/legacy-jars-dir) migration-id)
-                                      (name script-name)))
+                                      (str script-name ".jar")))
         copy-jar #(when (fs/exists? jar-src)
                     (when (fs/exists? jar-dest)
                       (fs/create-dirs (fs/parent jar-dest-backup))
