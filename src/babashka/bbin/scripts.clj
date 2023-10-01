@@ -13,6 +13,7 @@
     [babashka.bbin.scripts.maven-jar :refer [map->MavenJar]]
     [babashka.fs :as fs]
     [clojure.edn :as edn]
+    [clojure.java.io :as io]
     [clojure.string :as str]
     [rads.deps-info.summary :as deps-info-summary]
     [selmer.filters :as filters]))
@@ -31,14 +32,20 @@
          (str/join "\n")
          edn/read-string)))
 
+(defn- read-header [filename]
+  (with-open [input-stream (io/input-stream filename)]
+    (let [buffer (byte-array (* 1024 5))
+          n (.read input-stream buffer)]
+      (when (nat-int? n)
+        (String. buffer 0 n)))))
+
 (defn load-scripts [dir]
   (->> (file-seq dir)
        (filter #(.isFile %))
        (map (fn [x] [(symbol (str (fs/relativize dir x)))
-                     (parse-script (slurp x))]))
+                     (parse-script (read-header x))]))
        (filter second)
        (into {})))
-
 
 (defn ls [cli-opts]
   (let [scripts (load-scripts (dirs/bin-dir cli-opts))]
@@ -96,7 +103,7 @@
 (defn- load-script [cli-opts]
   (let [script-name (:script/lib cli-opts)
         script-file (fs/file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true}))
-        parsed (parse-script (slurp script-file))]
+        parsed (parse-script (read-header script-file))]
     (cond
       (-> parsed :coords :bbin/url)
       (let [summary (deps-info-summary/summary {:script/lib (-> parsed :coords :bbin/url)})
