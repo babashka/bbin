@@ -13,7 +13,7 @@
            org.babashka/cli {:mvn/version "0.6.43"},
            com.taoensso/timbre {:mvn/version "5.2.1"},
            babashka/process {:mvn/version "0.4.14"},
-           io.github.rads/deps-info {:git/tag "v0.1.2", :git/sha "440af72"},
+           io.github.rads/deps-info {:git/tag "v0.1.3", :git/sha "a591645"},
            org.babashka/http-client {:mvn/version "0.1.8"},
            version-clj/version-clj {:mvn/version "2.0.2"},
            babashka/fs {:mvn/version "0.3.17"},

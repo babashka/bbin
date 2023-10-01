@@ -210,6 +210,26 @@
       (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
       (is (= "Hello world" (run-bin-script :hello))))))
 
+(deftest install-from-local-root-bb-test
+  (testing "install ./*.bb (with shebang)"
+    (reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [script-file (doto (fs/file test-dir "hello.bb")
+                        (spit "#!/usr/bin/env bb\n(println \"Hello world\")"))
+          cli-opts {:script/lib (str script-file)}
+          out (run-install cli-opts)]
+      (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
+      (is (= "Hello world" (run-bin-script :hello)))))
+  (testing "install ./*.bb (without shebang)"
+    (reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [script-file (doto (fs/file test-dir "hello.bb")
+                        (spit "(println \"Hello world\")"))
+          cli-opts {:script/lib (str script-file)}
+          out (run-install cli-opts)]
+      (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
+      (is (= "Hello world" (run-bin-script :hello))))))
+
 (deftest install-from-local-root-jar-test
   (testing "install ./*.jar"
     (reset-test-dir)
