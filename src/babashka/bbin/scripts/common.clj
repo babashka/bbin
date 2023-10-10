@@ -90,7 +90,7 @@
         coords (val (first script-deps))
         gitlibs-root (if-let [override (not-empty (System/getenv "GITLIBS"))]
                        override
-                       "~/.gitlibs")]
+                       (str/join fs/file-separator [(fs/home) ".gitlibs"]))]
     (if (#{::no-lib} lib)
       (:local/root coords)
       (fs/expand-home (str/join fs/file-separator [gitlibs-root "libs" (namespace lib) (name lib) (:git/sha coords)])))))
