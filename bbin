@@ -543,10 +543,13 @@ WARNING: (We won't make any changes without asking you first.)
 
 (defn local-lib-path [script-deps]
   (let [lib (key (first script-deps))
-        coords (val (first script-deps))]
+        coords (val (first script-deps))
+        gitlibs-root (if-let [override (not-empty (System/getenv "GITLIBS"))]
+                       override
+                       "~/.gitlibs")]
     (if (#{::no-lib} lib)
       (:local/root coords)
-      (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (namespace lib) (name lib) (:git/sha coords)])))))
+      (fs/expand-home (str/join fs/file-separator [gitlibs-root "libs" (namespace lib) (name lib) (:git/sha coords)])))))
 
 (defn- load-bin-config [script-root]
   (require 'babashka.bbin.specs)
