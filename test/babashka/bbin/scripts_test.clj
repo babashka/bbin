@@ -55,6 +55,10 @@
   (some-> (with-out-str (scripts/install (assoc cli-opts :edn true)))
           edn/read-string))
 
+(defn run-ls []
+  (some-> (with-out-str (scripts/ls {:edn true}))
+          edn/read-string))
+
 (defn exec-cmd-line [script-name]
   (concat (when util/windows? ["cmd" "/c"])
           [(str (fs/canonicalize (fs/file (dirs/bin-dir nil) (name script-name)) {:nofollow-links true}))]))
@@ -143,7 +147,10 @@
       (is (= maven-lib out))
       (is (fs/exists? (fs/file (dirs/bin-dir nil) (name (:lib maven-lib)))))
       (is (str/starts-with? (run-bin-script (:lib maven-lib) "--help")
-                            "Serves static assets using web server.")))))
+                            "Serves static assets using web server."))
+      (is (= '{http-server {:lib org.babashka/http-server
+                            :coords {:mvn/version "0.1.11"}}}
+             (run-ls))))))
 
 (deftest install-from-lib-local-root-dir-test
   (testing "install */* --local/root *"
@@ -185,10 +192,11 @@
             (pr-str {:bbin/bin {'foo {:main-opts ["-m" "babashka/foo"]}}}))
       (spit (fs/file local-root "deps.edn") (pr-str {}))
       (let [cli-opts {:script/lib local-root}
+            script-url (str "file://" local-root)
             out (run-install cli-opts)]
-        (is (= {:coords {:bbin/url (str "file://" local-root)}}
-               out))
-        (is (fs/exists? (fs/file (dirs/bin-dir nil) "foo")))))))
+        (is (= {:coords {:bbin/url script-url}} out))
+        (is (fs/exists? (fs/file (dirs/bin-dir nil) "foo")))
+        (is (= {'foo {:coords {:bbin/url script-url}}} (run-ls)))))))
 
 (deftest install-from-local-root-clj-test
   (testing "install ./*.clj (with shebang)"
@@ -196,19 +204,23 @@
     (dirs/ensure-bbin-dirs {})
     (let [script-file (doto (fs/file test-dir "hello.clj")
                         (spit "#!/usr/bin/env bb\n(println \"Hello world\")"))
+          script-url (str "file://" script-file)
           cli-opts {:script/lib (str script-file)}
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
-      (is (= "Hello world" (run-bin-script :hello)))))
+      (is (= "Hello world" (run-bin-script :hello)))
+      (is (= {'hello {:coords {:bbin/url script-url}}} (run-ls)))))
   (testing "install ./*.clj (without shebang)"
     (reset-test-dir)
     (dirs/ensure-bbin-dirs {})
     (let [script-file (doto (fs/file test-dir "hello.clj")
                         (spit "(println \"Hello world\")"))
+          script-url (str "file://" script-file)
           cli-opts {:script/lib (str script-file)}
           out (run-install cli-opts)]
-      (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
-      (is (= "Hello world" (run-bin-script :hello))))))
+      (is (= {:coords {:bbin/url script-url}} out))
+      (is (= "Hello world" (run-bin-script :hello)))
+      (is (= {'hello {:coords {:bbin/url script-url}}} (run-ls))))))
 
 (deftest install-from-local-root-bb-test
   (testing "install ./*.bb (with shebang)"
@@ -216,19 +228,23 @@
     (dirs/ensure-bbin-dirs {})
     (let [script-file (doto (fs/file test-dir "hello.bb")
                         (spit "#!/usr/bin/env bb\n(println \"Hello world\")"))
+          script-url (str "file://" script-file)
           cli-opts {:script/lib (str script-file)}
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
-      (is (= "Hello world" (run-bin-script :hello)))))
+      (is (= "Hello world" (run-bin-script :hello)))
+      (is (= {'hello {:coords {:bbin/url script-url}}} (run-ls)))))
   (testing "install ./*.bb (without shebang)"
     (reset-test-dir)
     (dirs/ensure-bbin-dirs {})
     (let [script-file (doto (fs/file test-dir "hello.bb")
                         (spit "(println \"Hello world\")"))
+          script-url (str "file://" script-file)
           cli-opts {:script/lib (str script-file)}
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
-      (is (= "Hello world" (run-bin-script :hello))))))
+      (is (= "Hello world" (run-bin-script :hello)))
+      (is (= {'hello {:coords {:bbin/url script-url}}} (run-ls))))))
 
 (deftest install-from-local-root-jar-test
   (testing "install ./*.jar"
@@ -256,7 +272,8 @@
     (let [cli-opts {:script/lib portal-script-url}
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url portal-script-url}} out))
-      (is (fs/exists? (fs/file (dirs/bin-dir nil) "portal"))))))
+      (is (fs/exists? (fs/file (dirs/bin-dir nil) "portal")))
+      (is (= {'portal {:coords {:bbin/url portal-script-url}}} (run-ls))))))
 
 (def hello-jar-url "https://raw.githubusercontent.com/rads/bbin-test-lib/main/hello.jar")
 
@@ -272,7 +289,8 @@
     (let [cli-opts {:script/lib hello-jar-url}
           out (run-install cli-opts)]
       (is (= {:coords {:bbin/url hello-jar-url}} out))
-      (is (= "Hello JAR" (run-bin-script :hello))))))
+      (is (= "Hello JAR" (run-bin-script :hello)))
+      (is (= {'hello {:coords {:bbin/url hello-jar-url}}} (run-ls))))))
 
 (deftest install-tool-from-local-root-test
   (testing "install ./ --tool"
@@ -282,12 +300,16 @@
                 :local/root (str "test-resources" fs/file-separator "local-tool")
                 :as "footool"
                 :tool true}
+          full-path (str (fs/canonicalize (:local/root opts) {:nofollow-links true}))
           _ (run-install opts)]
       (is (fs/exists? (fs/file (dirs/bin-dir nil) "footool")))
       (let [usage-out (run-bin-script "footool")]
         (is (every? #(str/includes? usage-out %) ["`keys`" "`vals`"])))
       (is (str/includes? (run-bin-script "footool" "k" ":a" "1") "(:a)"))
-      (is (str/includes? (run-bin-script "footool" "v" ":a" "1") "(1)")))))
+      (is (str/includes? (run-bin-script "footool" "v" ":a" "1") "(1)"))
+      (is (= {'footool {:coords {:local/root full-path}
+                        :lib 'bbin/foo}}
+             (run-ls))))))
 
 (deftest uninstall-test
   (testing "uninstall foo"
