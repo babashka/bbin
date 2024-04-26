@@ -246,6 +246,30 @@
       (is (= "Hello world" (run-bin-script :hello)))
       (is (= {'hello {:coords {:bbin/url script-url}}} (run-ls))))))
 
+(deftest install-from-local-root-no-extension-test
+  (testing "install ./* (no extension, with shebang)"
+    (reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [script-file (doto (fs/file test-dir "hello")
+                        (spit "#!/usr/bin/env bb\n(println \"Hello world\")"))
+          script-url (str "file://" script-file)
+          cli-opts {:script/lib (str script-file)}
+          out (run-install cli-opts)]
+      (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
+      (is (= "Hello world" (run-bin-script :hello)))
+      (is (= {'hello {:coords {:bbin/url script-url}}} (run-ls)))))
+  (testing "install ./* (no extension, without shebang)"
+    (reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [script-file (doto (fs/file test-dir "hello")
+                        (spit "(println \"Hello world\")"))
+          script-url (str "file://" script-file)
+          cli-opts {:script/lib (str script-file)}
+          out (run-install cli-opts)]
+      (is (= {:coords {:bbin/url (str "file://" script-file)}} out))
+      (is (= "Hello world" (run-bin-script :hello)))
+      (is (= {'hello {:coords {:bbin/url script-url}}} (run-ls))))))
+
 (deftest install-from-local-root-jar-test
   (testing "install ./*.jar"
     (reset-test-dir)
