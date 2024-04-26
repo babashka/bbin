@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- [Fix #62: bbin ls is unnecessarily slow](https://github.com/babashka/bbin/issues/62)
+- [Fix #72: bbin install [LOCAL-FILE] should not be restricted to files with the .clj extension](https://github.com/babashka/bbin/issues/72)
+
 ## 0.2.1
 
 - [Fix error in compiled script when installing from Homebrew](https://github.com/babashka/bbin/commit/ba1749a3308744c9dcecc1f032214aeb109bb073)
