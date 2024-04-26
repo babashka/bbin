@@ -51,6 +51,8 @@
    (slurp "src/babashka/bbin/protocols.clj")
    (slurp "src/babashka/bbin/specs.clj")
    (slurp "src/babashka/bbin/util.clj")
+   (slurp "src/babashka/bbin/git.clj")
+   (slurp "src/babashka/bbin/deps.clj")
    (slurp "src/babashka/bbin/scripts/common.clj")
    (slurp "src/babashka/bbin/scripts/git_dir.clj")
    (slurp "src/babashka/bbin/scripts/http_file.clj")
