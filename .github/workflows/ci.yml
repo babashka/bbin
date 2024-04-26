@@ -29,7 +29,6 @@ jobs:
           cp bb.exe "$(which bb)"
       - name: bb test
         run: |
-          echo "." | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
           bb run test
 
   bb-run-lint:
