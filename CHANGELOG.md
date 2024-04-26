@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.3
+
+- [Fix error in compiled script when installing from Homebrew (again)](https://github.com/babashka/bbin/commit/f0a3096a1e57408af77eed35f86a3d71cccccb07)
+
 ## 0.2.2
 
 - [Fix #62: bbin ls is unnecessarily slow](https://github.com/babashka/bbin/issues/62)
