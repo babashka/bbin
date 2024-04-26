@@ -3,7 +3,12 @@
             [clojure.string :as str]
             [clojure.edn :as edn]
             [babashka.bbin.cli :as bbin]
-            [babashka.bbin.dirs :as dirs]))
+            [babashka.bbin.dirs :as dirs]
+            [clojure.test]))
+
+(defmethod clojure.test/report :begin-test-var [m]
+  (println "===" (-> m :var meta :name))
+  (println))
 
 (defn reset-test-dir []
   (let [path (str (fs/file (fs/temp-dir) "bbin-test"))]
