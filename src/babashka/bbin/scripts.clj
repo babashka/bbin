@@ -2,6 +2,7 @@
   (:require
     [babashka.bbin.scripts.common :as common]
     [babashka.bbin.util :as util]
+    [babashka.bbin.deps :as bbin-deps]
     [babashka.bbin.dirs :as dirs]
     [babashka.bbin.protocols :as p]
     [babashka.bbin.scripts.git-dir :refer [map->GitDir]]
@@ -15,7 +16,6 @@
     [clojure.edn :as edn]
     [clojure.java.io :as io]
     [clojure.string :as str]
-    [rads.deps-info.summary :as deps-info-summary]
     [selmer.filters :as filters]))
 
 ;; selmer filter for clojure escaping for e.g. files
@@ -67,7 +67,7 @@
                      :artifact artifact}))))
 
 (defn- new-script [cli-opts]
-  (let [summary (deps-info-summary/summary cli-opts)
+  (let [summary (bbin-deps/summary cli-opts)
         {:keys [procurer artifact]} summary]
     (case [procurer artifact]
       [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary})
@@ -106,7 +106,7 @@
         parsed (parse-script (read-header script-file))]
     (cond
       (-> parsed :coords :bbin/url)
-      (let [summary (deps-info-summary/summary {:script/lib (-> parsed :coords :bbin/url)})
+      (let [summary (bbin-deps/summary {:script/lib (-> parsed :coords :bbin/url)})
             {:keys [procurer artifact]} summary]
         (case [procurer artifact]
           [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)})
@@ -121,13 +121,13 @@
       (map->MavenJar {:cli-opts cli-opts :lib (:lib parsed)})
 
       (-> parsed :coords :git/tag)
-      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
-                                                :git/tag (-> parsed :coords :git/tag)})]
+      (let [summary (bbin-deps/summary {:script/lib (:lib parsed)
+                                        :git/tag (-> parsed :coords :git/tag)})]
         (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
 
       (-> parsed :coords :git/sha)
-      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
-                                                :git/sha (-> parsed :coords :git/sha)})]
+      (let [summary (bbin-deps/summary {:script/lib (:lib parsed)
+                                        :git/sha (-> parsed :coords :git/sha)})]
         (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
 
       :else (default-script cli-opts))))

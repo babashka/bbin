@@ -1,13 +1,12 @@
 (ns babashka.bbin.scripts.common
   (:require [babashka.fs :as fs]
             [babashka.deps :as deps]
+            [babashka.bbin.deps :as bbin-deps]
             [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util :refer [sh]]
             [clojure.edn :as edn]
             [clojure.main :as main]
             [clojure.string :as str]
-            [rads.deps-info.infer :as deps-info-infer]
-            [rads.deps-info.summary :as deps-info-summary]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util])
   (:import (java.util.jar JarFile)))
@@ -283,15 +282,15 @@
                       (and (#{:local} procurer) (not (:local/root cli-opts)))
                       {::no-lib {:local/root (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))}}
 
-                      (deps-info-summary/git-repo-url? (:script/lib cli-opts))
-                      (deps-info-infer/infer
+                      (bbin-deps/git-repo-url? (:script/lib cli-opts))
+                      (bbin-deps/infer
                         (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
                                                 :git/url (:script/lib cli-opts))
                                 (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
                                 (assoc :latest-sha true)))
 
                       :else
-                      (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts))))
+                      (bbin-deps/infer (assoc cli-opts :lib (:script/lib cli-opts))))
         lib (key (first script-deps))
         coords (val (first script-deps))
         header (merge {:coords coords} (when-not (#{::no-lib} lib) {:lib lib}))

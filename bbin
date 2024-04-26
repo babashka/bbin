@@ -13,7 +13,7 @@
            org.babashka/cli {:mvn/version "0.6.43"},
            com.taoensso/timbre {:mvn/version "5.2.1"},
            babashka/process {:mvn/version "0.4.14"},
-           io.github.rads/deps-info {:git/tag "v0.1.3", :git/sha "a591645"},
+           org.clojure/tools.gitlibs {:mvn/version "2.4.181"},
            org.babashka/http-client {:mvn/version "0.1.8"},
            version-clj/version-clj {:mvn/version "2.0.2"},
            babashka/fs {:mvn/version "0.3.17"},
@@ -457,13 +457,12 @@ WARNING: (We won't make any changes without asking you first.)
 (ns babashka.bbin.scripts.common
   (:require [babashka.fs :as fs]
             [babashka.deps :as deps]
+            [babashka.bbin.deps :as bbin-deps]
             [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util :refer [sh]]
             [clojure.edn :as edn]
             [clojure.main :as main]
             [clojure.string :as str]
-            [rads.deps-info.infer :as deps-info-infer]
-            [rads.deps-info.summary :as deps-info-summary]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util])
   (:import (java.util.jar JarFile)))
@@ -739,15 +738,15 @@ WARNING: (We won't make any changes without asking you first.)
                       (and (#{:local} procurer) (not (:local/root cli-opts)))
                       {::no-lib {:local/root (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))}}
 
-                      (deps-info-summary/git-repo-url? (:script/lib cli-opts))
-                      (deps-info-infer/infer
+                      (bbin-deps/git-repo-url? (:script/lib cli-opts))
+                      (bbin-deps/infer
                         (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
                                                 :git/url (:script/lib cli-opts))
                                 (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
                                 (assoc :latest-sha true)))
 
                       :else
-                      (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts))))
+                      (bbin-deps/infer (assoc cli-opts :lib (:script/lib cli-opts))))
         lib (key (first script-deps))
         coords (val (first script-deps))
         header (merge {:coords coords} (when-not (#{::no-lib} lib) {:lib lib}))
@@ -1179,6 +1178,7 @@ WARNING: (We won't make any changes without asking you first.)
   (:require
     [babashka.bbin.scripts.common :as common]
     [babashka.bbin.util :as util]
+    [babashka.bbin.deps :as bbin-deps]
     [babashka.bbin.dirs :as dirs]
     [babashka.bbin.protocols :as p]
     [babashka.bbin.scripts.git-dir :refer [map->GitDir]]
@@ -1192,7 +1192,6 @@ WARNING: (We won't make any changes without asking you first.)
     [clojure.edn :as edn]
     [clojure.java.io :as io]
     [clojure.string :as str]
-    [rads.deps-info.summary :as deps-info-summary]
     [selmer.filters :as filters]))
 
 ;; selmer filter for clojure escaping for e.g. files
@@ -1244,7 +1243,7 @@ WARNING: (We won't make any changes without asking you first.)
                      :artifact artifact}))))
 
 (defn- new-script [cli-opts]
-  (let [summary (deps-info-summary/summary cli-opts)
+  (let [summary (bbin-deps/summary cli-opts)
         {:keys [procurer artifact]} summary]
     (case [procurer artifact]
       [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary})
@@ -1283,7 +1282,7 @@ WARNING: (We won't make any changes without asking you first.)
         parsed (parse-script (read-header script-file))]
     (cond
       (-> parsed :coords :bbin/url)
-      (let [summary (deps-info-summary/summary {:script/lib (-> parsed :coords :bbin/url)})
+      (let [summary (bbin-deps/summary {:script/lib (-> parsed :coords :bbin/url)})
             {:keys [procurer artifact]} summary]
         (case [procurer artifact]
           [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)})
@@ -1298,13 +1297,13 @@ WARNING: (We won't make any changes without asking you first.)
       (map->MavenJar {:cli-opts cli-opts :lib (:lib parsed)})
 
       (-> parsed :coords :git/tag)
-      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
-                                                :git/tag (-> parsed :coords :git/tag)})]
+      (let [summary (bbin-deps/summary {:script/lib (:lib parsed)
+                                        :git/tag (-> parsed :coords :git/tag)})]
         (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
 
       (-> parsed :coords :git/sha)
-      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
-                                                :git/sha (-> parsed :coords :git/sha)})]
+      (let [summary (bbin-deps/summary {:script/lib (:lib parsed)
+                                        :git/sha (-> parsed :coords :git/sha)})]
         (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
 
       :else (default-script cli-opts))))
