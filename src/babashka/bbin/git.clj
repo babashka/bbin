@@ -1,7 +1,7 @@
 (ns babashka.bbin.git
-  (:require [clojure.string :as str]
-            [babashka.fs :as fs]
-            [babashka.process :refer [sh]]))
+  (:require [babashka.fs :as fs]
+            [babashka.process :refer [sh]]
+            [clojure.string :as str]))
 
 (defn- ensure-git-dir [client git-url]
   (binding [*err* (java.io.StringWriter.)]

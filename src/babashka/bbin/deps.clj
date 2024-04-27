@@ -1,9 +1,9 @@
 (ns babashka.bbin.deps
-  (:require [babashka.fs :as fs]
+  (:require [babashka.bbin.git :as git]
+            [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.set :as set]
-            [clojure.tools.gitlibs.impl :as gitlibs-impl]
-            [babashka.bbin.git :as git]))
+            [clojure.tools.gitlibs.impl :as gitlibs-impl]))
 
 (def lib-opts->template-deps-fn
   "A map to define valid CLI options.
@@ -93,10 +93,10 @@
 
 (def ^:private symbol-regex
   (re-pattern
-    (str "(?i)^"
-         "(?:((?:[a-z0-9-]+\\.)*[a-z0-9-]+)/)?"
-         "((?:[a-z0-9-]+\\.)*[a-z0-9-]+)"
-         "$")))
+   (str "(?i)^"
+        "(?:((?:[a-z0-9-]+\\.)*[a-z0-9-]+)/)?"
+        "((?:[a-z0-9-]+\\.)*[a-z0-9-]+)"
+        "$")))
 
 (defn- lib-str? [x]
   (boolean (and (string? x) (re-seq symbol-regex x))))
@@ -152,7 +152,6 @@
    {:lib http-url?
     :coords #{}
     :procurer :http}])
-
 
 (defn- deps-type-match? [cli-opts deps-type]
   (and ((:lib deps-type) (:script/lib cli-opts))

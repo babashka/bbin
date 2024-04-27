@@ -1,10 +1,10 @@
 (ns babashka.bbin.cli-test
-  (:require [clojure.test :refer [deftest is testing use-fixtures]]
-            [babashka.bbin.test-util :refer [bbin bbin-dirs-fixture]]
-            [clojure.string :as str]
+  (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.meta :as meta]
-            [babashka.bbin.dirs :as dirs]
-            [babashka.bbin.util :as util]))
+            [babashka.bbin.test-util :refer [bbin bbin-dirs-fixture]]
+            [babashka.bbin.util :as util]
+            [clojure.string :as str]
+            [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :once (bbin-dirs-fixture))
 
@@ -26,14 +26,14 @@
 
 (def expected-commands
   (cond->
-    #{"commands"
-      "help"
-      "install"
-      "uninstall"
-      "migrate"
-      "version"
-      "ls"
-      "bin"}
+   #{"commands"
+     "help"
+     "install"
+     "uninstall"
+     "migrate"
+     "version"
+     "ls"
+     "bin"}
     (util/upgrade-enabled?) (conj "upgrade")))
 
 (deftest commands-test

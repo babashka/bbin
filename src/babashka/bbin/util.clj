@@ -1,11 +1,11 @@
 (ns babashka.bbin.util
-  (:require [babashka.fs :as fs]
+  (:require [babashka.bbin.meta :as meta]
+            [babashka.fs :as fs]
             [babashka.process :as p]
-            [babashka.bbin.meta :as meta]
+            [clojure.edn :as edn]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [taoensso.timbre :as log]
-            [clojure.edn :as edn])
+            [taoensso.timbre :as log])
   (:import (java.time Instant)))
 
 (def ^:dynamic *now* nil)
@@ -114,11 +114,11 @@
                    gurl  :git/url
                    burl  :bbin/url} :coords}]]
          (cond-> (assoc {} :bin bin)
-                 gurl  (assoc :location gurl)
-                 burl  (assoc :location burl)
-                 lroot (assoc :location (str "file://" lroot))
-                 gsha  (assoc :version gsha)
-                 gtag  (assoc :version gtag)))
+           gurl  (assoc :location gurl)
+           burl  (assoc :location burl)
+           lroot (assoc :location (str "file://" lroot))
+           gsha  (assoc :version gsha)
+           gtag  (assoc :version gtag)))
        scripts))
 
 (defn print-table
@@ -285,8 +285,8 @@
 
 (def windows?
   (some-> (System/getProperty "os.name")
-    (str/lower-case)
-    (str/index-of "win")))
+          (str/lower-case)
+          (str/index-of "win")))
 
 (defn print-version [& {:as opts}]
   (if (:help opts)

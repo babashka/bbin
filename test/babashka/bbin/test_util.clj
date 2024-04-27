@@ -1,9 +1,9 @@
 (ns babashka.bbin.test-util
-  (:require [babashka.fs :as fs]
-            [clojure.string :as str]
-            [clojure.edn :as edn]
-            [babashka.bbin.cli :as bbin]
+  (:require [babashka.bbin.cli :as bbin]
             [babashka.bbin.dirs :as dirs]
+            [babashka.fs :as fs]
+            [clojure.edn :as edn]
+            [clojure.string :as str]
             [clojure.test]))
 
 (defmethod clojure.test/report :begin-test-var [m]

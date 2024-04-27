@@ -1,6 +1,6 @@
 (ns babashka.bbin.scripts.http-file
-  (:require [babashka.bbin.protocols :as p]
-            [babashka.bbin.dirs :as dirs]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
             [babashka.fs :as fs]))
 

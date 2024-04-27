@@ -1,9 +1,9 @@
 (ns babashka.bbin.scripts.common
-  (:require [babashka.fs :as fs]
-            [babashka.deps :as deps]
-            [babashka.bbin.deps :as bbin-deps]
+  (:require [babashka.bbin.deps :as bbin-deps]
             [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util :refer [sh]]
+            [babashka.deps :as deps]
+            [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.main :as main]
             [clojure.string :as str]
@@ -24,8 +24,8 @@
                         ";"]
                        (map #(str "; " %)
                             (str/split-lines
-                              (with-out-str
-                                (util/pprint header))))
+                             (with-out-str
+                               (util/pprint header))))
                        [";"
                         "; :bbin/end"
                         ""])
@@ -42,9 +42,9 @@
 
 (defn http-url->script-name [http-url]
   (util/snake-case
-    (first
-      (str/split (last (str/split http-url #"/"))
-                 #"\."))))
+   (first
+    (str/split (last (str/split http-url #"/"))
+               #"\."))))
 
 (def windows-wrapper-extension ".bat")
 
@@ -284,10 +284,10 @@
 
                       (bbin-deps/git-repo-url? (:script/lib cli-opts))
                       (bbin-deps/infer
-                        (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
-                                                :git/url (:script/lib cli-opts))
-                                (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
-                                (assoc :latest-sha true)))
+                       (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
+                                      :git/url (:script/lib cli-opts))
+                         (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
+                         (assoc :latest-sha true)))
 
                       :else
                       (bbin-deps/infer (assoc cli-opts :lib (:script/lib cli-opts))))
@@ -336,11 +336,11 @@
         template-opts' (if tool-mode
                          (assoc template-opts :script/ns-default (:ns-default script-config))
                          (assoc template-opts :script/main-opts
-                                              [(first main-opts)
-                                               (if (= "-f" (first main-opts))
-                                                 (fs/canonicalize (fs/file script-root (second main-opts))
-                                                                  {:nofollow-links true})
-                                                 (second main-opts))]))
+                                [(first main-opts)
+                                 (if (= "-f" (first main-opts))
+                                   (fs/canonicalize (fs/file script-root (second main-opts))
+                                                    {:nofollow-links true})
+                                   (second main-opts))]))
         template-str (if tool-mode
                        (if (#{::no-lib} lib)
                          local-dir-tool-template-str
@@ -349,7 +349,7 @@
                          local-dir-template-str
                          git-or-local-template-str))
         template-out (selmer-util/without-escaping
-                       (selmer/render template-str template-opts'))
+                      (selmer/render template-str template-opts'))
         script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
     (install-script script-name header' script-file template-out cli-opts)))
 

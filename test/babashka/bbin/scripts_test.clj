@@ -1,11 +1,11 @@
 (ns babashka.bbin.scripts-test
-  (:require [babashka.bbin.scripts :as scripts]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.scripts :as scripts]
             [babashka.bbin.scripts.common :as common]
             [babashka.bbin.test-util :refer [bbin-dirs-fixture
                                              bbin-private-keys-fixture
                                              reset-test-dir
                                              test-dir]]
-            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [babashka.process :refer [sh]]
@@ -15,8 +15,8 @@
   (:import (clojure.lang ExceptionInfo)))
 
 (use-fixtures :once
-              (bbin-dirs-fixture)
-              (bbin-private-keys-fixture))
+  (bbin-dirs-fixture)
+  (bbin-private-keys-fixture))
 
 (def bbin-test-lib
   '{:lib io.github.rads/bbin-test-lib,

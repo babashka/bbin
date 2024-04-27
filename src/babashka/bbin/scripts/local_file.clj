@@ -1,7 +1,7 @@
 (ns babashka.bbin.scripts.local-file
-  (:require [babashka.bbin.protocols :as p]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.dirs :as dirs]
             [babashka.fs :as fs]))
 
 (defrecord LocalFile [cli-opts coords]

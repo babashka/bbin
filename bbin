@@ -127,13 +127,13 @@ WARNING: (We won't make any changes without asking you first.)
   ((requiring-resolve 'expound.alpha/expound-str) spec form))
 
 (ns babashka.bbin.util
-  (:require [babashka.fs :as fs]
+  (:require [babashka.bbin.meta :as meta]
+            [babashka.fs :as fs]
             [babashka.process :as p]
-            [babashka.bbin.meta :as meta]
+            [clojure.edn :as edn]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [taoensso.timbre :as log]
-            [clojure.edn :as edn])
+            [taoensso.timbre :as log])
   (:import (java.time Instant)))
 
 (def ^:dynamic *now* nil)
@@ -242,11 +242,11 @@ WARNING: (We won't make any changes without asking you first.)
                    gurl  :git/url
                    burl  :bbin/url} :coords}]]
          (cond-> (assoc {} :bin bin)
-                 gurl  (assoc :location gurl)
-                 burl  (assoc :location burl)
-                 lroot (assoc :location (str "file://" lroot))
-                 gsha  (assoc :version gsha)
-                 gtag  (assoc :version gtag)))
+           gurl  (assoc :location gurl)
+           burl  (assoc :location burl)
+           lroot (assoc :location (str "file://" lroot))
+           gsha  (assoc :version gsha)
+           gtag  (assoc :version gtag)))
        scripts))
 
 (defn print-table
@@ -413,8 +413,8 @@ WARNING: (We won't make any changes without asking you first.)
 
 (def windows?
   (some-> (System/getProperty "os.name")
-    (str/lower-case)
-    (str/index-of "win")))
+          (str/lower-case)
+          (str/index-of "win")))
 
 (defn print-version [& {:as opts}]
   (if (:help opts)
@@ -455,9 +455,9 @@ WARNING: (We won't make any changes without asking you first.)
   ((requiring-resolve 'babashka.bbin.specs/explain-str) spec form))
 
 (ns babashka.bbin.git
-  (:require [clojure.string :as str]
-            [babashka.fs :as fs]
-            [babashka.process :refer [sh]]))
+  (:require [babashka.fs :as fs]
+            [babashka.process :refer [sh]]
+            [clojure.string :as str]))
 
 (defn- ensure-git-dir [client git-url]
   (binding [*err* (java.io.StringWriter.)]
@@ -543,11 +543,11 @@ WARNING: (We won't make any changes without asking you first.)
         (throw e)))))
 
 (ns babashka.bbin.deps
-  (:require [babashka.fs :as fs]
+  (:require [babashka.bbin.git :as git]
+            [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.set :as set]
-            [clojure.tools.gitlibs.impl :as gitlibs-impl]
-            [babashka.bbin.git :as git]))
+            [clojure.tools.gitlibs.impl :as gitlibs-impl]))
 
 (def lib-opts->template-deps-fn
   "A map to define valid CLI options.
@@ -637,10 +637,10 @@ WARNING: (We won't make any changes without asking you first.)
 
 (def ^:private symbol-regex
   (re-pattern
-    (str "(?i)^"
-         "(?:((?:[a-z0-9-]+\\.)*[a-z0-9-]+)/)?"
-         "((?:[a-z0-9-]+\\.)*[a-z0-9-]+)"
-         "$")))
+   (str "(?i)^"
+        "(?:((?:[a-z0-9-]+\\.)*[a-z0-9-]+)/)?"
+        "((?:[a-z0-9-]+\\.)*[a-z0-9-]+)"
+        "$")))
 
 (defn- lib-str? [x]
   (boolean (and (string? x) (re-seq symbol-regex x))))
@@ -697,7 +697,6 @@ WARNING: (We won't make any changes without asking you first.)
     :coords #{}
     :procurer :http}])
 
-
 (defn- deps-type-match? [cli-opts deps-type]
   (and ((:lib deps-type) (:script/lib cli-opts))
        (or (empty? (:coords deps-type))
@@ -738,11 +737,11 @@ WARNING: (We won't make any changes without asking you first.)
      :artifact artifact}))
 
 (ns babashka.bbin.scripts.common
-  (:require [babashka.fs :as fs]
-            [babashka.deps :as deps]
-            [babashka.bbin.deps :as bbin-deps]
+  (:require [babashka.bbin.deps :as bbin-deps]
             [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util :refer [sh]]
+            [babashka.deps :as deps]
+            [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.main :as main]
             [clojure.string :as str]
@@ -763,8 +762,8 @@ WARNING: (We won't make any changes without asking you first.)
                         ";"]
                        (map #(str "; " %)
                             (str/split-lines
-                              (with-out-str
-                                (util/pprint header))))
+                             (with-out-str
+                               (util/pprint header))))
                        [";"
                         "; :bbin/end"
                         ""])
@@ -781,9 +780,9 @@ WARNING: (We won't make any changes without asking you first.)
 
 (defn http-url->script-name [http-url]
   (util/snake-case
-    (first
-      (str/split (last (str/split http-url #"/"))
-                 #"\."))))
+   (first
+    (str/split (last (str/split http-url #"/"))
+               #"\."))))
 
 (def windows-wrapper-extension ".bat")
 
@@ -1023,10 +1022,10 @@ WARNING: (We won't make any changes without asking you first.)
 
                       (bbin-deps/git-repo-url? (:script/lib cli-opts))
                       (bbin-deps/infer
-                        (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
-                                                :git/url (:script/lib cli-opts))
-                                (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
-                                (assoc :latest-sha true)))
+                       (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
+                                      :git/url (:script/lib cli-opts))
+                         (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
+                         (assoc :latest-sha true)))
 
                       :else
                       (bbin-deps/infer (assoc cli-opts :lib (:script/lib cli-opts))))
@@ -1075,11 +1074,11 @@ WARNING: (We won't make any changes without asking you first.)
         template-opts' (if tool-mode
                          (assoc template-opts :script/ns-default (:ns-default script-config))
                          (assoc template-opts :script/main-opts
-                                              [(first main-opts)
-                                               (if (= "-f" (first main-opts))
-                                                 (fs/canonicalize (fs/file script-root (second main-opts))
-                                                                  {:nofollow-links true})
-                                                 (second main-opts))]))
+                                [(first main-opts)
+                                 (if (= "-f" (first main-opts))
+                                   (fs/canonicalize (fs/file script-root (second main-opts))
+                                                    {:nofollow-links true})
+                                   (second main-opts))]))
         template-str (if tool-mode
                        (if (#{::no-lib} lib)
                          local-dir-tool-template-str
@@ -1088,7 +1087,7 @@ WARNING: (We won't make any changes without asking you first.)
                          local-dir-template-str
                          git-or-local-template-str))
         template-out (selmer-util/without-escaping
-                       (selmer/render template-str template-opts'))
+                      (selmer/render template-str template-opts'))
         script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
     (install-script script-name header' script-file template-out cli-opts)))
 
@@ -1129,8 +1128,8 @@ WARNING: (We won't make any changes without asking you first.)
     (common/delete-files cli-opts)))
 
 (ns babashka.bbin.scripts.http-file
-  (:require [babashka.bbin.protocols :as p]
-            [babashka.bbin.dirs :as dirs]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
             [babashka.fs :as fs]))
 
@@ -1155,9 +1154,9 @@ WARNING: (We won't make any changes without asking you first.)
     (common/delete-files cli-opts)))
 
 (ns babashka.bbin.scripts.http-jar
-  (:require [babashka.bbin.protocols :as p]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [babashka.http-client :as http]
@@ -1210,7 +1209,7 @@ WARNING: (We won't make any changes without asking you first.)
                          :script/main-ns main-ns
                          :script/jar cached-jar-path}
           script-contents (selmer-util/without-escaping
-                            (selmer/render local-jar-template-str template-opts))
+                           (selmer/render local-jar-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (common/install-script script-name header script-file script-contents cli-opts)))
@@ -1238,9 +1237,9 @@ WARNING: (We won't make any changes without asking you first.)
     (common/delete-files cli-opts)))
 
 (ns babashka.bbin.scripts.local-file
-  (:require [babashka.bbin.protocols :as p]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.dirs :as dirs]
             [babashka.fs :as fs]))
 
 (defrecord LocalFile [cli-opts coords]
@@ -1264,9 +1263,9 @@ WARNING: (We won't make any changes without asking you first.)
     (common/delete-files cli-opts)))
 
 (ns babashka.bbin.scripts.local-jar
-  (:require [babashka.bbin.protocols :as p]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [clojure.string :as str]
@@ -1313,7 +1312,7 @@ WARNING: (We won't make any changes without asking you first.)
                          :script/main-ns main-ns
                          :script/jar cached-jar-path}
           script-contents (selmer-util/without-escaping
-                            (selmer/render local-jar-template-str template-opts))
+                           (selmer/render local-jar-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (fs/copy file-path cached-jar-path {:replace-existing true})
@@ -1327,14 +1326,14 @@ WARNING: (We won't make any changes without asking you first.)
     (common/delete-files cli-opts)))
 
 (ns babashka.bbin.scripts.maven-jar
-  (:require [babashka.bbin.protocols :as p]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.deps :as deps]
-            [babashka.json :as json]
-            [babashka.http-client :as http]
             [babashka.fs :as fs]
+            [babashka.http-client :as http]
+            [babashka.json :as json]
             [clojure.edn :as edn]
             [clojure.string :as str]
             [selmer.parser :as selmer]
@@ -1378,7 +1377,7 @@ WARNING: (We won't make any changes without asking you first.)
             (let [{:keys [qualifiers]} (vparse version)]
               (when-not
                   ;; assume all qualifiers indicate non-stable version
-                  (some #{"rc" "alpha" "beta" "snapshot" "milestone"} qualifiers)
+               (some #{"rc" "alpha" "beta" "snapshot" "milestone"} qualifiers)
                 version)))
           versions)))
 
@@ -1443,7 +1442,7 @@ WARNING: (We won't make any changes without asking you first.)
                                                                {:nofollow-links true})
                                               (second main-opts))]}
           template-out (selmer-util/without-escaping
-                         (selmer/render maven-template-str template-opts))
+                        (selmer/render maven-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
       (common/install-script script-name header script-file template-out cli-opts)))
 
@@ -1459,23 +1458,23 @@ WARNING: (We won't make any changes without asking you first.)
 
 (ns babashka.bbin.scripts
   (:require
-    [babashka.bbin.scripts.common :as common]
-    [babashka.bbin.util :as util]
-    [babashka.bbin.deps :as bbin-deps]
-    [babashka.bbin.dirs :as dirs]
-    [babashka.bbin.protocols :as p]
-    [babashka.bbin.scripts.git-dir :refer [map->GitDir]]
-    [babashka.bbin.scripts.local-file :refer [map->LocalFile]]
-    [babashka.bbin.scripts.local-dir :refer [map->LocalDir]]
-    [babashka.bbin.scripts.http-file :refer [map->HttpFile]]
-    [babashka.bbin.scripts.http-jar :refer [map->HttpJar]]
-    [babashka.bbin.scripts.local-jar :refer [map->LocalJar]]
-    [babashka.bbin.scripts.maven-jar :refer [map->MavenJar]]
-    [babashka.fs :as fs]
-    [clojure.edn :as edn]
-    [clojure.java.io :as io]
-    [clojure.string :as str]
-    [selmer.filters :as filters]))
+   [babashka.bbin.deps :as bbin-deps]
+   [babashka.bbin.dirs :as dirs]
+   [babashka.bbin.protocols :as p]
+   [babashka.bbin.scripts.common :as common]
+   [babashka.bbin.scripts.git-dir :refer [map->GitDir]]
+   [babashka.bbin.scripts.http-file :refer [map->HttpFile]]
+   [babashka.bbin.scripts.http-jar :refer [map->HttpJar]]
+   [babashka.bbin.scripts.local-dir :refer [map->LocalDir]]
+   [babashka.bbin.scripts.local-file :refer [map->LocalFile]]
+   [babashka.bbin.scripts.local-jar :refer [map->LocalJar]]
+   [babashka.bbin.scripts.maven-jar :refer [map->MavenJar]]
+   [babashka.bbin.util :as util]
+   [babashka.fs :as fs]
+   [clojure.edn :as edn]
+   [clojure.java.io :as io]
+   [clojure.string :as str]
+   [selmer.filters :as filters]))
 
 ;; selmer filter for clojure escaping for e.g. files
 (filters/add-filter! :pr-str (comp pr-str str))
@@ -1836,11 +1835,11 @@ Otherwise, you can either a) migrate manually or b) override:
      :auto (migrate-auto cli-opts))))
 
 (ns babashka.bbin.cli
-  (:require [babashka.cli :as cli]
-            [babashka.bbin.scripts :as scripts]
-            [babashka.bbin.dirs :as dirs]
+  (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.migrate :as migrate]
+            [babashka.bbin.scripts :as scripts]
             [babashka.bbin.util :as util]
+            [babashka.cli :as cli]
             [clojure.string :as str]))
 
 (declare print-commands)

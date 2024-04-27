@@ -11,7 +11,6 @@
 (doseq [ns test-namespaces]
   (require ns))
 
-
 (defn run-tests [& {:keys [nses]}]
   (let [selected-tests (if nses
                          (edn/read-string nses)
