@@ -2,16 +2,17 @@
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.migrate :as migrate]
             [babashka.bbin.scripts :as scripts]
-            [babashka.bbin.test-util :refer [bbin-dirs-fixture
-                                             reset-test-dir test-dir]]
+            [babashka.bbin.test-util
+             :refer [bbin-dirs-fixture reset-test-dir test-dir]
+             :as test-util]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.string :as str]
-            [clojure.test :refer [deftest is testing use-fixtures]])
+            [clojure.test :refer [deftest is testing]])
   (:import (java.time Instant)))
 
-(use-fixtures :once (bbin-dirs-fixture))
+(test-util/use-fixtures :once (bbin-dirs-fixture))
 
 (defn- parse-edn-out [s]
   (->> (str/split-lines s)

@@ -3,6 +3,7 @@
  :pods {org.babashka/fswatcher {:version "0.0.3"}}
  :deps {org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
                                  :git/sha "951b49b8c173244e66443b8188e3ff928a0a71e7"}
+        lambdaisland/kaocha {:mvn/version "1.88.1376"}
         local/deps {:local/root "."}}
  :bbin/bin {bbin {:main-opts ["-f" "bbin"]}}
  :tasks {bbin {:requires ([babashka.bbin.cli :as bbin])
@@ -19,8 +20,8 @@
                      (run 'test))}
          lint (shell "clj-kondo --lint .")
          test {:depends [gen-script]
-               :requires ([babashka.bbin.test-runner])
-               :task (exec 'babashka.bbin.test-runner/run-tests)}
+               :requires ([kaocha.runner])
+               :task (apply kaocha.runner/-main *command-line-args*)}
          gen-script {:doc "Build the bbin script"
                      :requires ([babashka.bbin.gen-script :as gen-script])
                      :task (gen-script/gen-script)}

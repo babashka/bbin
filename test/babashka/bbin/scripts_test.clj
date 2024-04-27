@@ -2,19 +2,21 @@
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.scripts :as scripts]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.test-util :refer [bbin-dirs-fixture
-                                             bbin-private-keys-fixture
-                                             reset-test-dir
-                                             test-dir]]
+            [babashka.bbin.test-util
+             :refer [bbin-dirs-fixture
+                     bbin-private-keys-fixture
+                     reset-test-dir
+                     test-dir]
+             :as test-util]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [babashka.process :refer [sh]]
             [clojure.edn :as edn]
             [clojure.string :as str]
-            [clojure.test :refer [deftest is testing use-fixtures]])
+            [clojure.test :refer [deftest is testing]])
   (:import (clojure.lang ExceptionInfo)))
 
-(use-fixtures :once
+(test-util/use-fixtures :once
   (bbin-dirs-fixture)
   (bbin-private-keys-fixture))
 
