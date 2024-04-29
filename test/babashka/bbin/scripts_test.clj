@@ -170,7 +170,7 @@
                out))
         (is (fs/exists? (fs/file (dirs/bin-dir nil) "foo")))))))
 
-(deftest ^:focus invalid-bin-config-test
+(deftest invalid-bin-config-test
   (testing "install */* --local/root * (invalid bin config)"
     (reset-test-dir)
     (dirs/ensure-bbin-dirs {})
