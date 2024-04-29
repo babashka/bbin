@@ -1,11 +1,13 @@
 (ns babashka.bbin.scripts.common
   (:require [babashka.bbin.deps :as bbin-deps]
             [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.specs]
             [babashka.bbin.util :as util :refer [sh]]
             [babashka.deps :as deps]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.main :as main]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util])
@@ -92,15 +94,14 @@
       (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (namespace lib) (name lib) (:git/sha coords)])))))
 
 (defn- load-bin-config [script-root]
-  (require 'babashka.bbin.specs)
   (let [bb-file (fs/file script-root "bb.edn")
         bb-edn (when (fs/exists? bb-file)
                  (some-> bb-file slurp edn/read-string))
         bin-config (:bbin/bin bb-edn)]
     (when bin-config
-      (if (util/valid? :bbin/bin bin-config)
+      (if (s/valid? :bbin/bin bin-config)
         bin-config
-        (throw (ex-info (util/explain-str :bbin/bin bin-config)
+        (throw (ex-info (s/explain-str :bbin/bin bin-config)
                         {:bbin/bin bin-config}))))))
 
 (defn default-script-config [cli-opts]

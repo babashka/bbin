@@ -105,12 +105,301 @@ WARNING: (We won't make any changes without asking you first.)
   (fs/create-dirs (xdg-bin-dir cli-opts))
   (fs/create-dirs (xdg-jars-dir cli-opts)))
 
+(ns babashka.bbin.git
+  (:require [babashka.fs :as fs]
+            [babashka.process :refer [sh]]
+            [clojure.string :as str]))
+
+(defn- ensure-git-dir [client git-url]
+  (binding [*err* (java.io.StringWriter.)]
+    (let [path ((:ensure-git-dir client) git-url)]
+      ((:git-fetch client) (fs/file path))
+      path)))
+
+(defn default-branch [client git-url]
+  (let [lib-dir (ensure-git-dir client git-url)
+        remote-info (sh "git remote show origin" {:dir lib-dir
+                                                  :extra-env {"LC_ALL" "C"}})
+        [[_ branch]] (->> (:out remote-info)
+                          str/split-lines
+                          (some #(re-seq #"HEAD branch: (\w+)" %)))]
+    branch))
+
+(defn latest-git-sha [client git-url]
+  (let [lib-dir (ensure-git-dir client git-url)
+        branch (default-branch client git-url)
+        log-result (sh ["git" "log" "-n" "1" branch "--pretty=format:%H"]
+                       {:dir lib-dir})]
+    (str/trim-newline (:out log-result))))
+
+(defn find-git-tag [client git-url tag]
+  (let [lib-dir (ensure-git-dir client git-url)
+        log-result (sh ["git" "log" "-n" "1" tag "--pretty=format:%H"]
+                       {:dir lib-dir})
+        sha (str/trim-newline (:out log-result))]
+    {:name (str tag)
+     :commit {:sha sha}}))
+
+(defn latest-git-tag [client git-url]
+  (let [lib-dir (ensure-git-dir client git-url)
+        describe-result (sh "git describe --tags --abbrev=0" {:dir lib-dir})
+        tag (str/trim-newline (:out describe-result))]
+    (when-not (str/blank? tag)
+      (find-git-tag client git-url tag))))
+
+(def providers
+  {#"^(com|io)\.github\." :github
+   #"^(com|io)\.gitlab\." :gitlab
+   #"^(org|io)\.bitbucket\." :bitbucket
+   #"^(com|io)\.beanstalkapp\." :beanstalk
+   #"^ht\.sr\." :sourcehut})
+
+(defn- clean-lib-str [lib]
+  (->> (reduce #(str/replace %1 %2 "") lib (keys providers))
+       symbol))
+
+(defn git-http-url [lib]
+  (let [provider (some #(when (re-seq (key %) (str lib)) %) providers)
+        s (clean-lib-str (str lib))]
+    (case (val provider)
+      :github (str "https://github.com/" s ".git")
+      :gitlab (str "https://gitlab.com/" s ".git")
+      :bitbucket (let [[u] (str/split (str s) #"/")]
+                   (str "https://" u "@bitbucket.org/" s ".git"))
+      :beanstalk (let [[u] (str/split (str s) #"/")]
+                   (str "https://" u ".git.beanstalkapp.com/" (name lib) ".git"))
+      :sourcehut (str "https://git.sr.ht/~" s))))
+
+(defn git-ssh-url [lib]
+  (let [provider (some #(when (re-seq (key %) (str lib)) %) providers)
+        s (clean-lib-str (str lib))]
+    (case (val provider)
+      :github (str "git@github.com:" s ".git")
+      :gitlab (str "git@gitlab.com:" s ".git")
+      :bitbucket (str "git@bitbucket.org:" s ".git")
+      :beanstalk (let [[u] (str/split (str s) #"/")]
+                   (str "git@" u ".git.beanstalkapp.com:/" s ".git"))
+      :sourcehut (str "git@git.sr.ht:~" s))))
+
+(defn git-repo-url [client lib]
+  (try
+    (let [url (git-http-url lib)]
+      (ensure-git-dir client url)
+      url)
+    (catch Exception e
+      (if (re-seq #"^Unable to clone " (ex-message e))
+        (let [url (git-ssh-url lib)]
+          (ensure-git-dir client url)
+          url)
+        (throw e)))))
+
+(ns babashka.bbin.deps
+  (:require [babashka.bbin.git :as git]
+            [babashka.fs :as fs]
+            [clojure.edn :as edn]
+            [clojure.set :as set]
+            [clojure.tools.gitlibs.impl :as gitlibs-impl]))
+
+(def lib-opts->template-deps-fn
+  "A map to define valid CLI options.
+
+  - Each key is a sequence of valid combinations of CLI opts.
+  - Each value is a function which returns a tools.deps lib map."
+  {[#{:local/root}]
+   (fn [_ lib-sym lib-opts]
+     {lib-sym (select-keys lib-opts [:local/root])})
+
+   [#{} #{:git/url}]
+   (fn [client lib-sym lib-opts]
+     (let [url (or (:git/url lib-opts) (git/git-repo-url client lib-sym))
+           tag (git/latest-git-tag client url)]
+       (if tag
+         {lib-sym {:git/url url
+                   :git/tag (:name tag)
+                   :git/sha (-> tag :commit :sha)}}
+         (let [sha (git/latest-git-sha client url)]
+           {lib-sym {:git/url url
+                     :git/sha sha}}))))
+
+   [#{:git/tag} #{:git/url :git/tag}]
+   (fn [client lib-sym lib-opts]
+     (let [url (or (:git/url lib-opts) (git/git-repo-url client lib-sym))
+           tag (:git/tag lib-opts)
+           {:keys [commit]} (git/find-git-tag client url tag)]
+       {lib-sym {:git/url url
+                 :git/tag tag
+                 :git/sha (:sha commit)}}))
+
+   [#{:git/sha} #{:git/url :git/sha}]
+   (fn [client lib-sym lib-opts]
+     (let [url (or (:git/url lib-opts) (git/git-repo-url client lib-sym))
+           sha (:git/sha lib-opts)]
+       {lib-sym {:git/url url
+                 :git/sha sha}}))
+
+   [#{:latest-sha} #{:git/url :latest-sha}]
+   (fn [client lib-sym lib-opts]
+     (let [url (or (:git/url lib-opts) (git/git-repo-url client lib-sym))
+           sha (git/latest-git-sha client url)]
+       {lib-sym {:git/url url
+                 :git/sha sha}}))
+
+   [#{:git/url :git/tag :git/sha}]
+   (fn [_ lib-sym lib-opts]
+     {lib-sym (select-keys lib-opts [:git/url :git/tag :git/sha])})})
+
+(def valid-lib-opts
+  "The set of all valid combinations of CLI opts."
+  (into #{} cat (keys lib-opts->template-deps-fn)))
+
+(defn- cli-opts->lib-opts
+  "Returns parsed lib opts from raw CLI opts."
+  [cli-opts]
+  (-> cli-opts
+      (set/rename-keys {:sha :git/sha})
+      (select-keys (into #{} cat valid-lib-opts))))
+
+(defn- find-template-deps-fn
+  "Returns a template-deps-fn given lib-opts parsed from raw CLI opts."
+  [lib-opts]
+  (some (fn [[k v]] (and (contains? (set k) (set (keys lib-opts))) v))
+        lib-opts->template-deps-fn))
+
+(defn- invalid-lib-opts-error [provided-lib-opts]
+  (ex-info (str "Provided invalid combination of CLI options")
+           {:provided-opts (set (keys provided-lib-opts))
+            :valid-combinations valid-lib-opts}))
+
+(def ^:private default-deps-info-client
+  {:ensure-git-dir gitlibs-impl/ensure-git-dir
+   :git-fetch gitlibs-impl/git-fetch})
+
+(defn infer
+  "Returns a tools.deps lib map for the given CLI opts."
+  ([cli-opts] (infer nil cli-opts))
+  ([client cli-opts]
+   (let [client (merge default-deps-info-client client)
+         lib-opts (cli-opts->lib-opts cli-opts)
+         lib-sym (edn/read-string (:lib cli-opts))
+         template-deps-fn (find-template-deps-fn lib-opts)]
+     (if-not template-deps-fn
+       (throw (invalid-lib-opts-error lib-opts))
+       (template-deps-fn client lib-sym lib-opts)))))
+
+(def ^:private symbol-regex
+  (re-pattern
+   (str "(?i)^"
+        "(?:((?:[a-z0-9-]+\\.)*[a-z0-9-]+)/)?"
+        "((?:[a-z0-9-]+\\.)*[a-z0-9-]+)"
+        "$")))
+
+(defn- lib-str? [x]
+  (boolean (and (string? x) (re-seq symbol-regex x))))
+
+(defn- local-script-path? [x]
+  (boolean (and (string? x) (fs/exists? x))))
+
+(defn- http-url? [x]
+  (boolean (and (string? x) (re-seq #"^https?://" x))))
+
+(defn- git-ssh-url? [x]
+  (boolean (and (string? x) (re-seq #"^.+@.+:.+\.git$" x))))
+
+(defn- git-http-url? [x]
+  (boolean (and (string? x) (re-seq #"^https?://.+\.git$" x))))
+
+(defn git-repo-url? [s]
+  (or (git-http-url? s) (git-ssh-url? s)))
+
+(def ^:private deps-types
+  [{:lib lib-str?
+    :coords #{:local/root}
+    :procurer :local}
+
+   {:lib lib-str?
+    :coords #{:mvn/version}
+    :procurer :maven}
+
+   {:lib local-script-path?
+    :coords #{:bbin/url}
+    :procurer :local}
+
+   {:lib #(or (git-http-url? %) (git-ssh-url? %))
+    :coords #{:bbin/url}
+    :procurer :git}
+
+   {:lib http-url?
+    :coords #{:bbin/url}
+    :procurer :http}
+
+   {:lib lib-str?
+    :coords #{:git/sha :git/url :git/tag}
+    :procurer :git}
+
+   {:lib local-script-path?
+    :coords #{}
+    :procurer :local}
+
+   {:lib #(or (git-http-url? %) (git-ssh-url? %) (lib-str? %))
+    :coords #{}
+    :procurer :git}
+
+   {:lib http-url?
+    :coords #{}
+    :procurer :http}])
+
+(defn- deps-type-match? [cli-opts deps-type]
+  (and ((:lib deps-type) (:script/lib cli-opts))
+       (or (empty? (:coords deps-type))
+           (seq (set/intersection (:coords deps-type) (set (keys cli-opts)))))
+       deps-type))
+
+(defn- match-deps-type [cli-opts]
+  (or (some #(deps-type-match? cli-opts %) deps-types)
+      {:procurer :unknown-procurer}))
+
+(defn- match-artifact [cli-opts procurer]
+  (cond
+    (or (#{:maven} procurer)
+        (and (#{:local} procurer)
+             (or (and (:script/lib cli-opts) (re-seq #"\.jar$" (:script/lib cli-opts)))
+                 (and (:local/root cli-opts) (re-seq #"\.jar$" (:local/root cli-opts)))))
+        (and (#{:http} procurer) (re-seq #"\.jar$" (:script/lib cli-opts))))
+    :jar
+
+    (or (#{:git} procurer)
+        (and (#{:local} procurer)
+             (or (and (:script/lib cli-opts) (fs/directory? (:script/lib cli-opts)))
+                 (and (:local/root cli-opts) (fs/directory? (:local/root cli-opts)))))
+        (and (#{:http} procurer) (re-seq #"\.git$" (:script/lib cli-opts))))
+    :dir
+
+    (or (and (#{:local} procurer) (and (:script/lib cli-opts)
+                                       (fs/regular-file? (:script/lib cli-opts))))
+        (and (#{:http} procurer) (re-seq #"\.(cljc?|bb)$" (:script/lib cli-opts))))
+    :file
+
+    :else :unknown-artifact))
+
+(defn summary [cli-opts]
+  (let [{:keys [procurer]} (match-deps-type cli-opts)
+        artifact (match-artifact cli-opts procurer)]
+    {:procurer procurer
+     :artifact artifact}))
+
 (ns babashka.bbin.protocols)
 
 (defprotocol Script
   (install [script])
   (upgrade [script])
   (uninstall [script]))
+
+(ns babashka.bbin.meta)
+
+;; This is a fallback if the var hasn't already been set earlier by a build
+;; script, such as when bbin is called as a library instead of a script.
+(defonce min-bb-version :version-not-set)
+(defonce version :version-not-set)
 
 (ns babashka.bbin.specs
   (:require [clojure.spec.alpha :as s]))
@@ -119,12 +408,6 @@ WARNING: (We won't make any changes without asking you first.)
 (s/def ::main-opts (s/coll-of string?))
 (s/def ::script-config (s/keys :opt-un [::main-opts ::ns-default]))
 (s/def :bbin/bin (s/map-of symbol? ::script-config))
-
-(defn valid? [spec form]
-  (s/valid? spec form))
-
-(defn explain-str [spec form]
-  ((requiring-resolve 'expound.alpha/expound-str) spec form))
 
 (ns babashka.bbin.util
   (:require [babashka.bbin.meta :as meta]
@@ -448,302 +731,16 @@ WARNING: (We won't make any changes without asking you first.)
 (defn snake-case [s]
   (str/replace s "_" "-"))
 
-(defn valid? [spec form]
-  ((requiring-resolve 'babashka.bbin.specs/valid?) spec form))
-
-(defn explain-str [spec form]
-  ((requiring-resolve 'babashka.bbin.specs/explain-str) spec form))
-
-(ns babashka.bbin.git
-  (:require [babashka.fs :as fs]
-            [babashka.process :refer [sh]]
-            [clojure.string :as str]))
-
-(defn- ensure-git-dir [client git-url]
-  (binding [*err* (java.io.StringWriter.)]
-    (let [path ((:ensure-git-dir client) git-url)]
-      ((:git-fetch client) (fs/file path))
-      path)))
-
-(defn default-branch [client git-url]
-  (let [lib-dir (ensure-git-dir client git-url)
-        remote-info (sh "git remote show origin" {:dir lib-dir
-                                                  :extra-env {"LC_ALL" "C"}})
-        [[_ branch]] (->> (:out remote-info)
-                          str/split-lines
-                          (some #(re-seq #"HEAD branch: (\w+)" %)))]
-    branch))
-
-(defn latest-git-sha [client git-url]
-  (let [lib-dir (ensure-git-dir client git-url)
-        branch (default-branch client git-url)
-        log-result (sh ["git" "log" "-n" "1" branch "--pretty=format:%H"]
-                       {:dir lib-dir})]
-    (str/trim-newline (:out log-result))))
-
-(defn find-git-tag [client git-url tag]
-  (let [lib-dir (ensure-git-dir client git-url)
-        log-result (sh ["git" "log" "-n" "1" tag "--pretty=format:%H"]
-                       {:dir lib-dir})
-        sha (str/trim-newline (:out log-result))]
-    {:name (str tag)
-     :commit {:sha sha}}))
-
-(defn latest-git-tag [client git-url]
-  (let [lib-dir (ensure-git-dir client git-url)
-        describe-result (sh "git describe --tags --abbrev=0" {:dir lib-dir})
-        tag (str/trim-newline (:out describe-result))]
-    (when-not (str/blank? tag)
-      (find-git-tag client git-url tag))))
-
-(def providers
-  {#"^(com|io)\.github\." :github
-   #"^(com|io)\.gitlab\." :gitlab
-   #"^(org|io)\.bitbucket\." :bitbucket
-   #"^(com|io)\.beanstalkapp\." :beanstalk
-   #"^ht\.sr\." :sourcehut})
-
-(defn- clean-lib-str [lib]
-  (->> (reduce #(str/replace %1 %2 "") lib (keys providers))
-       symbol))
-
-(defn git-http-url [lib]
-  (let [provider (some #(when (re-seq (key %) (str lib)) %) providers)
-        s (clean-lib-str (str lib))]
-    (case (val provider)
-      :github (str "https://github.com/" s ".git")
-      :gitlab (str "https://gitlab.com/" s ".git")
-      :bitbucket (let [[u] (str/split (str s) #"/")]
-                   (str "https://" u "@bitbucket.org/" s ".git"))
-      :beanstalk (let [[u] (str/split (str s) #"/")]
-                   (str "https://" u ".git.beanstalkapp.com/" (name lib) ".git"))
-      :sourcehut (str "https://git.sr.ht/~" s))))
-
-(defn git-ssh-url [lib]
-  (let [provider (some #(when (re-seq (key %) (str lib)) %) providers)
-        s (clean-lib-str (str lib))]
-    (case (val provider)
-      :github (str "git@github.com:" s ".git")
-      :gitlab (str "git@gitlab.com:" s ".git")
-      :bitbucket (str "git@bitbucket.org:" s ".git")
-      :beanstalk (let [[u] (str/split (str s) #"/")]
-                   (str "git@" u ".git.beanstalkapp.com:/" s ".git"))
-      :sourcehut (str "git@git.sr.ht:~" s))))
-
-(defn git-repo-url [client lib]
-  (try
-    (let [url (git-http-url lib)]
-      (ensure-git-dir client url)
-      url)
-    (catch Exception e
-      (if (re-seq #"^Unable to clone " (ex-message e))
-        (let [url (git-ssh-url lib)]
-          (ensure-git-dir client url)
-          url)
-        (throw e)))))
-
-(ns babashka.bbin.deps
-  (:require [babashka.bbin.git :as git]
-            [babashka.fs :as fs]
-            [clojure.edn :as edn]
-            [clojure.set :as set]
-            [clojure.tools.gitlibs.impl :as gitlibs-impl]))
-
-(def lib-opts->template-deps-fn
-  "A map to define valid CLI options.
-
-  - Each key is a sequence of valid combinations of CLI opts.
-  - Each value is a function which returns a tools.deps lib map."
-  {[#{:local/root}]
-   (fn [_ lib-sym lib-opts]
-     {lib-sym (select-keys lib-opts [:local/root])})
-
-   [#{} #{:git/url}]
-   (fn [client lib-sym lib-opts]
-     (let [url (or (:git/url lib-opts) (git/git-repo-url client lib-sym))
-           tag (git/latest-git-tag client url)]
-       (if tag
-         {lib-sym {:git/url url
-                   :git/tag (:name tag)
-                   :git/sha (-> tag :commit :sha)}}
-         (let [sha (git/latest-git-sha client url)]
-           {lib-sym {:git/url url
-                     :git/sha sha}}))))
-
-   [#{:git/tag} #{:git/url :git/tag}]
-   (fn [client lib-sym lib-opts]
-     (let [url (or (:git/url lib-opts) (git/git-repo-url client lib-sym))
-           tag (:git/tag lib-opts)
-           {:keys [commit]} (git/find-git-tag client url tag)]
-       {lib-sym {:git/url url
-                 :git/tag tag
-                 :git/sha (:sha commit)}}))
-
-   [#{:git/sha} #{:git/url :git/sha}]
-   (fn [client lib-sym lib-opts]
-     (let [url (or (:git/url lib-opts) (git/git-repo-url client lib-sym))
-           sha (:git/sha lib-opts)]
-       {lib-sym {:git/url url
-                 :git/sha sha}}))
-
-   [#{:latest-sha} #{:git/url :latest-sha}]
-   (fn [client lib-sym lib-opts]
-     (let [url (or (:git/url lib-opts) (git/git-repo-url client lib-sym))
-           sha (git/latest-git-sha client url)]
-       {lib-sym {:git/url url
-                 :git/sha sha}}))
-
-   [#{:git/url :git/tag :git/sha}]
-   (fn [_ lib-sym lib-opts]
-     {lib-sym (select-keys lib-opts [:git/url :git/tag :git/sha])})})
-
-(def valid-lib-opts
-  "The set of all valid combinations of CLI opts."
-  (into #{} cat (keys lib-opts->template-deps-fn)))
-
-(defn- cli-opts->lib-opts
-  "Returns parsed lib opts from raw CLI opts."
-  [cli-opts]
-  (-> cli-opts
-      (set/rename-keys {:sha :git/sha})
-      (select-keys (into #{} cat valid-lib-opts))))
-
-(defn- find-template-deps-fn
-  "Returns a template-deps-fn given lib-opts parsed from raw CLI opts."
-  [lib-opts]
-  (some (fn [[k v]] (and (contains? (set k) (set (keys lib-opts))) v))
-        lib-opts->template-deps-fn))
-
-(defn- invalid-lib-opts-error [provided-lib-opts]
-  (ex-info (str "Provided invalid combination of CLI options")
-           {:provided-opts (set (keys provided-lib-opts))
-            :valid-combinations valid-lib-opts}))
-
-(def ^:private default-deps-info-client
-  {:ensure-git-dir gitlibs-impl/ensure-git-dir
-   :git-fetch gitlibs-impl/git-fetch})
-
-(defn infer
-  "Returns a tools.deps lib map for the given CLI opts."
-  ([cli-opts] (infer nil cli-opts))
-  ([client cli-opts]
-   (let [client (merge default-deps-info-client client)
-         lib-opts (cli-opts->lib-opts cli-opts)
-         lib-sym (edn/read-string (:lib cli-opts))
-         template-deps-fn (find-template-deps-fn lib-opts)]
-     (if-not template-deps-fn
-       (throw (invalid-lib-opts-error lib-opts))
-       (template-deps-fn client lib-sym lib-opts)))))
-
-(def ^:private symbol-regex
-  (re-pattern
-   (str "(?i)^"
-        "(?:((?:[a-z0-9-]+\\.)*[a-z0-9-]+)/)?"
-        "((?:[a-z0-9-]+\\.)*[a-z0-9-]+)"
-        "$")))
-
-(defn- lib-str? [x]
-  (boolean (and (string? x) (re-seq symbol-regex x))))
-
-(defn- local-script-path? [x]
-  (boolean (and (string? x) (fs/exists? x))))
-
-(defn- http-url? [x]
-  (boolean (and (string? x) (re-seq #"^https?://" x))))
-
-(defn- git-ssh-url? [x]
-  (boolean (and (string? x) (re-seq #"^.+@.+:.+\.git$" x))))
-
-(defn- git-http-url? [x]
-  (boolean (and (string? x) (re-seq #"^https?://.+\.git$" x))))
-
-(defn git-repo-url? [s]
-  (or (git-http-url? s) (git-ssh-url? s)))
-
-(def ^:private deps-types
-  [{:lib lib-str?
-    :coords #{:local/root}
-    :procurer :local}
-
-   {:lib lib-str?
-    :coords #{:mvn/version}
-    :procurer :maven}
-
-   {:lib local-script-path?
-    :coords #{:bbin/url}
-    :procurer :local}
-
-   {:lib #(or (git-http-url? %) (git-ssh-url? %))
-    :coords #{:bbin/url}
-    :procurer :git}
-
-   {:lib http-url?
-    :coords #{:bbin/url}
-    :procurer :http}
-
-   {:lib lib-str?
-    :coords #{:git/sha :git/url :git/tag}
-    :procurer :git}
-
-   {:lib local-script-path?
-    :coords #{}
-    :procurer :local}
-
-   {:lib #(or (git-http-url? %) (git-ssh-url? %) (lib-str? %))
-    :coords #{}
-    :procurer :git}
-
-   {:lib http-url?
-    :coords #{}
-    :procurer :http}])
-
-(defn- deps-type-match? [cli-opts deps-type]
-  (and ((:lib deps-type) (:script/lib cli-opts))
-       (or (empty? (:coords deps-type))
-           (seq (set/intersection (:coords deps-type) (set (keys cli-opts)))))
-       deps-type))
-
-(defn- match-deps-type [cli-opts]
-  (or (some #(deps-type-match? cli-opts %) deps-types)
-      {:procurer :unknown-procurer}))
-
-(defn- match-artifact [cli-opts procurer]
-  (cond
-    (or (#{:maven} procurer)
-        (and (#{:local} procurer)
-             (or (and (:script/lib cli-opts) (re-seq #"\.jar$" (:script/lib cli-opts)))
-                 (and (:local/root cli-opts) (re-seq #"\.jar$" (:local/root cli-opts)))))
-        (and (#{:http} procurer) (re-seq #"\.jar$" (:script/lib cli-opts))))
-    :jar
-
-    (or (#{:git} procurer)
-        (and (#{:local} procurer)
-             (or (and (:script/lib cli-opts) (fs/directory? (:script/lib cli-opts)))
-                 (and (:local/root cli-opts) (fs/directory? (:local/root cli-opts)))))
-        (and (#{:http} procurer) (re-seq #"\.git$" (:script/lib cli-opts))))
-    :dir
-
-    (or (and (#{:local} procurer) (and (:script/lib cli-opts)
-                                       (fs/regular-file? (:script/lib cli-opts))))
-        (and (#{:http} procurer) (re-seq #"\.(cljc?|bb)$" (:script/lib cli-opts))))
-    :file
-
-    :else :unknown-artifact))
-
-(defn summary [cli-opts]
-  (let [{:keys [procurer]} (match-deps-type cli-opts)
-        artifact (match-artifact cli-opts procurer)]
-    {:procurer procurer
-     :artifact artifact}))
-
 (ns babashka.bbin.scripts.common
   (:require [babashka.bbin.deps :as bbin-deps]
             [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.specs]
             [babashka.bbin.util :as util :refer [sh]]
             [babashka.deps :as deps]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.main :as main]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util])
@@ -830,15 +827,14 @@ WARNING: (We won't make any changes without asking you first.)
       (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (namespace lib) (name lib) (:git/sha coords)])))))
 
 (defn- load-bin-config [script-root]
-  (require 'babashka.bbin.specs)
   (let [bb-file (fs/file script-root "bb.edn")
         bb-edn (when (fs/exists? bb-file)
                  (some-> bb-file slurp edn/read-string))
         bin-config (:bbin/bin bb-edn)]
     (when bin-config
-      (if (util/valid? :bbin/bin bin-config)
+      (if (s/valid? :bbin/bin bin-config)
         bin-config
-        (throw (ex-info (util/explain-str :bbin/bin bin-config)
+        (throw (ex-info (s/explain-str :bbin/bin bin-config)
                         {:bbin/bin bin-config}))))))
 
 (defn default-script-config [cli-opts]
@@ -1110,45 +1106,17 @@ WARNING: (We won't make any changes without asking you first.)
       (fs/delete-if-exists (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar")))
       (println "Removing" (str script-file)))))
 
-(ns babashka.bbin.scripts.git-dir
+(ns babashka.bbin.scripts.local-dir
   (:require [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]))
 
-(defrecord GitDir [cli-opts summary coords]
+(defrecord LocalDir [cli-opts summary]
   p/Script
   (install [_]
     (common/install-deps-git-or-local cli-opts summary))
 
   (upgrade [_]
-    (throw (ex-info "Not implemented" {:cli-opts cli-opts
-                                       :summary summary
-                                       :coords coords})))
-
-  (uninstall [_]
-    (common/delete-files cli-opts)))
-
-(ns babashka.bbin.scripts.http-file
-  (:require [babashka.bbin.dirs :as dirs]
-            [babashka.bbin.protocols :as p]
-            [babashka.bbin.scripts.common :as common]
-            [babashka.fs :as fs]))
-
-(defrecord HttpFile [cli-opts coords]
-  p/Script
-  (install [_]
-    (let [http-url (:script/lib cli-opts)
-          script-deps {:bbin/url http-url}
-          header {:coords script-deps}
-          script-name (or (:as cli-opts) (common/http-url->script-name http-url))
-          script-contents (-> (slurp (:bbin/url script-deps))
-                              (common/insert-script-header header))
-          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
-                                       {:nofollow-links true})]
-      (common/install-script script-name header script-file script-contents cli-opts)))
-
-  (upgrade [_]
-    (p/install (map->HttpFile {:cli-opts {:script/lib (:bbin/url coords)}
-                               :coords coords})))
+    (throw (ex-info "Not implemented" {})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))
@@ -1221,105 +1189,44 @@ WARNING: (We won't make any changes without asking you first.)
   (uninstall [_]
     (common/delete-files cli-opts)))
 
-(ns babashka.bbin.scripts.local-dir
+(ns babashka.bbin.scripts.git-dir
   (:require [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]))
 
-(defrecord LocalDir [cli-opts summary]
+(defrecord GitDir [cli-opts summary coords]
   p/Script
   (install [_]
     (common/install-deps-git-or-local cli-opts summary))
 
   (upgrade [_]
-    (throw (ex-info "Not implemented" {})))
+    (throw (ex-info "Not implemented" {:cli-opts cli-opts
+                                       :summary summary
+                                       :coords coords})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))
 
-(ns babashka.bbin.scripts.local-file
+(ns babashka.bbin.scripts.http-file
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
             [babashka.fs :as fs]))
 
-(defrecord LocalFile [cli-opts coords]
+(defrecord HttpFile [cli-opts coords]
   p/Script
   (install [_]
-    (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
-          script-deps {:bbin/url (str "file://" file-path)}
+    (let [http-url (:script/lib cli-opts)
+          script-deps {:bbin/url http-url}
           header {:coords script-deps}
-          script-name (or (:as cli-opts) (common/file-path->script-name file-path))
-          script-contents (-> (slurp file-path)
+          script-name (or (:as cli-opts) (common/http-url->script-name http-url))
+          script-contents (-> (slurp (:bbin/url script-deps))
                               (common/insert-script-header header))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
-    (p/install (map->LocalFile {:cli-opts {:script/lib (:bbin/url coords)}
-                                :coords coords})))
-
-  (uninstall [_]
-    (common/delete-files cli-opts)))
-
-(ns babashka.bbin.scripts.local-jar
-  (:require [babashka.bbin.dirs :as dirs]
-            [babashka.bbin.protocols :as p]
-            [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.util :as util]
-            [babashka.fs :as fs]
-            [clojure.string :as str]
-            [selmer.parser :as selmer]
-            [selmer.util :as selmer-util]))
-
-(def ^:private local-jar-template-str
-  (str/trim "
-#!/usr/bin/env bb
-
-; :bbin/start
-;
-{{script/meta}}
-;
-; :bbin/end
-
-(require '[babashka.classpath :refer [add-classpath]])
-
-(def script-jar {{script/jar|pr-str}})
-
-(add-classpath script-jar)
-
-(require '[{{script/main-ns}}])
-(apply {{script/main-ns}}/-main *command-line-args*)
-"))
-
-(defrecord LocalJar [cli-opts coords]
-  p/Script
-  (install [_]
-    (fs/create-dirs (dirs/jars-dir cli-opts))
-    (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
-          main-ns (common/jar->main-ns file-path)
-          script-deps {:bbin/url (str "file://" file-path)}
-          header {:coords script-deps}
-          script-name (or (:as cli-opts) (common/file-path->script-name file-path))
-          cached-jar-path (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar"))
-          script-edn-out (with-out-str
-                           (binding [*print-namespace-maps* false]
-                             (util/pprint header)))
-          template-opts {:script/meta (->> script-edn-out
-                                           str/split-lines
-                                           (map #(str common/comment-char " " %))
-                                           (str/join "\n"))
-                         :script/main-ns main-ns
-                         :script/jar cached-jar-path}
-          script-contents (selmer-util/without-escaping
-                           (selmer/render local-jar-template-str template-opts))
-          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
-                                       {:nofollow-links true})]
-      (fs/copy file-path cached-jar-path {:replace-existing true})
-      (common/install-script script-name header script-file script-contents cli-opts)))
-
-  (upgrade [_]
-    (p/install (map->LocalJar {:cli-opts {:script/lib (:bbin/url coords)}
+    (p/install (map->HttpFile {:cli-opts {:script/lib (:bbin/url coords)}
                                :coords coords})))
 
   (uninstall [_]
@@ -1452,6 +1359,95 @@ WARNING: (We won't make any changes without asking you first.)
       (p/install (map->MavenJar {:cli-opts {:script/lib (str lib)
                                             :mvn/version latest-version}
                                  :lib lib}))))
+
+  (uninstall [_]
+    (common/delete-files cli-opts)))
+
+(ns babashka.bbin.scripts.local-file
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
+            [babashka.bbin.scripts.common :as common]
+            [babashka.fs :as fs]))
+
+(defrecord LocalFile [cli-opts coords]
+  p/Script
+  (install [_]
+    (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
+          script-deps {:bbin/url (str "file://" file-path)}
+          header {:coords script-deps}
+          script-name (or (:as cli-opts) (common/file-path->script-name file-path))
+          script-contents (-> (slurp file-path)
+                              (common/insert-script-header header))
+          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
+                                       {:nofollow-links true})]
+      (common/install-script script-name header script-file script-contents cli-opts)))
+
+  (upgrade [_]
+    (p/install (map->LocalFile {:cli-opts {:script/lib (:bbin/url coords)}
+                                :coords coords})))
+
+  (uninstall [_]
+    (common/delete-files cli-opts)))
+
+(ns babashka.bbin.scripts.local-jar
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
+            [babashka.bbin.scripts.common :as common]
+            [babashka.bbin.util :as util]
+            [babashka.fs :as fs]
+            [clojure.string :as str]
+            [selmer.parser :as selmer]
+            [selmer.util :as selmer-util]))
+
+(def ^:private local-jar-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.classpath :refer [add-classpath]])
+
+(def script-jar {{script/jar|pr-str}})
+
+(add-classpath script-jar)
+
+(require '[{{script/main-ns}}])
+(apply {{script/main-ns}}/-main *command-line-args*)
+"))
+
+(defrecord LocalJar [cli-opts coords]
+  p/Script
+  (install [_]
+    (fs/create-dirs (dirs/jars-dir cli-opts))
+    (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
+          main-ns (common/jar->main-ns file-path)
+          script-deps {:bbin/url (str "file://" file-path)}
+          header {:coords script-deps}
+          script-name (or (:as cli-opts) (common/file-path->script-name file-path))
+          cached-jar-path (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar"))
+          script-edn-out (with-out-str
+                           (binding [*print-namespace-maps* false]
+                             (util/pprint header)))
+          template-opts {:script/meta (->> script-edn-out
+                                           str/split-lines
+                                           (map #(str common/comment-char " " %))
+                                           (str/join "\n"))
+                         :script/main-ns main-ns
+                         :script/jar cached-jar-path}
+          script-contents (selmer-util/without-escaping
+                           (selmer/render local-jar-template-str template-opts))
+          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
+                                       {:nofollow-links true})]
+      (fs/copy file-path cached-jar-path {:replace-existing true})
+      (common/install-script script-name header script-file script-contents cli-opts)))
+
+  (upgrade [_]
+    (p/install (map->LocalJar {:cli-opts {:script/lib (:bbin/url coords)}
+                               :coords coords})))
 
   (uninstall [_]
     (common/delete-files cli-opts)))

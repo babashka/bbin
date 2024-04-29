@@ -1,6 +1,10 @@
 (ns babashka.bbin.gen-script
-  (:require [clojure.edn :as edn]
+  (:require [babashka.fs :as fs]
+            [clojure.edn :as edn]
             [clojure.string :as str]
+            [clojure.tools.namespace.dependency :as ns-dep]
+            [clojure.tools.namespace.file :as ns-file]
+            [clojure.tools.namespace.track :as ns-track]
             [fipp.edn :as fipp]))
 
 (def bbin-deps (some-> (slurp "deps.edn") edn/read-string :deps))
@@ -44,26 +48,27 @@
             (if (str/ends-with? version "-SNAPSHOT") "main" (str "v" version))
             (str/join "\n" (cons (first lines) (map #(str "          " %) (rest lines)))))))
 
+(defn sorted-namespaces [path]
+  (->> (file-seq (fs/file path))
+       (filter ns-file/clojure-file?)
+       (ns-file/add-files {})
+       ::ns-track/deps
+       ns-dep/topo-sort))
+
+(defn ns-sym->path [ns-sym]
+  (let [parts (str/split (str/replace ns-sym "-" "_") #"\.")
+        path-vec (concat ["src"]
+                         (butlast parts)
+                         [(str (last parts) ".clj")])]
+    (apply fs/path path-vec)))
+
 (def all-scripts
-  [prelude-str
-   meta-str
-   (slurp "src/babashka/bbin/dirs.clj")
-   (slurp "src/babashka/bbin/protocols.clj")
-   (slurp "src/babashka/bbin/specs.clj")
-   (slurp "src/babashka/bbin/util.clj")
-   (slurp "src/babashka/bbin/git.clj")
-   (slurp "src/babashka/bbin/deps.clj")
-   (slurp "src/babashka/bbin/scripts/common.clj")
-   (slurp "src/babashka/bbin/scripts/git_dir.clj")
-   (slurp "src/babashka/bbin/scripts/http_file.clj")
-   (slurp "src/babashka/bbin/scripts/http_jar.clj")
-   (slurp "src/babashka/bbin/scripts/local_dir.clj")
-   (slurp "src/babashka/bbin/scripts/local_file.clj")
-   (slurp "src/babashka/bbin/scripts/local_jar.clj")
-   (slurp "src/babashka/bbin/scripts/maven_jar.clj")
-   (slurp "src/babashka/bbin/scripts.clj")
-   (slurp "src/babashka/bbin/migrate.clj")
-   (slurp "src/babashka/bbin/cli.clj")])
+  (concat
+   [prelude-str
+    meta-str]
+   (->> (sorted-namespaces "src")
+        (filter #(str/starts-with? % "babashka.bbin"))
+        (map #(slurp (str (ns-sym->path %)))))))
 
 (defn gen-script []
   (spit "bbin" (str/join "\n" all-scripts)))

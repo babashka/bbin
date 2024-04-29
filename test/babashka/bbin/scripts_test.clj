@@ -170,7 +170,7 @@
                out))
         (is (fs/exists? (fs/file (dirs/bin-dir nil) "foo")))))))
 
-(deftest invalid-bin-config-test
+(deftest ^:focus invalid-bin-config-test
   (testing "install */* --local/root * (invalid bin config)"
     (reset-test-dir)
     (dirs/ensure-bbin-dirs {})
@@ -181,7 +181,7 @@
       (spit (fs/file local-root "deps.edn") (pr-str {}))
       (let [cli-opts {:script/lib "babashka/foo"
                       :local/root local-root}]
-        (is (thrown-with-msg? ExceptionInfo #"Spec failed"
+        (is (thrown-with-msg? ExceptionInfo #"123 - failed: map\? spec: :bbin/bin"
                               (run-install cli-opts)))))))
 
 (deftest install-from-no-lib-local-root-dir-test
