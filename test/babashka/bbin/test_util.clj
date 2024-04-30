@@ -1,11 +1,15 @@
 (ns babashka.bbin.test-util
   (:require [babashka.bbin.cli :as bbin]
             [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.scripts :as scripts]
+            [babashka.bbin.util :as util]
             [babashka.fs :as fs]
+            [babashka.process :as p]
             [clojure.edn :as edn]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [clojure.test :as test]))
 
-(defmethod clojure.test/report :begin-test-var [m]
+(defmethod test/report :begin-test-var [m]
   (println "===" (-> m :var meta :name))
   (println))
 
@@ -49,3 +53,20 @@
     (if (#{:edn} (:out opts))
       (edn/read-string out)
       out)))
+
+(defn run-install [cli-opts]
+  (some-> (with-out-str (scripts/install (assoc cli-opts :edn true)))
+          edn/read-string))
+
+(defn run-ls []
+  (some-> (with-out-str (scripts/ls {:edn true}))
+          edn/read-string))
+
+(defn exec-cmd-line [script-name]
+  (concat (when util/windows? ["cmd" "/c"])
+          [(str (fs/canonicalize (fs/file (dirs/bin-dir nil) (name script-name)) {:nofollow-links true}))]))
+
+(defn run-bin-script [script-name & script-args]
+  (let [args (concat (exec-cmd-line script-name) script-args)
+        {:keys [out]} (p/sh args {:err :inherit})]
+    (str/trim out)))
