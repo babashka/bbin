@@ -3,8 +3,7 @@
             [babashka.bbin.dirs :as dirs]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
-            [clojure.string :as str]
-            [clojure.test :as test]))
+            [clojure.string :as str]))
 
 (defmethod clojure.test/report :begin-test-var [m]
   (println "===" (-> m :var meta :name))
@@ -50,12 +49,3 @@
     (if (#{:edn} (:out opts))
       (edn/read-string out)
       out)))
-
-(defn use-fixtures
-  "A wrapper for `use-fixtures` to fix an issue with Kaocha."
-  [type & fixtures]
-  (let [k (case type
-            :once ::test/once-fixtures
-            :each ::test/each-fixtures)]
-    (apply test/use-fixtures type fixtures)
-    (alter-meta! *ns* assoc k fixtures)))
