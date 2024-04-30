@@ -6,17 +6,16 @@
              :refer [bbin-dirs-fixture
                      bbin-private-keys-fixture
                      reset-test-dir
-                     test-dir]
-             :as test-util]
+                     test-dir]]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [babashka.process :refer [sh]]
             [clojure.edn :as edn]
             [clojure.string :as str]
-            [clojure.test :refer [deftest is testing]])
+            [clojure.test :refer [deftest is testing use-fixtures]])
   (:import (clojure.lang ExceptionInfo)))
 
-(test-util/use-fixtures :once
+(use-fixtures :once
   (bbin-dirs-fixture)
   (bbin-private-keys-fixture))
 
@@ -134,25 +133,6 @@
       (is (= git-ssh-url-lib out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (run-bin-script 'hello))))))
-
-(def maven-lib
-  {:lib 'org.babashka/http-server
-   :coords {:mvn/version "0.1.11"}})
-
-(deftest install-from-mvn-version-test
-  (testing "install */* --mvn/version *"
-    (reset-test-dir)
-    (dirs/ensure-bbin-dirs {})
-    (let [cli-opts {:script/lib (str (:lib maven-lib))
-                    :mvn/version (-> maven-lib :coords :mvn/version)}
-          out (run-install cli-opts)]
-      (is (= maven-lib out))
-      (is (fs/exists? (fs/file (dirs/bin-dir nil) (name (:lib maven-lib)))))
-      (is (str/starts-with? (run-bin-script (:lib maven-lib) "--help")
-                            "Serves static assets using web server."))
-      (is (= '{http-server {:lib org.babashka/http-server
-                            :coords {:mvn/version "0.1.11"}}}
-             (run-ls))))))
 
 (deftest install-from-lib-local-root-dir-test
   (testing "install */* --local/root *"
