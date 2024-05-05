@@ -58,6 +58,10 @@
   (some-> (with-out-str (scripts/install (assoc cli-opts :edn true)))
           edn/read-string))
 
+(defn run-upgrade [cli-opts]
+  (some-> (with-out-str (scripts/upgrade (assoc cli-opts :edn true)))
+          edn/read-string))
+
 (defn run-ls []
   (some-> (with-out-str (scripts/ls {:edn true}))
           edn/read-string))
