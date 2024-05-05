@@ -56,7 +56,7 @@
 
   (upgrade [_]
     (let [cli-opts' (merge (select-keys cli-opts [:edn])
-                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+                           {:script/lib (str/replace (:bbin/url coords) #"^file:(//|\\)" "")})]
       (p/install (map->LocalJar {:cli-opts cli-opts'
                                  :coords coords}))))
 

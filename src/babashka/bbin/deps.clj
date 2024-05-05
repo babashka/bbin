@@ -104,7 +104,7 @@
 
 (defn- local-script-path? [x]
   (boolean (and (string? x) (or (fs/exists? x)
-                                (fs/exists? (str/replace x #"^file://" ""))))))
+                                (fs/exists? (str/replace x #"^file:(//|\\)" ""))))))
 
 (defn- http-url? [x]
   (boolean (and (string? x) (re-seq #"^https?://" x))))
@@ -183,7 +183,7 @@
 
     (or (and (#{:local} procurer) (and (:script/lib cli-opts)
                                        (or (fs/regular-file? (:script/lib cli-opts))
-                                           (fs/regular-file? (str/replace (:script/lib cli-opts) #"^file://" "")))))
+                                           (fs/regular-file? (str/replace (:script/lib cli-opts) #"^file:(//|\\)" "")))))
         (and (#{:http} procurer) (re-seq #"\.(cljc?|bb)$" (:script/lib cli-opts))))
     :file
 
