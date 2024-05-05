@@ -55,8 +55,10 @@
       (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
-    (p/install (map->LocalJar {:cli-opts {:script/lib (:bbin/url coords)}
-                               :coords coords})))
+    (let [cli-opts' (merge (select-keys cli-opts [:edn])
+                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+      (p/install (map->LocalJar {:cli-opts cli-opts'
+                                 :coords coords}))))
 
   (uninstall [_]
     (common/delete-files cli-opts)))
