@@ -3,6 +3,7 @@
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.tools.gitlibs.impl :as gitlibs-impl]))
 
 (def lib-opts->template-deps-fn
@@ -102,7 +103,8 @@
   (boolean (and (string? x) (re-seq symbol-regex x))))
 
 (defn- local-script-path? [x]
-  (boolean (and (string? x) (fs/exists? x))))
+  (boolean (and (string? x) (or (fs/exists? x)
+                                (fs/exists? (str/replace x #"^file://" ""))))))
 
 (defn- http-url? [x]
   (boolean (and (string? x) (re-seq #"^https?://" x))))
@@ -180,7 +182,8 @@
     :dir
 
     (or (and (#{:local} procurer) (and (:script/lib cli-opts)
-                                       (fs/regular-file? (:script/lib cli-opts))))
+                                       (or (fs/regular-file? (:script/lib cli-opts))
+                                           (fs/regular-file? (str/replace (:script/lib cli-opts) #"^file://" "")))))
         (and (#{:http} procurer) (re-seq #"\.(cljc?|bb)$" (:script/lib cli-opts))))
     :file
 
