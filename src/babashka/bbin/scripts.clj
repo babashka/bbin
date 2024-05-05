@@ -113,7 +113,7 @@
           [:http :file] (map->HttpFile {:cli-opts cli-opts :coords (:coords parsed)})
           [:http :jar] (map->HttpJar {:cli-opts cli-opts :coords (:coords parsed)})
           [:local :dir] (map->LocalDir {:cli-opts cli-opts :summary summary})
-          [:local :file] (map->LocalFile {:cli-opts cli-opts})
+          [:local :file] (map->LocalFile {:cli-opts cli-opts :coords (:coords parsed)})
           [:local :jar] (map->LocalJar {:cli-opts cli-opts})
           (throw-invalid-script summary cli-opts)))
 

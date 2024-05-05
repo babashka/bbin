@@ -198,6 +198,7 @@ WARNING: (We won't make any changes without asking you first.)
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.set :as set]
+            [clojure.string :as str]
             [clojure.tools.gitlibs.impl :as gitlibs-impl]))
 
 (def lib-opts->template-deps-fn
@@ -297,7 +298,8 @@ WARNING: (We won't make any changes without asking you first.)
   (boolean (and (string? x) (re-seq symbol-regex x))))
 
 (defn- local-script-path? [x]
-  (boolean (and (string? x) (fs/exists? x))))
+  (boolean (and (string? x) (or (fs/exists? x)
+                                (fs/exists? (str/replace x #"^file://" ""))))))
 
 (defn- http-url? [x]
   (boolean (and (string? x) (re-seq #"^https?://" x))))
@@ -375,7 +377,8 @@ WARNING: (We won't make any changes without asking you first.)
     :dir
 
     (or (and (#{:local} procurer) (and (:script/lib cli-opts)
-                                       (fs/regular-file? (:script/lib cli-opts))))
+                                       (or (fs/regular-file? (:script/lib cli-opts))
+                                           (fs/regular-file? (str/replace (:script/lib cli-opts) #"^file://" "")))))
         (and (#{:http} procurer) (re-seq #"\.(cljc?|bb)$" (:script/lib cli-opts))))
     :file
 
@@ -1367,7 +1370,8 @@ WARNING: (We won't make any changes without asking you first.)
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
-            [babashka.fs :as fs]))
+            [babashka.fs :as fs]
+            [clojure.string :as str]))
 
 (defrecord LocalFile [cli-opts coords]
   p/Script
@@ -1383,8 +1387,10 @@ WARNING: (We won't make any changes without asking you first.)
       (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
-    (p/install (map->LocalFile {:cli-opts {:script/lib (:bbin/url coords)}
-                                :coords coords})))
+    (let [cli-opts' (merge (select-keys cli-opts [:edn])
+                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+      (p/install (map->LocalFile {:cli-opts cli-opts'
+                                  :coords coords}))))
 
   (uninstall [_]
     (common/delete-files cli-opts)))
@@ -1567,7 +1573,7 @@ WARNING: (We won't make any changes without asking you first.)
           [:http :file] (map->HttpFile {:cli-opts cli-opts :coords (:coords parsed)})
           [:http :jar] (map->HttpJar {:cli-opts cli-opts :coords (:coords parsed)})
           [:local :dir] (map->LocalDir {:cli-opts cli-opts :summary summary})
-          [:local :file] (map->LocalFile {:cli-opts cli-opts})
+          [:local :file] (map->LocalFile {:cli-opts cli-opts :coords (:coords parsed)})
           [:local :jar] (map->LocalJar {:cli-opts cli-opts})
           (throw-invalid-script summary cli-opts)))
 
