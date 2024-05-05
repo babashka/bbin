@@ -6,8 +6,12 @@
             [babashka.fs :as fs]
             [babashka.process :as p]
             [clojure.edn :as edn]
+            [clojure.java.io :as io]
             [clojure.string :as str]
-            [clojure.test :as test]))
+            [clojure.test :as test]
+            [org.httpkit.server :as http]
+            [ring.util.mime-type :as mime-type])
+  (:import (java.net ServerSocket)))
 
 (defmethod test/report :begin-test-var [m]
   (println "===" (-> m :var meta :name))
@@ -17,9 +21,16 @@
   (let [path (str (fs/file (fs/temp-dir) "bbin-test"))]
     (fs/delete-tree path)
     (fs/create-dirs path)
+    (fs/create-dirs (fs/file path "public"))
     (doto path (fs/delete-on-exit))))
 
+(defn- random-available-port []
+  (with-open [socket (ServerSocket. 0)]
+    (.getLocalPort socket)))
+
 (def test-dir (reset-test-dir))
+(def http-public-dir (fs/file test-dir "public"))
+(def http-port (random-available-port))
 
 (defn- relativize [original]
   (fs/file test-dir (fs/relativize (dirs/user-home) original)))
@@ -74,3 +85,24 @@
   (let [args (concat (exec-cmd-line script-name) script-args)
         {:keys [out]} (p/sh args {:err :inherit})]
     (str/trim out)))
+
+(defn- static-file-handler [{:keys [uri] :as _req} public-dir]
+  (let [file (io/file public-dir (subs uri 1))]
+    (if (fs/exists? file)
+      {:status 200
+       :headers {"Content-Type" (mime-type/ext-mime-type (str file))}
+       :body file}
+      {:status 404
+       :body "Not Found"})))
+
+(defn- start-http-server []
+  (http/run-server #(static-file-handler % http-public-dir)
+                   {:port http-port}))
+
+(defn http-server-fixture []
+  (fn [f]
+    (let [server (start-http-server)]
+      (try
+        (f)
+        (finally
+          (server))))))
