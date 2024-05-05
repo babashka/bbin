@@ -299,7 +299,7 @@ WARNING: (We won't make any changes without asking you first.)
 
 (defn- local-script-path? [x]
   (boolean (and (string? x) (or (fs/exists? x)
-                                (fs/exists? (str/replace x #"^file://" ""))))))
+                                (fs/exists? (str/replace x #"^file:(//|\\\\)" ""))))))
 
 (defn- http-url? [x]
   (boolean (and (string? x) (re-seq #"^https?://" x))))
@@ -378,7 +378,7 @@ WARNING: (We won't make any changes without asking you first.)
 
     (or (and (#{:local} procurer) (and (:script/lib cli-opts)
                                        (or (fs/regular-file? (:script/lib cli-opts))
-                                           (fs/regular-file? (str/replace (:script/lib cli-opts) #"^file://" "")))))
+                                           (fs/regular-file? (str/replace (:script/lib cli-opts) #"^file:(//|\\\\)" "")))))
         (and (#{:http} procurer) (re-seq #"\.(cljc?|bb)$" (:script/lib cli-opts))))
     :file
 
@@ -1392,7 +1392,7 @@ WARNING: (We won't make any changes without asking you first.)
 
   (upgrade [_]
     (let [cli-opts' (merge (select-keys cli-opts [:edn])
-                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+                           {:script/lib (str/replace (:bbin/url coords) #"^file:(//|\\\\)" "")})]
       (p/install (map->LocalFile {:cli-opts cli-opts'
                                   :coords coords}))))
 
@@ -1457,7 +1457,7 @@ WARNING: (We won't make any changes without asking you first.)
 
   (upgrade [_]
     (let [cli-opts' (merge (select-keys cli-opts [:edn])
-                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+                           {:script/lib (str/replace (:bbin/url coords) #"^file:(//|\\\\)" "")})]
       (p/install (map->LocalJar {:cli-opts cli-opts'
                                  :coords coords}))))
 
