@@ -48,9 +48,7 @@
   (let [vparse (requiring-resolve 'version-clj.core/parse)]
     (some (fn [version]
             (let [{:keys [qualifiers]} (vparse version)]
-              (when-not
-                  ;; assume all qualifiers indicate non-stable version
-               (some #{"rc" "alpha" "beta" "snapshot" "milestone"} qualifiers)
+              (when-not (some #{"rc" "alpha" "beta" "snapshot" "milestone"} qualifiers)
                 version)))
           versions)))
 
@@ -121,9 +119,11 @@
 
   (upgrade [_]
     (let [latest-version (or (latest-stable-clojars-version lib)
-                             (latest-stable-mvn-version lib))]
-      (p/install (map->MavenJar {:cli-opts {:script/lib (str lib)
-                                            :mvn/version latest-version}
+                             (latest-stable-mvn-version lib))
+          cli-opts' (merge (select-keys cli-opts [:edn])
+                           {:script/lib (str lib)
+                            :mvn/version latest-version})]
+      (p/install (map->MavenJar {:cli-opts cli-opts'
                                  :lib lib}))))
 
   (uninstall [_]
