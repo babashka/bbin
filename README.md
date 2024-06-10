@@ -216,7 +216,7 @@ To install a development version of bbin, first install bbin stable, then instal
 $ bbin install . --as bbin-dev --main-opts '["-m" babashka.bbin.cli/-main]'
 ```
 
-You can now run your developemnt copy of bbin with `bbin-dev`.
+You can now run your development copy of bbin with `bbin-dev`.
 Rebuilding is not required for `bbin-dev` installed this way, changes in Clojure source code is reflected instantly.
 
 ## Contributing
