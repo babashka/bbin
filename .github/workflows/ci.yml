@@ -51,9 +51,9 @@ jobs:
           unzip babashka-1.3.191-SNAPSHOT-windows-amd64.zip
           # overwrite installed bb with custom
           cp bb.exe "$(which bb)"
-      - name: bb test -v babashka.bbin.scripts.local-file-test/upgrade-local-file-test
+      - name: bb
         run: |
-          bb run test
+          bb run test -v babashka.bbin.scripts.local-file-test/upgrade-local-file-test
 
   bb-run-lint:
     runs-on: ubuntu-latest

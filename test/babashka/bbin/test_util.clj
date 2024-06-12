@@ -60,6 +60,8 @@
           edn/read-string))
 
 (defn run-upgrade [cli-opts]
+  (scripts/upgrade (assoc cli-opts :edn true))
+  (prn :yolo)
   (some-> (with-out-str (scripts/upgrade (assoc cli-opts :edn true)))
           edn/read-string))
 
