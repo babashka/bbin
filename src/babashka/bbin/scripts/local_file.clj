@@ -21,7 +21,6 @@
   (upgrade [_]
     (let [cli-opts' (merge (select-keys cli-opts [:edn])
                            {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
-      (prn :upgrading cli-opts')
       (p/install (map->LocalFile {:cli-opts cli-opts'
                                   :coords coords}))))
 
