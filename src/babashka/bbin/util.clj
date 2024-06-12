@@ -116,7 +116,7 @@
          (cond-> (assoc {} :bin bin)
            gurl  (assoc :location gurl)
            burl  (assoc :location burl)
-           lroot (assoc :location (str "file://" lroot))
+           lroot (assoc :location (str "file://" (fs/unixify lroot)))
            gsha  (assoc :version gsha)
            gtag  (assoc :version gtag)))
        scripts))
