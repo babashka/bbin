@@ -165,8 +165,10 @@
   (or (some #(deps-type-match? cli-opts %) deps-types)
       {:procurer :unknown-procurer}))
 
+(defn directory? [x]
+  (fs/directory? (str/replace x #"^file://" "")))
+
 (defn- match-artifact [cli-opts procurer]
-  (prn :cli-opts cli-opts :procurer procurer)
   (cond
     (or (#{:maven} procurer)
         (and (#{:local} procurer)
@@ -178,10 +180,8 @@
     (or (#{:git} procurer)
         (and (#{:local} procurer)
              (or (and (:script/lib cli-opts)
-                      (do (prn :script-lib (:script/lib cli-opts))
-                          (fs/directory? (:script/lib cli-opts)))
-                      (fs/directory? (:script/lib cli-opts)))
-                 (and (:local/root cli-opts) (fs/directory? (:local/root cli-opts)))))
+                      (directory? (:script/lib cli-opts)))
+                 (and (:local/root cli-opts) (directory? (:local/root cli-opts)))))
         (and (#{:http} procurer) (re-seq #"\.git$" (:script/lib cli-opts))))
     :dir
 
