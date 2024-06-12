@@ -55,6 +55,7 @@
       out)))
 
 (defn run-install [cli-opts]
+  (scripts/install (assoc cli-opts :edn true))
   (some-> (with-out-str (scripts/install (assoc cli-opts :edn true)))
           edn/read-string))
 
