@@ -177,7 +177,10 @@
 
     (or (#{:git} procurer)
         (and (#{:local} procurer)
-             (or (and (:script/lib cli-opts) (fs/directory? (:script/lib cli-opts)))
+             (or (and (:script/lib cli-opts)
+                      (do (prn :script-lib (:script/lib cli-opts))
+                          (fs/directory? (:script/lib cli-opts)))
+                      (fs/directory? (:script/lib cli-opts)))
                  (and (:local/root cli-opts) (fs/directory? (:local/root cli-opts)))))
         (and (#{:http} procurer) (re-seq #"\.git$" (:script/lib cli-opts))))
     :dir
