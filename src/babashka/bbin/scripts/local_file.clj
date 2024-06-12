@@ -8,8 +8,8 @@
 (defrecord LocalFile [cli-opts coords]
   p/Script
   (install [_]
-    (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
-          script-deps {:bbin/url (str "file://" (fs/unixify file-path))}
+    (let [file-path (str (fs/canonicalize (fs/unixify (:script/lib cli-opts)) {:nofollow-links true}))
+          script-deps {:bbin/url (str "file://" file-path)}
           header {:coords script-deps}
           script-name (or (:as cli-opts) (common/file-path->script-name file-path))
           script-contents (-> (slurp file-path)
@@ -21,6 +21,7 @@
   (upgrade [_]
     (let [cli-opts' (merge (select-keys cli-opts [:edn])
                            {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+      (prn :upgrading cli-opts')
       (p/install (map->LocalFile {:cli-opts cli-opts'
                                   :coords coords}))))
 
