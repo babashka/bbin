@@ -136,6 +136,7 @@
   (if-not (:script/lib cli-opts)
     (util/print-help)
     (do
+      (prn :upgrade cli-opts)
       (dirs/ensure-bbin-dirs cli-opts)
       (let [script (load-script cli-opts)]
         (p/upgrade script)))))
