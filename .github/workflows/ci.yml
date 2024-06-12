@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           # bb -e '(fs/directory? "file:///c:/dude")'
-          bb run test -v babashka.bbin.scripts.local-file-test/upgrade-local-file-test
+          bb run test
 
   bb-run-lint:
     runs-on: ubuntu-latest
