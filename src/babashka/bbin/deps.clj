@@ -168,6 +168,9 @@
 (defn directory? [x]
   (fs/directory? (str/replace x #"^file://" "")))
 
+(defn regular-file? [x]
+  (fs/regular-file? (str/replace x #"^file://" "")))
+
 (defn- match-artifact [cli-opts procurer]
   (cond
     (or (#{:maven} procurer)
@@ -186,8 +189,7 @@
     :dir
 
     (or (and (#{:local} procurer) (and (:script/lib cli-opts)
-                                       (or (fs/regular-file? (:script/lib cli-opts))
-                                           (fs/regular-file? (str/replace (:script/lib cli-opts) #"^file://" "")))))
+                                       (regular-file? (:script/lib cli-opts))))
         (and (#{:http} procurer) (re-seq #"\.(cljc?|bb)$" (:script/lib cli-opts))))
     :file
 
