@@ -296,7 +296,7 @@
         coords (val (first script-deps))
         header (merge {:coords coords} (when-not (#{::no-lib} lib) {:lib lib}))
         header' (if (#{::no-lib} lib)
-                  {:coords {:bbin/url (str "file://" (get-in header [:coords :local/root]))}}
+                  {:coords {:bbin/url (str "file://" (fs/unixify (get-in header [:coords :local/root])))}}
                   header)
         _ (when-not (#{::no-lib} lib)
             (deps/add-deps {:deps script-deps}))
