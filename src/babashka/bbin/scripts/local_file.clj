@@ -8,7 +8,7 @@
 (defrecord LocalFile [cli-opts coords]
   p/Script
   (install [_]
-    (let [file-path (str (fs/canonicalize (fs/unixify (:script/lib cli-opts)) {:nofollow-links true}))
+    (let [file-path (str (fs/unixify (fs/canonicalize (fs/unixify (:script/lib cli-opts)) {:nofollow-links true})))
           script-deps {:bbin/url (str "file://" file-path)}
           header {:coords script-deps}
           script-name (or (:as cli-opts) (common/file-path->script-name file-path))
