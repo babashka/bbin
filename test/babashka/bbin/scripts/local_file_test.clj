@@ -83,7 +83,7 @@
     (tu/reset-test-dir)
     (dirs/ensure-bbin-dirs {})
     (let [script-file (fs/file tu/test-dir "hello.clj")
-          script-url (str "file://" script-file)]
+          script-url (str "file://" (fs/unixify script-file))]
       (spit script-file "#!/usr/bin/env bb\n(println \"Hello world\")")
       (tu/run-install {:script/lib (str script-file)})
       (is (= "Hello world" (tu/run-bin-script :hello)))
