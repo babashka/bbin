@@ -138,11 +138,8 @@
   (if-not (:script/lib cli-opts)
     (util/print-help)
     (do
-      (prn :upgrade cli-opts)
       (dirs/ensure-bbin-dirs cli-opts)
-      (prn :load-script)
       (let [script (load-script cli-opts)]
-        (prn :script script)
         (p/upgrade script)))))
 
 (defn uninstall [cli-opts]
