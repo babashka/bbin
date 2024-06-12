@@ -103,9 +103,7 @@
 (defn- load-script [cli-opts]
   (let [script-name (:script/lib cli-opts)
         script-file (fs/file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true}))
-        _ (prn :sfffff script-file)
         parsed (parse-script (read-header script-file))]
-    (prn :parsed parsed)
     (cond
       (-> parsed :coords :bbin/url)
       (let [summary (bbin-deps/summary {:script/lib (-> parsed :coords :bbin/url)})
