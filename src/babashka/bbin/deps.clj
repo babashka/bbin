@@ -190,7 +190,9 @@
     :else :unknown-artifact))
 
 (defn summary [cli-opts]
-  (let [{:keys [procurer]} (match-deps-type cli-opts)
-        artifact (match-artifact cli-opts procurer)]
-    {:procurer procurer
-     :artifact artifact}))
+  (prn :summary)
+  (doto (let [{:keys [procurer]} (match-deps-type cli-opts)
+             artifact (match-artifact cli-opts procurer)]
+         {:procurer procurer
+          :artifact artifact})
+    prn))
