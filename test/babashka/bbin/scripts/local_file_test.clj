@@ -88,7 +88,7 @@
       (tu/run-install {:script/lib (str script-file)})
       (is (= "Hello world" (tu/run-bin-script :hello)))
       (spit script-file "#!/usr/bin/env bb\n(println \"Upgraded\")")
-      #_(let [out (tu/run-upgrade {:script/lib "hello"})]
+      (let [out (tu/run-upgrade {:script/lib "hello"})]
         (is (= {:coords {:bbin/url (str "file://" (fs/unixify script-file))}} out))
-        (is (= "Upgraded" (tu/run-bin-script :hello)))
+        #_#_(is (= "Upgraded" (tu/run-bin-script :hello)))
         (is (= {'hello {:coords {:bbin/url script-url}}} (tu/run-ls)))))))
