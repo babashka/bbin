@@ -166,7 +166,7 @@
       {:procurer :unknown-procurer}))
 
 (defn- match-artifact [cli-opts procurer]
-  (prn :cli-opts cli-opts)
+  (prn :cli-opts cli-opts :procurer procurer)
   (cond
     (or (#{:maven} procurer)
         (and (#{:local} procurer)
