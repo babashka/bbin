@@ -9,7 +9,7 @@
   p/Script
   (install [_]
     (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
-          script-deps {:bbin/url (str "file://" file-path)}
+          script-deps {:bbin/url (str "file://" (fs/unixify file-path))}
           header {:coords script-deps}
           script-name (or (:as cli-opts) (common/file-path->script-name file-path))
           script-contents (-> (slurp file-path)
