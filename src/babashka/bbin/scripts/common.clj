@@ -242,7 +242,22 @@
         script-main-opts-first script-main-opts-second
         \"--\"])
 
-(process/exec (into base-command *command-line-args*))
+(def script-deps-file
+  (cond (fs/exists? (fs/file script-root \"deps.edn\"))
+        (fs/file (fs/file script-root \"deps.edn\"))
+
+        (fs/exists? (fs/file script-root \"bb.edn\"))
+        (fs/file (fs/file script-root \"bb.edn\"))
+
+        :else nil))
+
+(def new-base-command
+  (when script-deps-file
+    [\"bb\" \"--config\" (str script-deps-file)
+     script-main-opts-first script-main-opts-second
+     \"--\"]))
+
+(process/exec (into (or new-base-command base-command) *command-line-args*))
 "))
 
 (def ^:private git-or-local-template-str
