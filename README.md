@@ -208,6 +208,17 @@ If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo w
 
 ---
 
+## Dev
+
+To install a development version of bbin, first install bbin stable, then install bbin with bbin.
+
+```
+$ bbin install . --as bbin-dev --main-opts '["-m" babashka.bbin.cli/-main]'
+```
+
+You can now run your development copy of bbin with `bbin-dev`.
+Rebuilding is not required for `bbin-dev` installed this way, changes in Clojure source code is reflected instantly.
+
 ## Contributing
 
 If you'd like to contribute to `bbin`, you're welcome to create [issues for ideas, feature requests, and bug reports](https://github.com/babashka/bbin/issues).
