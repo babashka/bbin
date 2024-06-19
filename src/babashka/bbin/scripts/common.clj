@@ -243,11 +243,11 @@
         \"--\"])
 
 (def script-deps-file
-  (cond (fs/exists? (fs/file script-root \"deps.edn\"))
-        (fs/file (fs/file script-root \"deps.edn\"))
-
-        (fs/exists? (fs/file script-root \"bb.edn\"))
+  (cond (fs/exists? (fs/file script-root \"bb.edn\"))
         (fs/file (fs/file script-root \"bb.edn\"))
+
+        (fs/exists? (fs/file script-root \"deps.edn\"))
+        (fs/file (fs/file script-root \"deps.edn\"))
 
         :else nil))
 
