@@ -214,7 +214,7 @@
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
-(def ^:private local-dir-template-str
+(def local-dir-template-str
   (str/trim "
 #!/usr/bin/env bb
 
