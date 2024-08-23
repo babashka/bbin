@@ -43,7 +43,7 @@
   (->> (file-seq dir)
        (filter #(.isFile %))
        (map (fn [x] [(symbol (str (fs/relativize dir x)))
-                     (parse-script (read-header x))]))
+                     (some-> (read-header x) (parse-script ))]))
        (filter second)
        (into {})))
 
