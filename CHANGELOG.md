@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- [Fix #88: NPE when using `bbin ls` in dirs with zero-length files](https://github.com/babashka/bbin/issues/88)
+
 ## 0.2.3
 
 - [Fix error in compiled script when installing from Homebrew (again)](https://github.com/babashka/bbin/commit/f0a3096a1e57408af77eed35f86a3d71cccccb07)
