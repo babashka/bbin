@@ -33,17 +33,18 @@
          edn/read-string)))
 
 (defn- read-header [filename]
-  (with-open [input-stream (io/input-stream filename)]
-    (let [buffer (byte-array (* 1024 5))
-          n (.read input-stream buffer)]
-      (when (nat-int? n)
-        (String. buffer 0 n)))))
+  (or (with-open [input-stream (io/input-stream filename)]
+        (let [buffer (byte-array (* 1024 5))
+              n (.read input-stream buffer)]
+          (when (nat-int? n)
+            (String. buffer 0 n))))
+      ""))
 
 (defn load-scripts [dir]
   (->> (file-seq dir)
        (filter #(.isFile %))
        (map (fn [x] [(symbol (str (fs/relativize dir x)))
-                     (parse-script (read-header x))]))
+                     (-> (read-header x) (parse-script ))]))
        (filter second)
        (into {})))
 
