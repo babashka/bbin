@@ -31,7 +31,7 @@ The Scoop package will automatically update your `Path` with `%HOMEDRIVE%%HOMEPA
 
 **1. Install `bbin` CLI:**
 ```shell
-mkdir -p ~/.local/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v0.2.3/bbin > ~/.local/bin/bbin && chmod +x ~/.local/bin/bbin
+mkdir -p ~/.local/bin && curl -o- -L https://raw.githubusercontent.com/babashka/bbin/v0.2.4-SNAPSHOT/bbin > ~/.local/bin/bbin && chmod +x ~/.local/bin/bbin
 ```
 
 **2. Add `~/.local/bin` to `PATH`:**
@@ -44,8 +44,8 @@ echo 'export PATH="$PATH:$HOME/.local/bin"' >> ~/.$(basename $SHELL)rc && exec $
 **1. Open Windows Powershell and run the following commands to install the `bbin` CLI (including `.bat` wrapper):**
 ```powershell
 New-Item -ItemType Directory -Force -Path $Env:HOMEDRIVE$Env:HOMEPATH\.local\bin
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v0.2.3/bbin -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.local\bin\bbin
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v0.2.3/bbin.bat -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.local\bin\bbin.bat
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v0.2.4-SNAPSHOT/bbin -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.local\bin\bbin
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/babashka/bbin/v0.2.4-SNAPSHOT/bbin.bat -OutFile $Env:HOMEDRIVE$Env:HOMEPATH\.local\bin\bbin.bat
 ```
 
 **2. Add `%HOMEDRIVE%%HOMEPATH%\.local\bin` to `Path` environment variable**
