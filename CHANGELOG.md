@@ -2,6 +2,14 @@
 
 [bbin](https://github.com/babashka/bbin): Install any Babashka script or project with one command
 
+<!-- Notes for publishing: -->
+
+<!-- - Update this changelog -->
+<!-- - Change version in `deps.edn :aliases :neil :project :version` -->
+<!-- - Run `bb gen-script` -->
+<!-- - Create tag -->
+<!-- - Go to https://github.com/babashka/homebrew-brew and run `bb update-bbin` and publish the new Formula -->
+
 ## 0.2.4
 
 - [Fix #88: NPE when using `bbin ls` in dirs with zero-length files](https://github.com/babashka/bbin/issues/88)
