@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.4
 
 - [Fix #88: NPE when using `bbin ls` in dirs with zero-length files](https://github.com/babashka/bbin/issues/88)
 
