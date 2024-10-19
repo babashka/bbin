@@ -1,7 +1,7 @@
 (ns babashka.bbin.scripts.http-jar
-  (:require [babashka.bbin.protocols :as p]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [babashka.http-client :as http]
@@ -54,14 +54,16 @@
                          :script/main-ns main-ns
                          :script/jar cached-jar-path}
           script-contents (selmer-util/without-escaping
-                            (selmer/render local-jar-template-str template-opts))
+                           (selmer/render local-jar-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
-    (p/install (map->HttpJar {:cli-opts {:script/lib (:bbin/url coords)}
-                              :coords coords})))
+    (let [cli-opts' (merge (select-keys cli-opts [:edn])
+                           {:script/lib (:bbin/url coords)})]
+      (p/install (map->HttpJar {:cli-opts cli-opts'
+                                :coords coords}))))
 
   (uninstall [_]
     (common/delete-files cli-opts)))

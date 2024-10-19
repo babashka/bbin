@@ -1,8 +1,9 @@
 (ns babashka.bbin.scripts.local-file
-  (:require [babashka.bbin.protocols :as p]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.dirs :as dirs]
-            [babashka.fs :as fs]))
+            [babashka.fs :as fs]
+            [clojure.string :as str]))
 
 (defrecord LocalFile [cli-opts coords]
   p/Script
@@ -18,8 +19,10 @@
       (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
-    (p/install (map->LocalFile {:cli-opts {:script/lib (:bbin/url coords)}
-                                :coords coords})))
+    (let [cli-opts' (merge (select-keys cli-opts [:edn])
+                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+      (p/install (map->LocalFile {:cli-opts cli-opts'
+                                  :coords coords}))))
 
   (uninstall [_]
     (common/delete-files cli-opts)))

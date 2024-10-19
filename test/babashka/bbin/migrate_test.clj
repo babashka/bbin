@@ -2,8 +2,8 @@
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.migrate :as migrate]
             [babashka.bbin.scripts :as scripts]
-            [babashka.bbin.test-util :refer [bbin-dirs-fixture
-                                             reset-test-dir test-dir]]
+            [babashka.bbin.test-util
+             :refer [bbin-dirs-fixture reset-test-dir test-dir]]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
@@ -42,7 +42,7 @@
         (fs/create-dirs (dirs/legacy-bin-dir))
         (binding [util/*now* (Instant/ofEpochSecond 123)]
           (let [parsed-script (scripts/parse-script
-                                (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
+                               (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
                 commands [[:printable-scripts {:scripts {'hello parsed-script}}]
                           [:found-scripts]
                           [:prompt-move]
@@ -64,7 +64,7 @@
         (with-out-str (scripts/install {:script/lib (str (fs/canonicalize test-script))}))
         (binding [util/*now* (Instant/ofEpochSecond 123)]
           (let [parsed-script (scripts/parse-script
-                                (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
+                               (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
                 commands-1 (filter identity
                                    [[:printable-scripts {:scripts {'hello parsed-script}}]
                                     [:found-scripts]
@@ -77,8 +77,8 @@
                                                  :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello.bat"))}])
                                     [:moving {:src (str (dirs/legacy-bin-dir))
                                               :dest (str (migrate/src-backup-path
-                                                           (dirs/legacy-bin-dir)
-                                                           (inst-ms (util/now))))}]
+                                                          (dirs/legacy-bin-dir)
+                                                          (inst-ms (util/now))))}]
                                     [:done]])
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
@@ -105,7 +105,7 @@
         (fs/copy (fs/file (dirs/legacy-bin-dir) "hello") (fs/file (dirs/xdg-bin-dir nil) "hello"))
         (binding [util/*now* (Instant/ofEpochSecond 123)]
           (let [parsed-script (scripts/parse-script
-                                (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
+                               (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
                 commands-1 [[:printable-scripts {:scripts {'hello parsed-script}}]
                             [:found-scripts]
                             [:prompt-move]
@@ -114,8 +114,8 @@
                             [:skipping {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))}]
                             [:moving {:src (str (dirs/legacy-bin-dir))
                                       :dest (str (migrate/src-backup-path
-                                                   (dirs/legacy-bin-dir)
-                                                   (inst-ms (util/now))))}]
+                                                  (dirs/legacy-bin-dir)
+                                                  (inst-ms (util/now))))}]
                             [:done]]
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
@@ -141,7 +141,7 @@
         (fs/copy (fs/file (dirs/legacy-bin-dir) "hello") (fs/file (dirs/xdg-bin-dir nil) "hello"))
         (binding [util/*now* (Instant/ofEpochSecond 123)]
           (let [parsed-script (scripts/parse-script
-                                (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
+                               (slurp (fs/file (dirs/legacy-bin-dir) "hello")))
                 commands-1 (filter identity
                                    [[:printable-scripts {:scripts {'hello parsed-script}}]
                                     [:found-scripts]
@@ -150,8 +150,8 @@
                                     [:migrating]
                                     [:copying {:src (str (fs/file (dirs/xdg-bin-dir nil) "hello"))
                                                :dest (str (fs/file (migrate/dest-backup-path
-                                                                     (dirs/legacy-bin-dir)
-                                                                     (inst-ms (util/now)))
+                                                                    (dirs/legacy-bin-dir)
+                                                                    (inst-ms (util/now)))
                                                                    "hello"))}]
                                     [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))
                                                :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello"))}]
@@ -162,12 +162,12 @@
                                                :dest (str (fs/file (dirs/xdg-jars-dir nil) "hello.jar"))}]
                                     [:moving {:src (str (dirs/legacy-bin-dir))
                                               :dest (str (migrate/src-backup-path
-                                                           (dirs/legacy-bin-dir)
-                                                           (inst-ms (util/now))))}]
+                                                          (dirs/legacy-bin-dir)
+                                                          (inst-ms (util/now))))}]
                                     [:moving {:src (str (dirs/legacy-jars-dir))
                                               :dest (str (migrate/src-backup-path
-                                                           (dirs/legacy-jars-dir)
-                                                           (inst-ms (util/now))))}]
+                                                          (dirs/legacy-jars-dir)
+                                                          (inst-ms (util/now))))}]
                                     [:done]])
                 commands-2 [[:up-to-date]]]
             (is (= commands-1

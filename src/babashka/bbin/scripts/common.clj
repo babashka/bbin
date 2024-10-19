@@ -1,13 +1,14 @@
 (ns babashka.bbin.scripts.common
-  (:require [babashka.fs :as fs]
-            [babashka.deps :as deps]
+  (:require [babashka.bbin.deps :as bbin-deps]
             [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.specs]
             [babashka.bbin.util :as util :refer [sh]]
+            [babashka.deps :as deps]
+            [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.main :as main]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
-            [rads.deps-info.infer :as deps-info-infer]
-            [rads.deps-info.summary :as deps-info-summary]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util])
   (:import (java.util.jar JarFile)))
@@ -25,8 +26,8 @@
                         ";"]
                        (map #(str "; " %)
                             (str/split-lines
-                              (with-out-str
-                                (util/pprint header))))
+                             (with-out-str
+                               (util/pprint header))))
                        [";"
                         "; :bbin/end"
                         ""])
@@ -43,9 +44,9 @@
 
 (defn http-url->script-name [http-url]
   (util/snake-case
-    (first
-      (str/split (last (str/split http-url #"/"))
-                 #"\."))))
+   (first
+    (str/split (last (str/split http-url #"/"))
+               #"\."))))
 
 (def windows-wrapper-extension ".bat")
 
@@ -96,15 +97,14 @@
       (fs/expand-home (str/join fs/file-separator [gitlibs-root "libs" (namespace lib) (name lib) (:git/sha coords)])))))
 
 (defn- load-bin-config [script-root]
-  (require 'babashka.bbin.specs)
   (let [bb-file (fs/file script-root "bb.edn")
         bb-edn (when (fs/exists? bb-file)
                  (some-> bb-file slurp edn/read-string))
         bin-config (:bbin/bin bb-edn)]
     (when bin-config
-      (if (util/valid? :bbin/bin bin-config)
+      (if (s/valid? :bbin/bin bin-config)
         bin-config
-        (throw (ex-info (util/explain-str :bbin/bin bin-config)
+        (throw (ex-info (s/explain-str :bbin/bin bin-config)
                         {:bbin/bin bin-config}))))))
 
 (defn default-script-config [cli-opts]
@@ -286,15 +286,15 @@
                       (and (#{:local} procurer) (not (:local/root cli-opts)))
                       {::no-lib {:local/root (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))}}
 
-                      (deps-info-summary/git-repo-url? (:script/lib cli-opts))
-                      (deps-info-infer/infer
-                        (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
-                                                :git/url (:script/lib cli-opts))
-                                (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
-                                (assoc :latest-sha true)))
+                      (bbin-deps/git-repo-url? (:script/lib cli-opts))
+                      (bbin-deps/infer
+                       (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
+                                      :git/url (:script/lib cli-opts))
+                         (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
+                         (assoc :latest-sha true)))
 
                       :else
-                      (deps-info-infer/infer (assoc cli-opts :lib (:script/lib cli-opts))))
+                      (bbin-deps/infer (assoc cli-opts :lib (:script/lib cli-opts))))
         lib (key (first script-deps))
         coords (val (first script-deps))
         header (merge {:coords coords} (when-not (#{::no-lib} lib) {:lib lib}))
@@ -340,11 +340,11 @@
         template-opts' (if tool-mode
                          (assoc template-opts :script/ns-default (:ns-default script-config))
                          (assoc template-opts :script/main-opts
-                                              [(first main-opts)
-                                               (if (= "-f" (first main-opts))
-                                                 (fs/canonicalize (fs/file script-root (second main-opts))
-                                                                  {:nofollow-links true})
-                                                 (second main-opts))]))
+                                [(first main-opts)
+                                 (if (= "-f" (first main-opts))
+                                   (fs/canonicalize (fs/file script-root (second main-opts))
+                                                    {:nofollow-links true})
+                                   (second main-opts))]))
         template-str (if tool-mode
                        (if (#{::no-lib} lib)
                          local-dir-tool-template-str
@@ -353,7 +353,7 @@
                          local-dir-template-str
                          git-or-local-template-str))
         template-out (selmer-util/without-escaping
-                       (selmer/render template-str template-opts'))
+                      (selmer/render template-str template-opts'))
         script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
     (install-script script-name header' script-file template-out cli-opts)))
 

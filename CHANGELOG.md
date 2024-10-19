@@ -1,5 +1,28 @@
 # Changelog
 
+[bbin](https://github.com/babashka/bbin): Install any Babashka script or project with one command
+
+<!-- Notes for publishing: -->
+
+<!-- - Update this changelog -->
+<!-- - Change version in `deps.edn :aliases :neil :project :version` -->
+<!-- - Run `bb gen-script` -->
+<!-- - Create tag -->
+<!-- - Go to https://github.com/babashka/homebrew-brew and run `bb update-bbin` and publish the new Formula -->
+
+## 0.2.4
+
+- [Fix #88: NPE when using `bbin ls` in dirs with zero-length files](https://github.com/babashka/bbin/issues/88)
+
+## 0.2.3
+
+- [Fix error in compiled script when installing from Homebrew (again)](https://github.com/babashka/bbin/commit/f0a3096a1e57408af77eed35f86a3d71cccccb07)
+
+## 0.2.2
+
+- [Fix #62: bbin ls is unnecessarily slow](https://github.com/babashka/bbin/issues/62)
+- [Fix #72: bbin install [LOCAL-FILE] should not be restricted to files with the .clj extension](https://github.com/babashka/bbin/issues/72)
+
 ## 0.2.1
 
 - [Fix error in compiled script when installing from Homebrew](https://github.com/babashka/bbin/commit/ba1749a3308744c9dcecc1f032214aeb109bb073)

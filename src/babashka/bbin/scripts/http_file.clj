@@ -1,6 +1,6 @@
 (ns babashka.bbin.scripts.http-file
-  (:require [babashka.bbin.protocols :as p]
-            [babashka.bbin.dirs :as dirs]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
             [babashka.fs :as fs]))
 
@@ -18,8 +18,10 @@
       (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
-    (p/install (map->HttpFile {:cli-opts {:script/lib (:bbin/url coords)}
-                               :coords coords})))
+    (let [cli-opts' (merge (select-keys cli-opts [:edn])
+                           {:script/lib (:bbin/url coords)})]
+      (p/install (map->HttpFile {:cli-opts cli-opts'
+                                 :coords coords}))))
 
   (uninstall [_]
     (common/delete-files cli-opts)))

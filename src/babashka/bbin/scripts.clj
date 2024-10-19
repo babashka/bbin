@@ -1,21 +1,22 @@
 (ns babashka.bbin.scripts
   (:require
-    [babashka.bbin.scripts.common :as common]
-    [babashka.bbin.util :as util]
-    [babashka.bbin.dirs :as dirs]
-    [babashka.bbin.protocols :as p]
-    [babashka.bbin.scripts.git-dir :refer [map->GitDir]]
-    [babashka.bbin.scripts.local-file :refer [map->LocalFile]]
-    [babashka.bbin.scripts.local-dir :refer [map->LocalDir]]
-    [babashka.bbin.scripts.http-file :refer [map->HttpFile]]
-    [babashka.bbin.scripts.http-jar :refer [map->HttpJar]]
-    [babashka.bbin.scripts.local-jar :refer [map->LocalJar]]
-    [babashka.bbin.scripts.maven-jar :refer [map->MavenJar]]
-    [babashka.fs :as fs]
-    [clojure.edn :as edn]
-    [clojure.string :as str]
-    [rads.deps-info.summary :as deps-info-summary]
-    [selmer.filters :as filters]))
+   [babashka.bbin.deps :as bbin-deps]
+   [babashka.bbin.dirs :as dirs]
+   [babashka.bbin.protocols :as p]
+   [babashka.bbin.scripts.common :as common]
+   [babashka.bbin.scripts.git-dir :refer [map->GitDir]]
+   [babashka.bbin.scripts.http-file :refer [map->HttpFile]]
+   [babashka.bbin.scripts.http-jar :refer [map->HttpJar]]
+   [babashka.bbin.scripts.local-dir :refer [map->LocalDir]]
+   [babashka.bbin.scripts.local-file :refer [map->LocalFile]]
+   [babashka.bbin.scripts.local-jar :refer [map->LocalJar]]
+   [babashka.bbin.scripts.maven-jar :refer [map->MavenJar]]
+   [babashka.bbin.util :as util]
+   [babashka.fs :as fs]
+   [clojure.edn :as edn]
+   [clojure.java.io :as io]
+   [clojure.string :as str]
+   [selmer.filters :as filters]))
 
 ;; selmer filter for clojure escaping for e.g. files
 (filters/add-filter! :pr-str (comp pr-str str))
@@ -31,14 +32,21 @@
          (str/join "\n")
          edn/read-string)))
 
+(defn- read-header [filename]
+  (or (with-open [input-stream (io/input-stream filename)]
+        (let [buffer (byte-array (* 1024 5))
+              n (.read input-stream buffer)]
+          (when (nat-int? n)
+            (String. buffer 0 n))))
+      ""))
+
 (defn load-scripts [dir]
   (->> (file-seq dir)
        (filter #(.isFile %))
        (map (fn [x] [(symbol (str (fs/relativize dir x)))
-                     (parse-script (slurp x))]))
+                     (-> (read-header x) (parse-script ))]))
        (filter second)
        (into {})))
-
 
 (defn ls [cli-opts]
   (let [scripts (load-scripts (dirs/bin-dir cli-opts))]
@@ -60,7 +68,7 @@
                      :artifact artifact}))))
 
 (defn- new-script [cli-opts]
-  (let [summary (deps-info-summary/summary cli-opts)
+  (let [summary (bbin-deps/summary cli-opts)
         {:keys [procurer artifact]} summary]
     (case [procurer artifact]
       [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary})
@@ -96,31 +104,31 @@
 (defn- load-script [cli-opts]
   (let [script-name (:script/lib cli-opts)
         script-file (fs/file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true}))
-        parsed (parse-script (slurp script-file))]
+        parsed (parse-script (read-header script-file))]
     (cond
       (-> parsed :coords :bbin/url)
-      (let [summary (deps-info-summary/summary {:script/lib (-> parsed :coords :bbin/url)})
+      (let [summary (bbin-deps/summary {:script/lib (-> parsed :coords :bbin/url)})
             {:keys [procurer artifact]} summary]
         (case [procurer artifact]
           [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)})
           [:http :file] (map->HttpFile {:cli-opts cli-opts :coords (:coords parsed)})
           [:http :jar] (map->HttpJar {:cli-opts cli-opts :coords (:coords parsed)})
           [:local :dir] (map->LocalDir {:cli-opts cli-opts :summary summary})
-          [:local :file] (map->LocalFile {:cli-opts cli-opts})
-          [:local :jar] (map->LocalJar {:cli-opts cli-opts})
+          [:local :file] (map->LocalFile {:cli-opts cli-opts :coords (:coords parsed)})
+          [:local :jar] (map->LocalJar {:cli-opts cli-opts :coords (:coords parsed)})
           (throw-invalid-script summary cli-opts)))
 
       (-> parsed :coords :mvn/version)
       (map->MavenJar {:cli-opts cli-opts :lib (:lib parsed)})
 
       (-> parsed :coords :git/tag)
-      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
-                                                :git/tag (-> parsed :coords :git/tag)})]
+      (let [summary (bbin-deps/summary {:script/lib (:lib parsed)
+                                        :git/tag (-> parsed :coords :git/tag)})]
         (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
 
       (-> parsed :coords :git/sha)
-      (let [summary (deps-info-summary/summary {:script/lib (:lib parsed)
-                                                :git/sha (-> parsed :coords :git/sha)})]
+      (let [summary (bbin-deps/summary {:script/lib (:lib parsed)
+                                        :git/sha (-> parsed :coords :git/sha)})]
         (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
 
       :else (default-script cli-opts))))

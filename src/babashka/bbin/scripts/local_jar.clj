@@ -1,7 +1,7 @@
 (ns babashka.bbin.scripts.local-jar
-  (:require [babashka.bbin.protocols :as p]
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [clojure.string :as str]
@@ -48,15 +48,17 @@
                          :script/main-ns main-ns
                          :script/jar cached-jar-path}
           script-contents (selmer-util/without-escaping
-                            (selmer/render local-jar-template-str template-opts))
+                           (selmer/render local-jar-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (fs/copy file-path cached-jar-path {:replace-existing true})
       (common/install-script script-name header script-file script-contents cli-opts)))
 
   (upgrade [_]
-    (p/install (map->LocalJar {:cli-opts {:script/lib (:bbin/url coords)}
-                               :coords coords})))
+    (let [cli-opts' (merge (select-keys cli-opts [:edn])
+                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+      (p/install (map->LocalJar {:cli-opts cli-opts'
+                                 :coords coords}))))
 
   (uninstall [_]
     (common/delete-files cli-opts)))

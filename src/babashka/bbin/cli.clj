@@ -1,9 +1,9 @@
 (ns babashka.bbin.cli
-  (:require [babashka.cli :as cli]
-            [babashka.bbin.scripts :as scripts]
-            [babashka.bbin.dirs :as dirs]
+  (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.migrate :as migrate]
+            [babashka.bbin.scripts :as scripts]
             [babashka.bbin.util :as util]
+            [babashka.cli :as cli]
             [clojure.string :as str]))
 
 (declare print-commands)
