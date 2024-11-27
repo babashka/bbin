@@ -2,8 +2,8 @@
   (:require [babashka.bbin.deps :as bbin-deps]
             [babashka.bbin.dirs :as dirs]
             [babashka.bbin.specs]
-            [babashka.bbin.util :as util :refer [sh]]
-            [babashka.deps :as deps]
+            [babashka.bbin.util :as util :refer [sh whenbb]]
+            ;; [babashka.deps :as deps]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.main :as main]
@@ -298,8 +298,9 @@
         header' (if (#{::no-lib} lib)
                   {:coords {:bbin/url (str "file://" (get-in header [:coords :local/root]))}}
                   header)
-        _ (when-not (#{::no-lib} lib)
-            (deps/add-deps {:deps script-deps}))
+        _ (whenbb (when-not (#{::no-lib} lib)
+                    ((requiring-resolve 'babashka.deps/add-deps)
+                     {:deps script-deps})))
         script-root (fs/canonicalize (or (get-in header [:coords :local/root])
                                          (local-lib-path script-deps))
                                      {:nofollow-links true})

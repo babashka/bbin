@@ -4,11 +4,17 @@
         com.taoensso/timbre {:mvn/version "5.2.1"}
         expound/expound {:mvn/version "0.9.0"}
         fipp/fipp {:mvn/version "0.6.26"}
+        http-kit/http-kit {:mvn/version "2.8.0"}
         org.babashka/cli {:mvn/version "0.6.43"}
         org.babashka/http-client {:mvn/version "0.1.8"}
         org.babashka/json {:mvn/version "0.1.1"}
         org.clojure/tools.gitlibs {:mvn/version "2.4.181"}
+        ring/ring-core {:mvn/version "1.13.0"}
         selmer/selmer {:mvn/version "1.12.55"}
         version-clj/version-clj {:mvn/version "2.0.2"}}
  :aliases {:neil {:project {:name babashka/bbin
-                            :version "0.2.4"}}}}
+                            :version "0.2.4"}}
+           :dev {:extra-paths ["test" "test-resources" "dev"]
+                 :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}
+           :kaocha {:extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
+                    :main-opts ["-m" "kaocha.runner"]}}}
