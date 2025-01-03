@@ -14,7 +14,4 @@
         version-clj/version-clj {:mvn/version "2.0.2"}}
  :aliases {:neil {:project {:name babashka/bbin
                             :version "0.2.4"}}
-           :dev {:extra-paths ["test" "test-resources" "dev"]
-                 :extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}}
-           :kaocha {:extra-deps {lambdaisland/kaocha {:mvn/version "1.91.1392"}}
-                    :main-opts ["-m" "kaocha.runner"]}}}
+           :dev {:extra-paths ["test" "test-resources" "dev"]}}}
