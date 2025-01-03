@@ -55,6 +55,21 @@ jobs:
         run: |
           bb run test
 
+  clj-run-test-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bb-version: [1.3.190, latest]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@9.4
+        with:
+          bb: ${{ matrix.bb-version }}
+      - run: bb run test:clj
+
   bb-run-lint:
     runs-on: ubuntu-latest
     strategy:
