@@ -3,7 +3,6 @@
             [babashka.bbin.dirs :as dirs]
             [babashka.bbin.specs]
             [babashka.bbin.util :as util :refer [sh whenbb]]
-            ;; [babashka.deps :as deps]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.main :as main]
