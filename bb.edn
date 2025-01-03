@@ -3,8 +3,7 @@
  :pods {org.babashka/fswatcher {:version "0.0.3"}}
  :deps {org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
                                  :git/sha "951b49b8c173244e66443b8188e3ff928a0a71e7"}
-        local/deps {:local/root "."}
-        com.lambdaisland/launchpad {:mvn/version "0.33.149-alpha"}}
+        local/deps {:local/root "."}}
  :bbin/bin {bbin {:main-opts ["-f" "bbin"]}}
  :tasks {bbin {:requires ([babashka.bbin.cli :as bbin])
                :task (apply bbin/-main *command-line-args*)}
@@ -23,8 +22,6 @@
                                   {:mvn/version "1.5.0"}}
                      :requires ([babashka.bbin.gen-script :as gen-script])
                      :task (gen-script/gen-script)}
-         launchpad {:requires ([lambdaisland.launchpad :as launchpad])
-                    :task (launchpad/main {})}
          lint (shell "clj-kondo --lint .")
          render-templates {:requires ([clojure.string :as str]
                                       [clojure.edn :as edn]
