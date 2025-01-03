@@ -7,6 +7,9 @@
  :bbin/bin {bbin {:main-opts ["-f" "bbin"]}}
  :tasks {bbin {:requires ([babashka.bbin.cli :as bbin])
                :task (apply bbin/-main *command-line-args*)}
+         dev {:doc "Starts watcher to auto-build bbin script"
+              :requires ([babashka.bbin.dev :as dev])
+              :task (dev/dev)}
          ci {:doc "Run all CI tasks locally"
              :requires ([taoensso.timbre :as log])
              :task (do
@@ -14,15 +17,17 @@
                      (run 'lint)
                      (log/info "bb run test")
                      (run 'test))}
-         dev {:doc "Starts watcher to auto-build bbin script"
-              :requires ([babashka.bbin.dev :as dev])
-              :task (dev/dev)}
+         lint (shell "clj-kondo --lint .")
+         test {:depends [gen-script]
+               :extra-deps {io.github.cognitect-labs/test-runner
+                            {:git/tag "v0.5.1" :git/sha "dfb30dd"}
+                            ring/ring-core {:mvn/version "1.12.1"}}
+               :task cognitect.test-runner/-main}
          gen-script {:doc "Build the bbin script"
                      :extra-deps {org.clojure/tools.namespace
                                   {:mvn/version "1.5.0"}}
                      :requires ([babashka.bbin.gen-script :as gen-script])
                      :task (gen-script/gen-script)}
-         lint (shell "clj-kondo --lint .")
          render-templates {:requires ([clojure.string :as str]
                                       [clojure.edn :as edn]
                                       [selmer.parser :as p]
@@ -36,10 +41,4 @@
                                    (without-escaping
                                      (->> (p/render (slurp "templates/README.template.md")
                                                     {:version version})
-                                          (spit "README.md"))))}
-         test {:depends [gen-script]
-               :extra-deps {io.github.cognitect-labs/test-runner
-                            {:git/tag "v0.5.1" :git/sha "dfb30dd"}
-                            ring/ring-core {:mvn/version "1.12.1"}}
-               :task cognitect.test-runner/-main}
-         ,}}
+                                          (spit "README.md"))))}}}
