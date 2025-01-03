@@ -1,6 +1,6 @@
 (ns babashka.bbin.dev
   (:require [babashka.process :refer [sh]]
-            [clojure.core.async :as async :refer [<!]]
+            [clojure.core.async :refer [<!] :as async]
             [clojure.string :as str]
             [pod.babashka.fswatcher :as fw]
             [taoensso.timbre :as log]))
