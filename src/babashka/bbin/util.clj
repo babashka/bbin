@@ -323,8 +323,3 @@
 (defmacro whenbb [& forms]
   (when (System/getProperty "babashka.version")
     `(do ~@forms)))
-
-(defmacro ifbb [then else]
-  (if (System/getProperty "babashka.version")
-    then
-    else))
