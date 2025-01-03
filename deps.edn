@@ -8,7 +8,6 @@
         org.babashka/http-client {:mvn/version "0.1.8"}
         org.babashka/json {:mvn/version "0.1.1"}
         org.clojure/tools.gitlibs {:mvn/version "2.4.181"}
-        ring/ring-core {:mvn/version "1.13.0"}
         selmer/selmer {:mvn/version "1.12.55"}
         version-clj/version-clj {:mvn/version "2.0.2"}}
  :aliases {:neil {:project {:name babashka/bbin

@@ -17,7 +17,6 @@
            org.babashka/http-client {:mvn/version "0.1.8"},
            version-clj/version-clj {:mvn/version "2.0.2"},
            babashka/fs {:mvn/version "0.3.17"},
-           ring/ring-core {:mvn/version "1.13.0"},
            org.babashka/json {:mvn/version "0.1.1"}}})
 
 (ns babashka.bbin.meta)
