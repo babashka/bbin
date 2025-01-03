@@ -1,7 +1,6 @@
 (ns babashka.bbin.scripts.local-dir-test
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.test-util :as tu]
-            [babashka.bbin.util :refer [whenbb]]
             [babashka.fs :as fs]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing use-fixtures]])
