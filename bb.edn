@@ -23,7 +23,7 @@
                             http-kit/http-kit {:mvn/version "2.8.0"}
                             ring/ring-core {:mvn/version "1.13.0"}}
                :task cognitect.test-runner/-main}
-         test:clj (clojure "-M:test")
+         test:clj (apply clojure "-M:test" *command-line-args*)
          gen-script {:doc "Build the bbin script"
                      :extra-deps {org.clojure/tools.namespace {:mvn/version "1.5.0"}}
                      :requires ([babashka.bbin.gen-script :as gen-script])
