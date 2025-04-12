@@ -104,7 +104,7 @@ $ bbin bin
 ## Docs
 
 - [CLI Docs](#cli)
-- [FAQ](docs/faq.md)
+- [Packaging](docs/packaging.md)
 - [Design Docs](docs/design.md)
 - [Community Scripts and Projects](https://github.com/babashka/bbin/wiki/Scripts-and-Projects)
 - [Auto-Completion](docs/auto-completion.md)
@@ -128,7 +128,7 @@ $ bbin bin
     - If `$BABASHKA_BBIN_BIN_DIR` is set, then use `$BABASHKA_BBIN_BIN_DIR` (explicit override)
 - Each bin script is a self-contained shell script that fetches deps and invokes `bb` with the correct arguments.
 - The bin scripts can be configured using the CLI options or the `:bbin/bin` key in `bb.edn`
-- [See the FAQ for additional info on setting up your code to work with bbin](docs/faq.md#how-do-i-get-my-software-onto-bbin)
+- [See the Packaging page for additional info on setting up your code to work with bbin](docs/packaging.md)
 
 **Example `bb.edn` Config:**
 
