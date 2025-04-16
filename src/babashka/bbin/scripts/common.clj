@@ -214,7 +214,7 @@
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
-(def ^:private local-dir-template-str
+(def local-dir-template-str
   (str/trim "
 #!/usr/bin/env bb
 
@@ -242,7 +242,22 @@
         script-main-opts-first script-main-opts-second
         \"--\"])
 
-(process/exec (into base-command *command-line-args*))
+(def script-deps-file
+  (cond (fs/exists? (fs/file script-root \"bb.edn\"))
+        (fs/file (fs/file script-root \"bb.edn\"))
+
+        (fs/exists? (fs/file script-root \"deps.edn\"))
+        (fs/file (fs/file script-root \"deps.edn\"))
+
+        :else nil))
+
+(def new-base-command
+  (when script-deps-file
+    [\"bb\" \"--config\" (str script-deps-file)
+     script-main-opts-first script-main-opts-second
+     \"--\"]))
+
+(process/exec (into (or new-base-command base-command) *command-line-args*))
 "))
 
 (def ^:private git-or-local-template-str
