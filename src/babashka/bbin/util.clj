@@ -319,3 +319,7 @@
 
 (defn snake-case [s]
   (str/replace s "_" "-"))
+
+(defmacro whenbb [& forms]
+  (when (System/getProperty "babashka.version")
+    `(do ~@forms)))
