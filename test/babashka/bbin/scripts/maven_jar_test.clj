@@ -42,4 +42,4 @@
       (is (fs/exists? (fs/file (dirs/bin-dir nil) (name (:lib upgraded-lib)))))
       (is (str/starts-with? (tu/run-bin-script (:lib upgraded-lib) "--help")
                             help-text))
-      (is (= `{~'http-server ~upgraded-lib} (tu/run-ls))))))
+      (is (= {'http-server upgraded-lib} (tu/run-ls))))))
