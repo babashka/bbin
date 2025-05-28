@@ -28,8 +28,7 @@
 
 (def script-lib '{{script/lib}})
 (def script-coords {{script/coords|str}})
-(def script-main-opts-first {{script/main-opts.0|pr-str}})
-(def script-main-opts-second {{script/main-opts.1|pr-str}})
+(def script-main-opts {{script/main-opts}})
 
 (def tmp-edn
   (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
@@ -37,9 +36,9 @@
     (fs/delete-on-exit)))
 
 (def base-command
-  [\"bb\" \"--config\" (str tmp-edn)
-        script-main-opts-first script-main-opts-second
-        \"--\"])
+  (vec (concat [\"bb\" \"--config\" (str tmp-edn)]
+               script-main-opts
+               [\"--\"])))
 
 (process/exec (into base-command *command-line-args*))
 "))
@@ -107,11 +106,7 @@
                          :script/root script-root
                          :script/lib (pr-str (key (first script-deps)))
                          :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))
-                         :script/main-opts [(first main-opts)
-                                            (if (= "-f" (first main-opts))
-                                              (fs/canonicalize (fs/file script-root (second main-opts))
-                                                               {:nofollow-links true})
-                                              (second main-opts))]}
+                         :script/main-opts (common/process-main-opts main-opts script-root)}
           template-out (selmer-util/without-escaping
                         (selmer/render maven-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]

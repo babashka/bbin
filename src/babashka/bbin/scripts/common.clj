@@ -57,7 +57,7 @@
   [script-name header path contents & {:keys [dry-run] :as cli-opts}]
   (let [path-str (str path)]
     (if dry-run
-      (util/pprint {:script-file     path-str
+      (util/pprint {:script-file path-str
                     :script-contents contents}
                    dry-run)
       (do
@@ -109,6 +109,17 @@
         top (last (str/split ns #"\."))]
     {:main-opts ["-m" (str top "." name)]
      :ns-default (str top "." name)}))
+
+(defn process-main-opts
+  "Process main-opts, canonicalizing file paths that follow -f flags."
+  [main-opts script-root]
+  (->> main-opts
+       (map-indexed (fn [i arg]
+                      (if (and (pos? i) (= "-f" (nth main-opts (dec i))))
+                        (str (fs/canonicalize (fs/file script-root arg)
+                                              {:nofollow-links true}))
+                        arg)))
+       vec))
 
 (def comment-char ";")
 
@@ -229,8 +240,7 @@
          '[clojure.string :as str])
 
 (def script-root {{script/root|pr-str}})
-(def script-main-opts-first {{script/main-opts.0|pr-str}})
-(def script-main-opts-second {{script/main-opts.1|pr-str}})
+(def script-main-opts {{script/main-opts}})
 
 (def tmp-edn
   (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
@@ -238,9 +248,9 @@
     (fs/delete-on-exit)))
 
 (def base-command
-  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)
-        script-main-opts-first script-main-opts-second
-        \"--\"])
+  (vec (concat [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)]
+               script-main-opts
+               [\"--\"])))
 
 (process/exec (into base-command *command-line-args*))
 "))
@@ -262,8 +272,7 @@
 (def script-root {{script/root|pr-str}})
 (def script-lib '{{script/lib}})
 (def script-coords {{script/coords|str}})
-(def script-main-opts-first {{script/main-opts.0|pr-str}})
-(def script-main-opts-second {{script/main-opts.1|pr-str}})
+(def script-main-opts {{script/main-opts}})
 
 (def tmp-edn
   (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
@@ -271,9 +280,9 @@
     (fs/delete-on-exit)))
 
 (def base-command
-  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)
-        script-main-opts-first script-main-opts-second
-        \"--\"])
+  (vec (concat [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)]
+               script-main-opts
+               [\"--\"])))
 
 (process/exec (into base-command *command-line-args*))
 "))
@@ -337,11 +346,7 @@
         template-opts' (if tool-mode
                          (assoc template-opts :script/ns-default (:ns-default script-config))
                          (assoc template-opts :script/main-opts
-                                [(first main-opts)
-                                 (if (= "-f" (first main-opts))
-                                   (fs/canonicalize (fs/file script-root (second main-opts))
-                                                    {:nofollow-links true})
-                                   (second main-opts))]))
+                                (process-main-opts main-opts script-root)))
         template-str (if tool-mode
                        (if (#{::no-lib} lib)
                          local-dir-tool-template-str
