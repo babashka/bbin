@@ -1,0 +1,2 @@
+{:paths ["."]
+ :bbin/bin {bbin-test-script {:main-opts ["-m" "main/-main"]}}}

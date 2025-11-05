@@ -744,6 +744,7 @@ WARNING: (We won't make any changes without asking you first.)
 (ns babashka.bbin.scripts.common
   (:require [babashka.bbin.deps :as bbin-deps]
             [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.meta :as meta]
             [babashka.bbin.specs]
             [babashka.bbin.util :as util :refer [sh]]
             [babashka.deps :as deps]
@@ -975,7 +976,7 @@ WARNING: (We won't make any changes without asking you first.)
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
-(def ^:private local-dir-template-str
+(def ^:private local-dir-template-str-without-bb-edn
   (str/trim "
 #!/usr/bin/env bb
 
@@ -1005,7 +1006,7 @@ WARNING: (We won't make any changes without asking you first.)
 (process/exec (into base-command *command-line-args*))
 "))
 
-(def ^:private git-or-local-template-str
+(def ^:private git-or-local-template-str-without-bb-edn
   (str/trim "
 #!/usr/bin/env bb
 
@@ -1037,6 +1038,29 @@ WARNING: (We won't make any changes without asking you first.)
 (process/exec (into base-command *command-line-args*))
 "))
 
+(def ^:private git-or-local-template-str-with-bb-edn
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process])
+
+(def script-root {{script/root|pr-str}})
+(def script-main-opts {{script/main-opts}})
+
+(def base-command
+  (vec (concat [\"bb\" \"--config\" (str script-root \"/bb.edn\")]
+               script-main-opts
+               [\"--\"])))
+
+(process/exec (into base-command *command-line-args*))
+"))
+
 (defn calc-script-deps [{:keys [cli-opts summary] :as params}]
   (let [{:keys [procurer]} summary
         script-deps (cond
@@ -1060,7 +1084,8 @@ WARNING: (We won't make any changes without asking you first.)
         header (merge {:coords coords} (when-not (#{::no-lib} lib) {:lib lib}))
         header' (if (#{::no-lib} lib)
                   {:coords {:bbin/url (str "file://" (get-in header [:coords :local/root]))}}
-                  header)]
+                  header)
+        header' (assoc header' :bbin/version meta/version)]
     (assoc params :header header')))
 
 (defn add-deps [{:keys [script-deps] :as params}]
@@ -1136,15 +1161,29 @@ WARNING: (We won't make any changes without asking you first.)
                                               (process-main-opts main-opts script-root)))]
     (assoc params :template-opts template-opts')))
 
-(defn calc-template-str [{:keys [script-deps tool-mode] :as params}]
+(defn calc-template-str [{:keys [script-deps script-root tool-mode] :as params}]
   (let [lib (key (first script-deps))
-        template-str (if tool-mode
-                       (if (#{::no-lib} lib)
-                         local-dir-tool-template-str
-                         deps-tool-template-str)
-                       (if (#{::no-lib} lib)
-                         local-dir-template-str
-                         git-or-local-template-str))]
+        bb-file (fs/file script-root "bb.edn")
+        bb-edn-exists (fs/exists? bb-file)
+        template-str (cond
+                       (and tool-mode (#{::no-lib} lib))
+                       local-dir-tool-template-str
+
+                       (and tool-mode (not (#{::no-lib} lib)))
+                       deps-tool-template-str
+
+                       (and (not tool-mode) bb-edn-exists)
+                       git-or-local-template-str-with-bb-edn
+
+                       (and (not tool-mode)
+                            (not bb-edn-exists)
+                            (#{::no-lib} lib))
+                       local-dir-template-str-without-bb-edn
+
+                       (and (not tool-mode)
+                            (not bb-edn-exists)
+                            (not (#{::no-lib} lib)))
+                       git-or-local-template-str-without-bb-edn)]
     (assoc params :template-str template-str)))
 
 (defn calc-template-out [{:keys [template-str template-opts] :as params}]
