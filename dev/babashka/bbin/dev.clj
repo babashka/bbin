@@ -8,7 +8,7 @@
 (def watch-paths ["deps.edn" "bb.edn" "src" "dev"])
 
 (defn- build-event? [{:keys [type path] :as _watch-event}]
-  (and (not (#{:chmod} type))
+  (and #_(not (#{:chmod} type))
        (not (str/ends-with? path "~"))))
 
 (def build-number (atom 0))
