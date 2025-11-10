@@ -1,5 +1,6 @@
 (ns babashka.bbin.scripts.maven-jar
-  (:require [babashka.bbin.dirs :as dirs]
+  (:require [babashka.bbin.deps :as bbin-deps]
+            [babashka.bbin.dirs :as dirs]
             [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
             [babashka.bbin.util :as util]
@@ -90,7 +91,7 @@
                        (select-keys cli-opts [:mvn/version])}
           header {:lib (key (first script-deps))
                   :coords (val (first script-deps))}
-          _ (deps/add-deps {:deps script-deps})
+          _ (bbin-deps/add-deps {:deps script-deps})
           script-root (fs/canonicalize (or (:local/root cli-opts) (common/local-lib-path script-deps)) {:nofollow-links true})
           script-name (or (:as cli-opts) (second (str/split (:script/lib cli-opts) #"/")))
           script-config (common/default-script-config cli-opts)

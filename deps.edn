@@ -12,4 +12,9 @@
         version-clj/version-clj {:mvn/version "2.0.2"}}
  :aliases {:neil {:project {:name babashka/bbin
                             :version "0.2.5"}}
-           :dev {:extra-paths ["dev"]}}}
+           :dev {:extra-deps {borkdude/deps.clj {:mvn/version "1.12.3.1577"}}
+                 :extra-paths ["dev"]}
+           :nrepl {:extra-deps {nrepl/nrepl {:mvn/version "1.5.1"}
+                                cider/cider-nrepl {:mvn/version "0.58.0"}
+                                refactor-nrepl/refactor-nrepl {:mvn/version "3.11.0"}}
+                   :main-opts ["-m" "nrepl.cmdline" "--interactive" "--color" "--middleware" "[cider.nrepl/cider-middleware,refactor-nrepl.middleware/wrap-refactor]"]}}}

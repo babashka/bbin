@@ -56,11 +56,14 @@
        ns-dep/topo-sort))
 
 (defn ns-sym->path [ns-sym]
-  (let [parts (str/split (str/replace ns-sym "-" "_") #"\.")
-        path-vec (concat ["src"]
-                         (butlast parts)
-                         [(str (last parts) ".clj")])]
-    (apply fs/path path-vec)))
+  (let [parts (str/split (str/replace ns-sym "-" "_") #"\.")]
+    (->> [".cljc" ".clj"]
+         (map (fn [suffix]
+                (apply fs/path
+                       (concat ["src"]
+                               (butlast parts)
+                               [(str (last parts) suffix)]))))
+         (some #(when (fs/exists? %) %)))))
 
 (def all-scripts
   (concat

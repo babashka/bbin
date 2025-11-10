@@ -1,170 +1,210 @@
 (ns babashka.bbin.scripts.install
   (:require [babashka.bbin.deps :as bbin-deps]
-            [babashka.bbin.util :as util]
-            [babashka.deps :as deps]
             [babashka.bbin.dirs :as dirs]
-            [clojure.tools.gitlibs :as gitlibs]
             [babashka.bbin.scripts.common :as common]
+            [babashka.bbin.util :as util]
             [babashka.fs :as fs]
-            [taoensso.timbre :as log]))
+            [clojure.pprint :as pprint]
+            [clojure.string :as str]
+            [clojure.tools.gitlibs :as gitlibs]
+            [selmer.parser :as selmer]
+            [selmer.util :as selmer-util]))
 
 ;; =============================================================================
 ;; Parse
 
+(defn- parse-deps [{:keys [cli-opts] :as _params}]
+  (let [source-deps (bbin-deps/infer cli-opts)]
+    {:source-deps source-deps}))
+
 (defn- parse-http [{:keys [cli-opts] :as _params}]
-  (let [http-url (:script/lib cli-opts)
-        script-deps {:bbin/url (:script/lib cli-opts)}]
-    {:source-deps script-deps
-     :source-url http-url}))
+  (let [source-deps {:bbin/url (:script/lib cli-opts)}
+        source-url (:script/lib cli-opts)]
+    {:source-deps source-deps
+     :source-url source-url}))
 
-(defn- parse-local-dir [{:keys [cli-opts] :as _params}]
-  (let [local-dir (fs/canonicalize (fs/file (:script/lib cli-opts))
-                                   {:nofollow-links true})
-        script-deps {:bbin/url (str "file://" local-dir)}]
-    {:source-deps script-deps
-     :source-dir local-dir}))
-
-(defn- parse-local-file [{:keys [cli-opts] :as _params}]
-  (let [local-dir (fs/canonicalize (fs/file (:script/lib cli-opts))
-                                   {:nofollow-links true})
-        script-deps {:bbin/url (str "file://" local-dir)}]
-    {:source-deps script-deps
-     :source-dir local-dir}))
-
-(defn- parse-maven-jar [{:keys [cli-opts] :as _params}]
-  (let [local-dir (fs/canonicalize (fs/file (:script/lib cli-opts))
-                                   {:nofollow-links true})
-        script-deps {:bbin/url (str "file://" local-dir)}]
-    {:source-deps script-deps
-     :source-dir local-dir}))
+(defn- parse-local [{:keys [cli-opts] :as _params}]
+  (let [source-path (str (fs/canonicalize (fs/file (:script/lib cli-opts))
+                                          {:nofollow-links true}))
+        source-deps {:bbin/url (str "file://" source-path)}]
+    {:source-deps source-deps
+     :source-path source-path}))
 
 (defn parse
   "Parse source from the CLI options."
   [{:keys [cli-opts] :as params}]
-  (let [{:keys [procurer artifact] :as summary} (bbin-deps/summary cli-opts)
-        parsed (case [procurer artifact]
-                 ([:http :file] [:http :jar]
-                  [:local :file] [:local :jar])
-                 (parse-http params)
+  (let [{:keys [tool-mode]} cli-opts
+        {:keys [procurer artifact]} (bbin-deps/summary cli-opts)
+        parse-fn (case [procurer artifact]
+                   ([:http :file] [:http :jar])
+                   #'parse-http
 
-                 [:local :file]
-                 (parse-local-file params)
+                   ([:local :file] [:local :jar] [:local :dir])
+                   #'parse-local
 
-                 [:local :dir]
-                 (parse-local-dir params)
-
-                 [:maven :jar]
-                 (parse-maven-jar params))
+                   ([:git :dir] [:maven :jar])
+                   #'parse-deps)
+        parsed (parse-fn params)
         header {:coords (:script-deps parsed)}]
-    (merge params summary parsed {:header header})))
+    (merge params
+           parsed
+           {:parse-fn parse-fn
+            :procurer procurer
+            :artifact artifact
+            :header header
+            :tool-mode tool-mode})))
 
 ;; =============================================================================
 ;; Fetch
 
 (defn- fetch-repo [{:keys [cli-opts source-deps] :as _params}]
-  {:repo-path (gitlibs/procure (:git/url source-deps)
-                               (:script/lib cli-opts)
-                               (:git/sha source-deps))})
+  {:cached-path (gitlibs/procure (:git/url source-deps)
+                                 (:script/lib cli-opts)
+                                 (:git/sha source-deps))})
 
 (defn- fetch-file [{:keys [source-file] :as _params}]
   {:source-contents (slurp source-file)})
 
 (defn- fetch-deps [{:keys [source-deps] :as _params}]
-  {:deps-result (deps/add-deps {:deps source-deps})})
+  {:deps-result (bbin-deps/add-deps {:deps source-deps})})
 
 (defn fetch
   "Fetch dependencies for the source."
   [{:keys [procurer artifact] :as params}]
-  (case [procurer artifact]
-    [:git :dir]
-    (fetch-repo params)
+  (let [fetch-fn (case [procurer artifact]
+                   [:git :dir]
+                   #'fetch-repo
 
-    ([:http :file] [:http :jar]
-     [:local :file] [:local :jar])
-    (fetch-file params)
+                   ([:http :file] [:http :jar]
+                    [:local :file] [:local :jar])
+                   #'fetch-file
 
-    [:maven :jar]
-    (fetch-deps params)
+                   [:maven :jar]
+                   #'fetch-deps
 
-    [:local :dir]
-    nil))
+                   [:local :dir]
+                   ::skipped)]
+    (merge {:fetch-fn fetch-fn} (fetch-fn params))))
 
 ;; =============================================================================
 ;; Analyze
 
-(defn analyze-dir [params]
-  (let [bin-config (common/load-bin-config (:source-dir params))]
-    {:scripts bin-config}))
+(defn- analyze-dir [params]
+  (let [project-path (or (:cached-path params) (:source-path params))
+        bin-config (common/load-bin-config project-path)]
+    {:project-path project-path
+     :scripts bin-config}))
 
-(defn analyze-file-jar [{:keys [source-contents] :as params}]
+(defn- analyze-file [{:keys [source-contents] :as params}]
   (let [script-name 'foo]
     {:scripts {script-name {}}}))
 
-(defn analyze-file-source [{:keys [source-contents] :as params}]
-  (let [script-name 'foo]
-    {:scripts {script-name {}}}))
-
-(defn analyze-deps [{:keys [source-contents] :as params}]
+(defn- analyze-deps [{:keys [source-contents] :as params}]
   (let [script-name 'foo]
     {:scripts {script-name source-contents}}))
 
-(defn analyze
+(defn- analyze
   "Analyze source contents to find scripts."
   [{:keys [procurer artifact] :as params}]
-  (cond
-    (= artifact :dir)
-    (analyze-dir params)
+  (let [analyze-fn (cond
+                     (= artifact :dir)
+                     #'analyze-dir
 
-    (= artifact :file)
-    (analyze-file-source params)
+                     (or (= artifact :file)
+                         (and (not= procurer :maven) (= artifact :jar)))
+                     #'analyze-file
 
-    (and (not= procurer :maven) (= artifact :jar))
-    (analyze-file-jar params)
+                     (and (= procurer :maven) (= artifact :jar))
+                     #'analyze-deps)]
+    (merge {:analyze-fn analyze-fn} (analyze-fn params))))
 
-    (and (= procurer :maven) (= artifact :jar))
-    (analyze-deps params)))
+;; =============================================================================
+;; Select
+
+(defn select
+  "Select scripts to install."
+  [{:keys [scripts] :as _params}]
+  {:selected (set (keys scripts))})
 
 ;; =============================================================================
 ;; Generate
 
-(defn- generate-tool-script [params])
+(defn- generate-tool-script [params]
+  {:script-contents "FIXME"})
 
-(defn- generate-dir-script [params]
-  common/git-or-local-template-str-with-bb-edn)
+(defn- generate-dir-script [{:keys [tool-mode source-path source-deps main-opts] :as params}]
+  (let [template-opts {:script/meta (str/join "\n"
+                                              (->> (binding [*print-namespace-maps* false]
+                                                     (with-out-str (pprint/pprint source-deps)))
+                                                   str/split-lines
+                                                   (map #(str common/comment-char " " %))))
+                       :script/root source-path
+                       :script/lib (pr-str (key (first source-deps)))
+                       :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first source-deps))))}
+        template-opts' (if tool-mode
+                         (assoc template-opts :script/ns-default false #_(:ns-default script-config))
+                         (assoc template-opts :script/main-opts
+                                              (common/process-main-opts main-opts source-path)))
+        script-contents (selmer-util/without-escaping
+                          (selmer/render common/git-or-local-template-str-with-bb-edn
+                                         template-opts'))]
+    {:script-contents script-contents}))
 
 (defn- generate-source-code-script [{:keys [source-code header]}]
-  (common/insert-script-header source-code header))
+  {:script-contents (common/insert-script-header source-code header)})
 
-(defn- generate-local-jar-script [params])
+(defn- generate-local-jar-script [params]
+  {:script-contents "FIXME"})
 
-(defn- generate-maven-jar-script [params])
+(defn- generate-maven-jar-script [params]
+  {:script-contents "FIXME"})
+
+(defn- generate-single [{:keys [tool-mode procurer artifact] :as params}]
+  (let [generate-fn (cond
+                      tool-mode
+                      #'generate-tool-script
+
+                      (= artifact :dir)
+                      #'generate-dir-script
+
+                      (= artifact :file)
+                      #'generate-source-code-script
+
+                      (and (= procurer :local) (= artifact :jar))
+                      #'generate-local-jar-script
+
+                      (and (= procurer :maven) (= artifact :jar))
+                      #'generate-maven-jar-script)]
+    (merge {:generate-fn generate-fn} (generate-fn params))))
 
 (defn generate
   "Generate the script contents."
-  [{:keys [tool-mode procurer artifact] :as params}]
-  (cond
-    tool-mode
-    {:script-contents (generate-tool-script params)}
-
-    (= artifact :dir)
-    {:script-contents (generate-dir-script params)}
-
-    (= artifact :file)
-    {:script-contents (generate-source-code-script params)}
-
-    (and (= procurer :local) (= artifact :jar))
-    {:script-contents (generate-local-jar-script params)}
-
-    (and (= procurer :maven) (= artifact :jar))
-    {:script-contents (generate-maven-jar-script params)}))
+  [{:keys [selected scripts] :as params}]
+  (let [generated (->> (select-keys scripts selected)
+                       (map (fn [[script-name script-config]]
+                              [script-name (generate-single
+                                             (merge params
+                                                    script-config
+                                                    {:script-name script-name}))]))
+                       (into {}))]
+    {:generated generated}))
 
 ;; =============================================================================
 ;; Write
 
 (defn write
   "Write the script files."
-  [params]
-  (common/install-script params))
+  [{:keys [generated cli-opts] :as _params}]
+  (let [written (doall
+                  (->> generated
+                       (map (fn [[script-name script-config]]
+                              (let [script-path (str (fs/path (dirs/bin-dir cli-opts) (str script-name)))]
+                                (spit script-path (:script-contents script-config))
+                                (when-not util/windows?
+                                  (util/sh ["chmod" "+x" script-path]))
+                                [script-name script-path])))
+                       (into {})))]
+    {:written written}))
 
 ;; =============================================================================
 ;; Report
@@ -177,27 +217,48 @@
 ;; =============================================================================
 ;; Install
 
-(def steps
+(def install-steps
   [#'parse
    #'fetch
    #'analyze
+   #'select
    #'generate
-   #_#'write
+   #'write
    #'report])
 
-(defn install [cli-opts]
+(defn install-start [{:keys [cli-opts] :as params}]
   (when-not (util/edn? cli-opts)
     (println)
     (println (util/bold "Starting install..." cli-opts))
     (println))
-  (let [init {:cli-opts cli-opts}
-        result (reduce (fn [params step-fn]
-                         #_(log/debug {:step-fn step-fn, :params params})
-                         (merge params (step-fn params)))
-                       init
-                       steps)]
-    (prn result)
-    (when-not (util/edn? cli-opts)
-      (println)
-      (println (util/bold "Install complete." cli-opts))
-      (println))))
+  params)
+
+(defn- install-run [params]
+  (let [params' (reduce (fn [params step-fn]
+                          (let [ret (step-fn params)]
+                            (tap> {:_step-fn step-fn, :params params, :ret ret})
+                            (merge params ret)))
+                        params
+                        install-steps)]
+    (util/pprint params')
+    params'))
+
+(defn install-end [{:keys [cli-opts] :as params}]
+  (when-not (util/edn? cli-opts)
+    (println)
+    (println (util/bold "Install complete." cli-opts))
+    (println))
+  params)
+
+(defn install [cli-opts]
+  (-> {:cli-opts cli-opts}
+      install-start
+      install-run
+      install-end))
+
+(comment
+  (do
+    (require '[clojure.string :as str]
+             '[babashka.bbin.cli :as cli])
+    (let [command "install ./test-dir --as btest"]
+      (apply cli/-main (str/split command #" ")))))

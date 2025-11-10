@@ -4,7 +4,13 @@
             [clojure.edn :as edn]
             [clojure.set :as set]
             [clojure.string :as str]
-            [clojure.tools.gitlibs.impl :as gitlibs-impl]))
+            [clojure.tools.gitlibs.impl :as gitlibs-impl]
+            #?@(:bb [babashka.deps]
+                :clj [borkdude.deps])))
+
+(defn add-deps [params]
+  #?(:bb ((resolve 'babashka.deps/add-deps) params)
+     :clj ((resolve 'borkdude.deps/add-deps) params)))
 
 (def lib-opts->template-deps-fn
   "A map to define valid CLI options.
