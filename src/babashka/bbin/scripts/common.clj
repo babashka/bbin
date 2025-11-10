@@ -69,15 +69,7 @@
          (when util/windows?
            (spit (str path-str windows-wrapper-extension)
                  (str "@bb -f %~dp0" (fs/file-name path-str) " -- %*")))
-         (if (util/edn? cli-opts)
-           (util/pprint header)
-           (do
-             (println)
-             (util/print-scripts (util/printable-scripts {script-name header})
-                                 cli-opts)
-             (println)
-             (println (util/bold "Install complete." cli-opts))
-             (println)))
+
          nil)))))
 
 (defn- generate-deps-lib-name [git-url]
@@ -101,7 +93,7 @@
        (:local/root coords)
        (fs/expand-home (str/join fs/file-separator [gitlibs-root "libs" (namespace lib) (name lib) (:git/sha coords)]))))))
 
-(defn- load-bin-config [script-root]
+(defn load-bin-config [script-root]
   (let [bb-file (fs/file script-root "bb.edn")
         bb-edn (when (fs/exists? bb-file)
                  (some-> bb-file slurp edn/read-string))

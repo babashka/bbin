@@ -10,7 +10,8 @@
             [clojure.string :as str]
             [clojure.test :as test]
             [org.httpkit.server :as http]
-            [ring.util.mime-type :as mime-type])
+            [ring.util.mime-type :as mime-type]
+            [taoensso.timbre :as log])
   (:import (java.net ServerSocket)))
 
 (defmethod test/report :begin-test-var [m]
@@ -66,8 +67,9 @@
       out)))
 
 (defn run-install [cli-opts]
-  (some-> (with-out-str (scripts/install (assoc cli-opts :edn true)))
-          edn/read-string))
+  (let [s (with-out-str (scripts/install (assoc cli-opts :edn true)))]
+    (log/debug s)
+    (edn/read-string s)))
 
 (defn run-upgrade [cli-opts]
   (some-> (with-out-str (scripts/upgrade (assoc cli-opts :edn true)))

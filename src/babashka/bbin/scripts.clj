@@ -58,9 +58,6 @@
     (util/print-help)
     (do
       (dirs/ensure-bbin-dirs cli-opts)
-      (when-not (util/edn? cli-opts)
-        (println)
-        (println (util/bold "Starting install..." cli-opts)))
       (let [cli-opts' (util/canonicalized-cli-opts cli-opts)]
         (install/install cli-opts')))))
 

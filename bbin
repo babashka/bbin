@@ -812,15 +812,7 @@ WARNING: (We won't make any changes without asking you first.)
          (when util/windows?
            (spit (str path-str windows-wrapper-extension)
                  (str "@bb -f %~dp0" (fs/file-name path-str) " -- %*")))
-         (if (util/edn? cli-opts)
-           (util/pprint header)
-           (do
-             (println)
-             (util/print-scripts (util/printable-scripts {script-name header})
-                                 cli-opts)
-             (println)
-             (println (util/bold "Install complete." cli-opts))
-             (println)))
+
          nil)))))
 
 (defn- generate-deps-lib-name [git-url]
@@ -844,7 +836,7 @@ WARNING: (We won't make any changes without asking you first.)
        (:local/root coords)
        (fs/expand-home (str/join fs/file-separator [gitlibs-root "libs" (namespace lib) (name lib) (:git/sha coords)]))))))
 
-(defn- load-bin-config [script-root]
+(defn load-bin-config [script-root]
   (let [bb-file (fs/file script-root "bb.edn")
         bb-edn (when (fs/exists? bb-file)
                  (some-> bb-file slurp edn/read-string))
@@ -1362,6 +1354,210 @@ WARNING: (We won't make any changes without asking you first.)
   (uninstall [_]
     (common/delete-files cli-opts)))
 
+(ns babashka.bbin.scripts.install
+  (:require [babashka.bbin.deps :as bbin-deps]
+            [babashka.bbin.util :as util]
+            [babashka.deps :as deps]
+            [babashka.bbin.dirs :as dirs]
+            [clojure.tools.gitlibs :as gitlibs]
+            [babashka.bbin.scripts.common :as common]
+            [babashka.fs :as fs]
+            [taoensso.timbre :as log]))
+
+;; =============================================================================
+;; Parse
+
+(defn- parse-http [{:keys [cli-opts] :as _params}]
+  (let [http-url (:script/lib cli-opts)
+        script-deps {:bbin/url (:script/lib cli-opts)}]
+    {:source-deps script-deps
+     :source-url http-url}))
+
+(defn- parse-local-dir [{:keys [cli-opts] :as _params}]
+  (let [local-dir (fs/canonicalize (fs/file (:script/lib cli-opts))
+                                   {:nofollow-links true})
+        script-deps {:bbin/url (str "file://" local-dir)}]
+    {:source-deps script-deps
+     :source-dir local-dir}))
+
+(defn- parse-local-file [{:keys [cli-opts] :as _params}]
+  (let [local-dir (fs/canonicalize (fs/file (:script/lib cli-opts))
+                                   {:nofollow-links true})
+        script-deps {:bbin/url (str "file://" local-dir)}]
+    {:source-deps script-deps
+     :source-dir local-dir}))
+
+(defn- parse-maven-jar [{:keys [cli-opts] :as _params}]
+  (let [local-dir (fs/canonicalize (fs/file (:script/lib cli-opts))
+                                   {:nofollow-links true})
+        script-deps {:bbin/url (str "file://" local-dir)}]
+    {:source-deps script-deps
+     :source-dir local-dir}))
+
+(defn parse
+  "Parse source from the CLI options."
+  [{:keys [cli-opts] :as params}]
+  (let [{:keys [procurer artifact] :as summary} (bbin-deps/summary cli-opts)
+        parsed (case [procurer artifact]
+                 ([:http :file] [:http :jar]
+                  [:local :file] [:local :jar])
+                 (parse-http params)
+
+                 [:local :file]
+                 (parse-local-file params)
+
+                 [:local :dir]
+                 (parse-local-dir params)
+
+                 [:maven :jar]
+                 (parse-maven-jar params))
+        header {:coords (:script-deps parsed)}]
+    (merge params summary parsed {:header header})))
+
+;; =============================================================================
+;; Fetch
+
+(defn- fetch-repo [{:keys [cli-opts source-deps] :as _params}]
+  {:repo-path (gitlibs/procure (:git/url source-deps)
+                               (:script/lib cli-opts)
+                               (:git/sha source-deps))})
+
+(defn- fetch-file [{:keys [source-file] :as _params}]
+  {:source-contents (slurp source-file)})
+
+(defn- fetch-deps [{:keys [source-deps] :as _params}]
+  {:deps-result (deps/add-deps {:deps source-deps})})
+
+(defn fetch
+  "Fetch dependencies for the source."
+  [{:keys [procurer artifact] :as params}]
+  (case [procurer artifact]
+    [:git :dir]
+    (fetch-repo params)
+
+    ([:http :file] [:http :jar]
+     [:local :file] [:local :jar])
+    (fetch-file params)
+
+    [:maven :jar]
+    (fetch-deps params)
+
+    [:local :dir]
+    nil))
+
+;; =============================================================================
+;; Analyze
+
+(defn analyze-dir [params]
+  (let [bin-config (common/load-bin-config (:source-dir params))]
+    {:scripts bin-config}))
+
+(defn analyze-file-jar [{:keys [source-contents] :as params}]
+  (let [script-name 'foo]
+    {:scripts {script-name {}}}))
+
+(defn analyze-file-source [{:keys [source-contents] :as params}]
+  (let [script-name 'foo]
+    {:scripts {script-name {}}}))
+
+(defn analyze-deps [{:keys [source-contents] :as params}]
+  (let [script-name 'foo]
+    {:scripts {script-name source-contents}}))
+
+(defn analyze
+  "Analyze source contents to find scripts."
+  [{:keys [procurer artifact] :as params}]
+  (cond
+    (= artifact :dir)
+    (analyze-dir params)
+
+    (= artifact :file)
+    (analyze-file-source params)
+
+    (and (not= procurer :maven) (= artifact :jar))
+    (analyze-file-jar params)
+
+    (and (= procurer :maven) (= artifact :jar))
+    (analyze-deps params)))
+
+;; =============================================================================
+;; Generate
+
+(defn- generate-tool-script [params])
+
+(defn- generate-dir-script [params]
+  common/git-or-local-template-str-with-bb-edn)
+
+(defn- generate-source-code-script [{:keys [source-code header]}]
+  (common/insert-script-header source-code header))
+
+(defn- generate-local-jar-script [params])
+
+(defn- generate-maven-jar-script [params])
+
+(defn generate
+  "Generate the script contents."
+  [{:keys [tool-mode procurer artifact] :as params}]
+  (cond
+    tool-mode
+    {:script-contents (generate-tool-script params)}
+
+    (= artifact :dir)
+    {:script-contents (generate-dir-script params)}
+
+    (= artifact :file)
+    {:script-contents (generate-source-code-script params)}
+
+    (and (= procurer :local) (= artifact :jar))
+    {:script-contents (generate-local-jar-script params)}
+
+    (and (= procurer :maven) (= artifact :jar))
+    {:script-contents (generate-maven-jar-script params)}))
+
+;; =============================================================================
+;; Write
+
+(defn write
+  "Write the script files."
+  [params]
+  (common/install-script params))
+
+;; =============================================================================
+;; Report
+
+(defn report
+  "Report the results."
+  [params]
+  {:report {}})
+
+;; =============================================================================
+;; Install
+
+(def steps
+  [#'parse
+   #'fetch
+   #'analyze
+   #'generate
+   #_#'write
+   #'report])
+
+(defn install [cli-opts]
+  (when-not (util/edn? cli-opts)
+    (println)
+    (println (util/bold "Starting install..." cli-opts))
+    (println))
+  (let [init {:cli-opts cli-opts}
+        result (reduce (fn [params step-fn]
+                         #_(log/debug {:step-fn step-fn, :params params})
+                         (merge params (step-fn params)))
+                       init
+                       steps)]
+    (prn result)
+    (when-not (util/edn? cli-opts)
+      (println)
+      (println (util/bold "Install complete." cli-opts))
+      (println))))
+
 (ns babashka.bbin.scripts.maven-jar
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.protocols :as p]
@@ -1488,113 +1684,12 @@ WARNING: (We won't make any changes without asking you first.)
   (uninstall [_]
     (common/delete-files cli-opts)))
 
-(ns babashka.bbin.scripts.local-file
-  (:require [babashka.bbin.dirs :as dirs]
-            [babashka.bbin.protocols :as p]
-            [babashka.bbin.scripts.common :as common]
-            [babashka.fs :as fs]
-            [clojure.string :as str]))
-
-(defrecord LocalFile [cli-opts coords]
-  p/Script
-  (install [_]
-    (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
-          script-deps {:bbin/url (str "file://" file-path)}
-          header {:coords script-deps}
-          script-name (or (:as cli-opts) (common/file-path->script-name file-path))
-          script-contents (-> (slurp file-path)
-                              (common/insert-script-header header))
-          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
-                                       {:nofollow-links true})]
-      (common/install-script script-name header script-file script-contents cli-opts)))
-
-  (upgrade [_]
-    (let [cli-opts' (merge (select-keys cli-opts [:edn])
-                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
-      (p/install (map->LocalFile {:cli-opts cli-opts'
-                                  :coords coords}))))
-
-  (uninstall [_]
-    (common/delete-files cli-opts)))
-
-(ns babashka.bbin.scripts.local-jar
-  (:require [babashka.bbin.dirs :as dirs]
-            [babashka.bbin.protocols :as p]
-            [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.util :as util]
-            [babashka.fs :as fs]
-            [clojure.string :as str]
-            [selmer.parser :as selmer]
-            [selmer.util :as selmer-util]))
-
-(def ^:private local-jar-template-str
-  (str/trim "
-#!/usr/bin/env bb
-
-; :bbin/start
-;
-{{script/meta}}
-;
-; :bbin/end
-
-(require '[babashka.classpath :refer [add-classpath]])
-
-(def script-jar {{script/jar|pr-str}})
-
-(add-classpath script-jar)
-
-(require '[{{script/main-ns}}])
-(apply {{script/main-ns}}/-main *command-line-args*)
-"))
-
-(defrecord LocalJar [cli-opts coords]
-  p/Script
-  (install [_]
-    (fs/create-dirs (dirs/jars-dir cli-opts))
-    (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
-          main-ns (common/jar->main-ns file-path)
-          script-deps {:bbin/url (str "file://" file-path)}
-          header {:coords script-deps}
-          script-name (or (:as cli-opts) (common/file-path->script-name file-path))
-          cached-jar-path (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar"))
-          script-edn-out (with-out-str
-                           (binding [*print-namespace-maps* false]
-                             (util/pprint header)))
-          template-opts {:script/meta (->> script-edn-out
-                                           str/split-lines
-                                           (map #(str common/comment-char " " %))
-                                           (str/join "\n"))
-                         :script/main-ns main-ns
-                         :script/jar cached-jar-path}
-          script-contents (selmer-util/without-escaping
-                           (selmer/render local-jar-template-str template-opts))
-          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
-                                       {:nofollow-links true})]
-      (fs/copy file-path cached-jar-path {:replace-existing true})
-      (common/install-script script-name header script-file script-contents cli-opts)))
-
-  (upgrade [_]
-    (let [cli-opts' (merge (select-keys cli-opts [:edn])
-                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
-      (p/install (map->LocalJar {:cli-opts cli-opts'
-                                 :coords coords}))))
-
-  (uninstall [_]
-    (common/delete-files cli-opts)))
-
 (ns babashka.bbin.scripts
   (:require
-   [babashka.bbin.deps :as bbin-deps]
    [babashka.bbin.dirs :as dirs]
    [babashka.bbin.protocols :as p]
    [babashka.bbin.scripts.common :as common]
-   [babashka.bbin.scripts.git-dir :refer [map->GitDir]]
-   [babashka.bbin.scripts.http-file :refer [map->HttpFile]]
-   [babashka.bbin.scripts.http-jar :refer [map->HttpJar]]
-   [babashka.bbin.scripts.local-dir :refer [map->LocalDir]]
-   [babashka.bbin.scripts.local-file :refer [map->LocalFile]]
-   [babashka.bbin.scripts.local-jar :refer [map->LocalJar]]
-   [babashka.bbin.scripts.maven-jar :refer [map->MavenJar]]
+   [babashka.bbin.scripts.install :as install]
    [babashka.bbin.util :as util]
    [babashka.fs :as fs]
    [clojure.edn :as edn]
@@ -1628,7 +1723,7 @@ WARNING: (We won't make any changes without asking you first.)
   (->> (file-seq dir)
        (filter #(.isFile %))
        (map (fn [x] [(symbol (str (fs/relativize dir x)))
-                     (-> (read-header x) (parse-script ))]))
+                     (-> (read-header x) (parse-script))]))
        (filter second)
        (into {})))
 
@@ -1644,86 +1739,21 @@ WARNING: (We won't make any changes without asking you first.)
 (defn bin [cli-opts]
   (println (str (dirs/bin-dir cli-opts))))
 
-(defn- throw-invalid-script [summary cli-opts]
-  (let [{:keys [procurer artifact]} summary]
-    (throw (ex-info "Invalid script coordinates.\nIf you're trying to install from the filesystem, make sure the path actually exists."
-                    {:script/lib (:script/lib cli-opts)
-                     :procurer procurer
-                     :artifact artifact}))))
-
-(defn- new-script [cli-opts]
-  (let [summary (bbin-deps/summary cli-opts)
-        {:keys [procurer artifact]} summary]
-    (case [procurer artifact]
-      [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary})
-      [:http :file] (map->HttpFile {:cli-opts cli-opts})
-      [:http :jar] (map->HttpJar {:cli-opts cli-opts})
-      [:local :dir] (map->LocalDir {:cli-opts cli-opts :summary summary})
-      [:local :file] (map->LocalFile {:cli-opts cli-opts})
-      [:local :jar] (map->LocalJar {:cli-opts cli-opts})
-      [:maven :jar] (map->MavenJar {:cli-opts cli-opts})
-      (throw-invalid-script summary cli-opts))))
-
 (defn install [cli-opts]
   (if-not (:script/lib cli-opts)
     (util/print-help)
     (do
       (dirs/ensure-bbin-dirs cli-opts)
-      (when-not (util/edn? cli-opts)
-        (println)
-        (println (util/bold "Starting install..." cli-opts)))
-      (let [cli-opts' (util/canonicalized-cli-opts cli-opts)
-            script (new-script cli-opts')]
-        (p/install script)))))
-
-(defn- default-script [cli-opts]
-  (reify
-    p/Script
-    (install [_])
-    (upgrade [_]
-      (throw (ex-info "Not implemented" {})))
-    (uninstall [_]
-      (common/delete-files cli-opts))))
-
-(defn- load-script [cli-opts]
-  (let [script-name (:script/lib cli-opts)
-        script-file (fs/file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true}))
-        parsed (parse-script (read-header script-file))]
-    (cond
-      (-> parsed :coords :bbin/url)
-      (let [summary (bbin-deps/summary {:script/lib (-> parsed :coords :bbin/url)})
-            {:keys [procurer artifact]} summary]
-        (case [procurer artifact]
-          [:git :dir] (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)})
-          [:http :file] (map->HttpFile {:cli-opts cli-opts :coords (:coords parsed)})
-          [:http :jar] (map->HttpJar {:cli-opts cli-opts :coords (:coords parsed)})
-          [:local :dir] (map->LocalDir {:cli-opts cli-opts :summary summary})
-          [:local :file] (map->LocalFile {:cli-opts cli-opts :coords (:coords parsed)})
-          [:local :jar] (map->LocalJar {:cli-opts cli-opts :coords (:coords parsed)})
-          (throw-invalid-script summary cli-opts)))
-
-      (-> parsed :coords :mvn/version)
-      (map->MavenJar {:cli-opts cli-opts :lib (:lib parsed)})
-
-      (-> parsed :coords :git/tag)
-      (let [summary (bbin-deps/summary {:script/lib (:lib parsed)
-                                        :git/tag (-> parsed :coords :git/tag)})]
-        (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
-
-      (-> parsed :coords :git/sha)
-      (let [summary (bbin-deps/summary {:script/lib (:lib parsed)
-                                        :git/sha (-> parsed :coords :git/sha)})]
-        (map->GitDir {:cli-opts cli-opts :summary summary :coords (:coords parsed)}))
-
-      :else (default-script cli-opts))))
+      (let [cli-opts' (util/canonicalized-cli-opts cli-opts)]
+        (install/install cli-opts')))))
 
 (defn upgrade [cli-opts]
   (if-not (:script/lib cli-opts)
     (util/print-help)
     (do
       (dirs/ensure-bbin-dirs cli-opts)
-      (let [script (load-script cli-opts)]
-        (p/upgrade script)))))
+      #_(let [script (load-script cli-opts)]
+          (p/upgrade script)))))
 
 (defn uninstall [cli-opts]
   (if-not (:script/lib cli-opts)
@@ -2050,3 +2080,97 @@ Otherwise, you can either a) migrate manually or b) override:
 (when (= *file* (System/getProperty "babashka.file"))
   (util/check-min-bb-version)
   (apply -main *command-line-args*))
+
+(ns babashka.bbin.scripts.local-file
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
+            [babashka.bbin.scripts.common :as common]
+            [babashka.fs :as fs]
+            [clojure.string :as str]))
+
+(defrecord LocalFile [cli-opts coords]
+  p/Script
+  (install [_]
+    (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
+          script-deps {:bbin/url (str "file://" file-path)}
+          header {:coords script-deps}
+          script-name (or (:as cli-opts) (common/file-path->script-name file-path))
+          script-contents (-> (slurp file-path)
+                              (common/insert-script-header header))
+          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
+                                       {:nofollow-links true})]
+      (common/install-script script-name header script-file script-contents cli-opts)))
+
+  (upgrade [_]
+    (let [cli-opts' (merge (select-keys cli-opts [:edn])
+                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+      (p/install (map->LocalFile {:cli-opts cli-opts'
+                                  :coords coords}))))
+
+  (uninstall [_]
+    (common/delete-files cli-opts)))
+
+(ns babashka.bbin.scripts.local-jar
+  (:require [babashka.bbin.dirs :as dirs]
+            [babashka.bbin.protocols :as p]
+            [babashka.bbin.scripts.common :as common]
+            [babashka.bbin.util :as util]
+            [babashka.fs :as fs]
+            [clojure.string :as str]
+            [selmer.parser :as selmer]
+            [selmer.util :as selmer-util]))
+
+(def ^:private local-jar-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.classpath :refer [add-classpath]])
+
+(def script-jar {{script/jar|pr-str}})
+
+(add-classpath script-jar)
+
+(require '[{{script/main-ns}}])
+(apply {{script/main-ns}}/-main *command-line-args*)
+"))
+
+(defrecord LocalJar [cli-opts coords]
+  p/Script
+  (install [_]
+    (fs/create-dirs (dirs/jars-dir cli-opts))
+    (let [file-path (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))
+          main-ns (common/jar->main-ns file-path)
+          script-deps {:bbin/url (str "file://" file-path)}
+          header {:coords script-deps}
+          script-name (or (:as cli-opts) (common/file-path->script-name file-path))
+          cached-jar-path (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar"))
+          script-edn-out (with-out-str
+                           (binding [*print-namespace-maps* false]
+                             (util/pprint header)))
+          template-opts {:script/meta (->> script-edn-out
+                                           str/split-lines
+                                           (map #(str common/comment-char " " %))
+                                           (str/join "\n"))
+                         :script/main-ns main-ns
+                         :script/jar cached-jar-path}
+          script-contents (selmer-util/without-escaping
+                           (selmer/render local-jar-template-str template-opts))
+          script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
+                                       {:nofollow-links true})]
+      (fs/copy file-path cached-jar-path {:replace-existing true})
+      (common/install-script script-name header script-file script-contents cli-opts)))
+
+  (upgrade [_]
+    (let [cli-opts' (merge (select-keys cli-opts [:edn])
+                           {:script/lib (str/replace (:bbin/url coords) #"^file://" "")})]
+      (p/install (map->LocalJar {:cli-opts cli-opts'
+                                 :coords coords}))))
+
+  (uninstall [_]
+    (common/delete-files cli-opts)))
