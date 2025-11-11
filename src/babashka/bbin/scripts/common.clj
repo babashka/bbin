@@ -172,7 +172,7 @@
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
-(def ^:private deps-tool-template-str
+(def deps-tool-template-str
   (str/trim "
 #!/usr/bin/env bb
 
@@ -479,3 +479,54 @@
       (when util/windows? (fs/delete-if-exists (fs/file (str script-file windows-wrapper-extension))))
       (fs/delete-if-exists (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar")))
       (println "Removing" (str script-file)))))
+
+(def local-jar-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.classpath :refer [add-classpath]])
+
+(def script-jar {{script/jar|pr-str}})
+
+(add-classpath script-jar)
+
+(require '[{{script/main-ns}}])
+(apply {{script/main-ns}}/-main *command-line-args*)
+"))
+
+(def maven-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(def script-lib '{{script/lib}})
+(def script-coords {{script/coords|str}})
+(def script-main-opts {{script/main-opts}})
+
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  (vec (concat [\"bb\" \"--config\" (str tmp-edn)]
+               script-main-opts
+               [\"--\"])))
+
+(process/exec (into base-command *command-line-args*))
+"))

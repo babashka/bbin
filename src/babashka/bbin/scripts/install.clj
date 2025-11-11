@@ -13,6 +13,8 @@
 ;; =============================================================================
 ;; Parse
 
+; source-deps:
+
 (defn- parse-deps [{:keys [cli-opts] :as _params}]
   (let [source-deps (bbin-deps/infer cli-opts)]
     {:source-deps source-deps}))
@@ -24,8 +26,9 @@
      :source-url source-url}))
 
 (defn- parse-local [{:keys [cli-opts] :as _params}]
-  (let [source-path (str (fs/canonicalize (fs/file (:script/lib cli-opts))
-                                          {:nofollow-links true}))
+  (let [source-path (-> (fs/path (:script/lib cli-opts))
+                        (fs/canonicalize {:nofollow-links true})
+                        str)
         source-deps {:bbin/url (str "file://" source-path)}]
     {:source-deps source-deps
      :source-path source-path}))
@@ -45,7 +48,7 @@
                    ([:git :dir] [:maven :jar])
                    #'parse-deps)
         parsed (parse-fn params)
-        header {:coords (:script-deps parsed)}]
+        header {:coords (:source-deps parsed)}]
     (merge params
            parsed
            {:parse-fn parse-fn
@@ -62,8 +65,8 @@
                                  (:script/lib cli-opts)
                                  (:git/sha source-deps))})
 
-(defn- fetch-file [{:keys [source-file] :as _params}]
-  {:source-contents (slurp source-file)})
+(defn- fetch-file [{:keys [source-path] :as _params}]
+  {:source-contents (slurp source-path)})
 
 (defn- fetch-deps [{:keys [source-deps] :as _params}]
   {:deps-result (bbin-deps/add-deps {:deps source-deps})})
@@ -95,13 +98,15 @@
     {:project-path project-path
      :scripts bin-config}))
 
-(defn- analyze-file [{:keys [source-contents] :as params}]
-  (let [script-name 'foo]
+(defn- analyze-file [{:keys [source-path] :as params}]
+  (let [script-name (-> (fs/file-name source-path)
+                        (str/replace #"\.(clj|cljc|bb)$" "")
+                        symbol)]
     {:scripts {script-name {}}}))
 
 (defn- analyze-deps [{:keys [source-contents] :as params}]
   (let [script-name 'foo]
-    {:scripts {script-name source-contents}}))
+    {:scripts {script-name {}}}))
 
 (defn- analyze
   "Analyze source contents to find scripts."
@@ -129,41 +134,37 @@
 ;; =============================================================================
 ;; Generate
 
-(defn- generate-tool-script [params]
-  {:script-contents "FIXME"})
+(defn script-meta [{:keys [source-deps] :as _params}]
+  (str/join "\n"
+            (->> (binding [*print-namespace-maps* false]
+                   (with-out-str (pprint/pprint source-deps)))
+                 str/split-lines
+                 (map #(str common/comment-char " " %)))))
 
-(defn- generate-dir-script [{:keys [tool-mode source-path source-deps main-opts] :as params}]
-  (let [template-opts {:script/meta (str/join "\n"
-                                              (->> (binding [*print-namespace-maps* false]
-                                                     (with-out-str (pprint/pprint source-deps)))
-                                                   str/split-lines
-                                                   (map #(str common/comment-char " " %))))
+(defn- generate-dir-script [{:keys [source-path source-deps main-opts] :as params}]
+  (let [template-opts {:script/meta (script-meta params)
                        :script/root source-path
                        :script/lib (pr-str (key (first source-deps)))
-                       :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first source-deps))))}
-        template-opts' (if tool-mode
-                         (assoc template-opts :script/ns-default false #_(:ns-default script-config))
-                         (assoc template-opts :script/main-opts
-                                              (common/process-main-opts main-opts source-path)))
+                       :script/coords (binding [*print-namespace-maps* false]
+                                        (pr-str (val (first source-deps))))}
+        main-opts (common/process-main-opts main-opts source-path)
+        template-opts' (assoc template-opts :script/main-opts main-opts)
         script-contents (selmer-util/without-escaping
                           (selmer/render common/git-or-local-template-str-with-bb-edn
                                          template-opts'))]
     {:script-contents script-contents}))
 
-(defn- generate-source-code-script [{:keys [source-code header]}]
-  {:script-contents (common/insert-script-header source-code header)})
+(defn- generate-source-code-script [{:keys [source-contents header]}]
+  {:script-contents (common/insert-script-header source-contents header)})
 
 (defn- generate-local-jar-script [params]
-  {:script-contents "FIXME"})
+  {:script-contents common/local-jar-template-str})
 
 (defn- generate-maven-jar-script [params]
-  {:script-contents "FIXME"})
+  {:script-contents common/maven-template-str})
 
-(defn- generate-single [{:keys [tool-mode procurer artifact] :as params}]
+(defn- generate-single [{:keys [procurer artifact] :as params}]
   (let [generate-fn (cond
-                      tool-mode
-                      #'generate-tool-script
-
                       (= artifact :dir)
                       #'generate-dir-script
 
@@ -192,17 +193,22 @@
 ;; =============================================================================
 ;; Write
 
+(defn write-single [{:keys [cli-opts script-name script-config]}]
+  (let [script-path (str (fs/path (dirs/bin-dir cli-opts) (str script-name)))]
+    (spit script-path (:script-contents script-config))
+    (when-not util/windows?
+      (util/sh ["chmod" "+x" script-path]))
+    [script-name script-path]))
+
 (defn write
   "Write the script files."
   [{:keys [generated cli-opts] :as _params}]
   (let [written (doall
                   (->> generated
                        (map (fn [[script-name script-config]]
-                              (let [script-path (str (fs/path (dirs/bin-dir cli-opts) (str script-name)))]
-                                (spit script-path (:script-contents script-config))
-                                (when-not util/windows?
-                                  (util/sh ["chmod" "+x" script-path]))
-                                [script-name script-path])))
+                              (write-single {:cli-opts cli-opts
+                                             :script-name script-name
+                                             :script-config script-config})))
                        (into {})))]
     {:written written}))
 
@@ -239,8 +245,10 @@
                             (tap> {:_step-fn step-fn, :params params, :ret ret})
                             (merge params ret)))
                         params
-                        install-steps)]
-    (util/pprint params')
+                        install-steps)
+        {:keys [cli-opts header]} params']
+    (when (util/edn? cli-opts)
+      (util/pprint header))
     params'))
 
 (defn install-end [{:keys [cli-opts] :as params}]
@@ -260,5 +268,10 @@
   (do
     (require '[clojure.string :as str]
              '[babashka.bbin.cli :as cli])
-    (let [command "install ./test-dir --as btest"]
-      (apply cli/-main (str/split command #" ")))))
+
+    (defn bbin [command]
+      (apply cli/-main (str/split command #" "))))
+
+  (bbin "install ./test-resources/install-sources/test-dir --as btest")
+  (bbin "install ./test-resources/install-sources/bbin-test-script-3.clj")
+  (bbin "install ./test-resources/install-sources/test-dir2"))

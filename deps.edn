@@ -14,6 +14,9 @@
                             :version "0.2.5"}}
            :dev {:extra-deps {borkdude/deps.clj {:mvn/version "1.12.3.1577"}}
                  :extra-paths ["dev"]}
+           :test {:extra-deps {http-kit/http-kit {:mvn/version "2.8.1"}
+                               ring/ring-core {:mvn/version "1.15.3"}}
+                  :extra-paths ["test"]}
            :nrepl {:extra-deps {nrepl/nrepl {:mvn/version "1.5.1"}
                                 cider/cider-nrepl {:mvn/version "0.58.0"}
                                 refactor-nrepl/refactor-nrepl {:mvn/version "3.11.0"}}

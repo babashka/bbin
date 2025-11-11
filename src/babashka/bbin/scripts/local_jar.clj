@@ -8,26 +8,6 @@
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]))
 
-(def ^:private local-jar-template-str
-  (str/trim "
-#!/usr/bin/env bb
-
-; :bbin/start
-;
-{{script/meta}}
-;
-; :bbin/end
-
-(require '[babashka.classpath :refer [add-classpath]])
-
-(def script-jar {{script/jar|pr-str}})
-
-(add-classpath script-jar)
-
-(require '[{{script/main-ns}}])
-(apply {{script/main-ns}}/-main *command-line-args*)
-"))
-
 (defrecord LocalJar [cli-opts coords]
   p/Script
   (install [_]
@@ -48,7 +28,7 @@
                          :script/main-ns main-ns
                          :script/jar cached-jar-path}
           script-contents (selmer-util/without-escaping
-                           (selmer/render local-jar-template-str template-opts))
+                           (selmer/render common/local-jar-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (fs/copy file-path cached-jar-path {:replace-existing true})

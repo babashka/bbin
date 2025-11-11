@@ -4,7 +4,6 @@
             [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
             [babashka.bbin.util :as util]
-            [babashka.deps :as deps]
             [babashka.fs :as fs]
             [babashka.http-client :as http]
             [babashka.json :as json]
@@ -13,36 +12,6 @@
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]))
 
-(def ^:private maven-template-str
-  (str/trim "
-#!/usr/bin/env bb
-
-; :bbin/start
-;
-{{script/meta}}
-;
-; :bbin/end
-
-(require '[babashka.process :as process]
-         '[babashka.fs :as fs]
-         '[clojure.string :as str])
-
-(def script-lib '{{script/lib}})
-(def script-coords {{script/coords|str}})
-(def script-main-opts {{script/main-opts}})
-
-(def tmp-edn
-  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
-    (fs/delete-on-exit)))
-
-(def base-command
-  (vec (concat [\"bb\" \"--config\" (str tmp-edn)]
-               script-main-opts
-               [\"--\"])))
-
-(process/exec (into base-command *command-line-args*))
-"))
 
 (defn- first-stable-version [versions]
   (let [vparse (requiring-resolve 'version-clj.core/parse)]
@@ -109,7 +78,7 @@
                          :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))
                          :script/main-opts (common/process-main-opts main-opts script-root)}
           template-out (selmer-util/without-escaping
-                        (selmer/render maven-template-str template-opts))
+                        (selmer/render common/maven-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
       (common/install-script script-name header script-file template-out cli-opts)))
 

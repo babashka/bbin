@@ -921,7 +921,7 @@ WARNING: (We won't make any changes without asking you first.)
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
-(def ^:private deps-tool-template-str
+(def deps-tool-template-str
   (str/trim "
 #!/usr/bin/env bb
 
@@ -1229,6 +1229,57 @@ WARNING: (We won't make any changes without asking you first.)
       (fs/delete-if-exists (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar")))
       (println "Removing" (str script-file)))))
 
+(def local-jar-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.classpath :refer [add-classpath]])
+
+(def script-jar {{script/jar|pr-str}})
+
+(add-classpath script-jar)
+
+(require '[{{script/main-ns}}])
+(apply {{script/main-ns}}/-main *command-line-args*)
+"))
+
+(def maven-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(def script-lib '{{script/lib}})
+(def script-coords {{script/coords|str}})
+(def script-main-opts {{script/main-opts}})
+
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  (vec (concat [\"bb\" \"--config\" (str tmp-edn)]
+               script-main-opts
+               [\"--\"])))
+
+(process/exec (into base-command *command-line-args*))
+"))
+
 (ns babashka.bbin.scripts.local-dir
   (:require [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]))
@@ -1368,11 +1419,14 @@ WARNING: (We won't make any changes without asking you first.)
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [clojure.tools.gitlibs :as gitlibs]
+            [clojure.walk :as walk]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]))
 
 ;; =============================================================================
 ;; Parse
+
+; source-deps:
 
 (defn- parse-deps [{:keys [cli-opts] :as _params}]
   (let [source-deps (bbin-deps/infer cli-opts)]
@@ -1385,8 +1439,9 @@ WARNING: (We won't make any changes without asking you first.)
      :source-url source-url}))
 
 (defn- parse-local [{:keys [cli-opts] :as _params}]
-  (let [source-path (str (fs/canonicalize (fs/file (:script/lib cli-opts))
-                                          {:nofollow-links true}))
+  (let [source-path (-> (fs/path (:script/lib cli-opts))
+                        (fs/canonicalize {:nofollow-links true})
+                        str)
         source-deps {:bbin/url (str "file://" source-path)}]
     {:source-deps source-deps
      :source-path source-path}))
@@ -1406,7 +1461,7 @@ WARNING: (We won't make any changes without asking you first.)
                    ([:git :dir] [:maven :jar])
                    #'parse-deps)
         parsed (parse-fn params)
-        header {:coords (:script-deps parsed)}]
+        header {:coords (:source-deps parsed)}]
     (merge params
            parsed
            {:parse-fn parse-fn
@@ -1423,8 +1478,8 @@ WARNING: (We won't make any changes without asking you first.)
                                  (:script/lib cli-opts)
                                  (:git/sha source-deps))})
 
-(defn- fetch-file [{:keys [source-file] :as _params}]
-  {:source-contents (slurp source-file)})
+(defn- fetch-file [{:keys [source-path] :as _params}]
+  {:source-contents (slurp source-path)})
 
 (defn- fetch-deps [{:keys [source-deps] :as _params}]
   {:deps-result (bbin-deps/add-deps {:deps source-deps})})
@@ -1456,13 +1511,15 @@ WARNING: (We won't make any changes without asking you first.)
     {:project-path project-path
      :scripts bin-config}))
 
-(defn- analyze-file [{:keys [source-contents] :as params}]
-  (let [script-name 'foo]
+(defn- analyze-file [{:keys [source-path] :as params}]
+  (let [script-name (-> (fs/file-name source-path)
+                        (str/replace #"\.(clj|cljc|bb)$" "")
+                        symbol)]
     {:scripts {script-name {}}}))
 
 (defn- analyze-deps [{:keys [source-contents] :as params}]
   (let [script-name 'foo]
-    {:scripts {script-name source-contents}}))
+    {:scripts {script-name {}}}))
 
 (defn- analyze
   "Analyze source contents to find scripts."
@@ -1490,41 +1547,37 @@ WARNING: (We won't make any changes without asking you first.)
 ;; =============================================================================
 ;; Generate
 
-(defn- generate-tool-script [params]
-  {:script-contents "FIXME"})
+(defn script-meta [{:keys [source-deps] :as _params}]
+  (str/join "\n"
+            (->> (binding [*print-namespace-maps* false]
+                   (with-out-str (pprint/pprint source-deps)))
+                 str/split-lines
+                 (map #(str common/comment-char " " %)))))
 
-(defn- generate-dir-script [{:keys [tool-mode source-path source-deps main-opts] :as params}]
-  (let [template-opts {:script/meta (str/join "\n"
-                                              (->> (binding [*print-namespace-maps* false]
-                                                     (with-out-str (pprint/pprint source-deps)))
-                                                   str/split-lines
-                                                   (map #(str common/comment-char " " %))))
+(defn- generate-dir-script [{:keys [source-path source-deps main-opts] :as params}]
+  (let [template-opts {:script/meta (script-meta params)
                        :script/root source-path
                        :script/lib (pr-str (key (first source-deps)))
-                       :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first source-deps))))}
-        template-opts' (if tool-mode
-                         (assoc template-opts :script/ns-default false #_(:ns-default script-config))
-                         (assoc template-opts :script/main-opts
-                                              (common/process-main-opts main-opts source-path)))
+                       :script/coords (binding [*print-namespace-maps* false]
+                                        (pr-str (val (first source-deps))))}
+        main-opts (common/process-main-opts main-opts source-path)
+        template-opts' (assoc template-opts :script/main-opts main-opts)
         script-contents (selmer-util/without-escaping
                           (selmer/render common/git-or-local-template-str-with-bb-edn
                                          template-opts'))]
     {:script-contents script-contents}))
 
-(defn- generate-source-code-script [{:keys [source-code header]}]
-  {:script-contents (common/insert-script-header source-code header)})
+(defn- generate-source-code-script [{:keys [source-contents header]}]
+  {:script-contents (common/insert-script-header source-contents header)})
 
 (defn- generate-local-jar-script [params]
-  {:script-contents "FIXME"})
+  {:script-contents common/local-jar-template-str})
 
 (defn- generate-maven-jar-script [params]
-  {:script-contents "FIXME"})
+  {:script-contents common/maven-template-str})
 
-(defn- generate-single [{:keys [tool-mode procurer artifact] :as params}]
+(defn- generate-single [{:keys [procurer artifact] :as params}]
   (let [generate-fn (cond
-                      tool-mode
-                      #'generate-tool-script
-
                       (= artifact :dir)
                       #'generate-dir-script
 
@@ -1553,17 +1606,22 @@ WARNING: (We won't make any changes without asking you first.)
 ;; =============================================================================
 ;; Write
 
+(defn write-single [{:keys [cli-opts script-name script-config]}]
+  (let [script-path (str (fs/path (dirs/bin-dir cli-opts) (str script-name)))]
+    (spit script-path (:script-contents script-config))
+    (when-not util/windows?
+      (util/sh ["chmod" "+x" script-path]))
+    [script-name script-path]))
+
 (defn write
   "Write the script files."
   [{:keys [generated cli-opts] :as _params}]
   (let [written (doall
                   (->> generated
                        (map (fn [[script-name script-config]]
-                              (let [script-path (str (fs/path (dirs/bin-dir cli-opts) (str script-name)))]
-                                (spit script-path (:script-contents script-config))
-                                (when-not util/windows?
-                                  (util/sh ["chmod" "+x" script-path]))
-                                [script-name script-path])))
+                              (write-single {:cli-opts cli-opts
+                                             :script-name script-name
+                                             :script-config script-config})))
                        (into {})))]
     {:written written}))
 
@@ -1600,8 +1658,10 @@ WARNING: (We won't make any changes without asking you first.)
                             (tap> {:_step-fn step-fn, :params params, :ret ret})
                             (merge params ret)))
                         params
-                        install-steps)]
-    (util/pprint params')
+                        install-steps)
+        {:keys [cli-opts header]} params']
+    (when (util/edn? cli-opts)
+      (util/pprint header))
     params'))
 
 (defn install-end [{:keys [cli-opts] :as params}]
@@ -1621,8 +1681,13 @@ WARNING: (We won't make any changes without asking you first.)
   (do
     (require '[clojure.string :as str]
              '[babashka.bbin.cli :as cli])
-    (let [command "install ./test-dir --as btest"]
-      (apply cli/-main (str/split command #" ")))))
+
+    (defn bbin [command]
+      (apply cli/-main (str/split command #" "))))
+
+  (bbin "install ./test-resources/install-sources/test-dir --as btest")
+  (bbin "install ./test-resources/install-sources/bbin-test-script-3.clj")
+  (bbin "install ./test-resources/install-sources/test-dir2"))
 
 (ns babashka.bbin.scripts.maven-jar
   (:require [babashka.bbin.deps :as bbin-deps]
@@ -1630,7 +1695,6 @@ WARNING: (We won't make any changes without asking you first.)
             [babashka.bbin.protocols :as p]
             [babashka.bbin.scripts.common :as common]
             [babashka.bbin.util :as util]
-            [babashka.deps :as deps]
             [babashka.fs :as fs]
             [babashka.http-client :as http]
             [babashka.json :as json]
@@ -1639,36 +1703,6 @@ WARNING: (We won't make any changes without asking you first.)
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]))
 
-(def ^:private maven-template-str
-  (str/trim "
-#!/usr/bin/env bb
-
-; :bbin/start
-;
-{{script/meta}}
-;
-; :bbin/end
-
-(require '[babashka.process :as process]
-         '[babashka.fs :as fs]
-         '[clojure.string :as str])
-
-(def script-lib '{{script/lib}})
-(def script-coords {{script/coords|str}})
-(def script-main-opts {{script/main-opts}})
-
-(def tmp-edn
-  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
-    (fs/delete-on-exit)))
-
-(def base-command
-  (vec (concat [\"bb\" \"--config\" (str tmp-edn)]
-               script-main-opts
-               [\"--\"])))
-
-(process/exec (into base-command *command-line-args*))
-"))
 
 (defn- first-stable-version [versions]
   (let [vparse (requiring-resolve 'version-clj.core/parse)]
@@ -1735,7 +1769,7 @@ WARNING: (We won't make any changes without asking you first.)
                          :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))
                          :script/main-opts (common/process-main-opts main-opts script-root)}
           template-out (selmer-util/without-escaping
-                        (selmer/render maven-template-str template-opts))
+                        (selmer/render common/maven-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
       (common/install-script script-name header script-file template-out cli-opts)))
 
@@ -2187,26 +2221,6 @@ Otherwise, you can either a) migrate manually or b) override:
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]))
 
-(def ^:private local-jar-template-str
-  (str/trim "
-#!/usr/bin/env bb
-
-; :bbin/start
-;
-{{script/meta}}
-;
-; :bbin/end
-
-(require '[babashka.classpath :refer [add-classpath]])
-
-(def script-jar {{script/jar|pr-str}})
-
-(add-classpath script-jar)
-
-(require '[{{script/main-ns}}])
-(apply {{script/main-ns}}/-main *command-line-args*)
-"))
-
 (defrecord LocalJar [cli-opts coords]
   p/Script
   (install [_]
@@ -2227,7 +2241,7 @@ Otherwise, you can either a) migrate manually or b) override:
                          :script/main-ns main-ns
                          :script/jar cached-jar-path}
           script-contents (selmer-util/without-escaping
-                           (selmer/render local-jar-template-str template-opts))
+                           (selmer/render common/local-jar-template-str template-opts))
           script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name)
                                        {:nofollow-links true})]
       (fs/copy file-path cached-jar-path {:replace-existing true})
