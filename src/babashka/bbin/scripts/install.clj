@@ -4,6 +4,8 @@
             [babashka.bbin.scripts.common :as common]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
+            [babashka.http-client :as http]
+            [clojure.java.io :as io]
             [clojure.pprint :as pprint]
             [clojure.string :as str]
             [clojure.tools.gitlibs :as gitlibs]
@@ -12,8 +14,6 @@
 
 ;; =============================================================================
 ;; Parse
-
-; source-deps:
 
 (defn- parse-deps [{:keys [cli-opts] :as _params}]
   (let [source-deps (bbin-deps/infer cli-opts)]
@@ -58,36 +58,46 @@
             :tool-mode tool-mode})))
 
 ;; =============================================================================
-;; Fetch
+;; Cache
 
-(defn- fetch-repo [{:keys [cli-opts source-deps] :as _params}]
+(defn- cache-repo [{:keys [cli-opts source-deps] :as _params}]
   {:cached-path (gitlibs/procure (:git/url source-deps)
                                  (:script/lib cli-opts)
                                  (:git/sha source-deps))})
 
-(defn- fetch-file [{:keys [source-path] :as _params}]
-  {:source-contents (slurp source-path)})
+(defn- cache-http-file [{:keys [source-path tmp-dir] :as _params}]
+  (let [cached-path (str (fs/path tmp-dir (fs/file-name source-path)))]
+    (io/copy (:body (http/get source-path {:as :bytes})) (fs/file cached-path))
+    {:cached-path cached-path}))
 
-(defn- fetch-deps [{:keys [source-deps] :as _params}]
+(defn- cache-local-file [{:keys [source-path tmp-dir] :as _params}]
+  (let [cached-path (str (fs/path tmp-dir (fs/file-name source-path)))]
+    (io/copy (fs/file source-path) (fs/file cached-path))
+    {:cached-path cached-path}))
+
+(defn- cache-deps [{:keys [source-deps] :as _params}]
   {:deps-result (bbin-deps/add-deps {:deps source-deps})})
 
-(defn fetch
-  "Fetch dependencies for the source."
+(defn cache
+  "Cache dependencies for the script."
   [{:keys [procurer artifact] :as params}]
-  (let [fetch-fn (case [procurer artifact]
+  (let [cache-fn (case [procurer artifact]
                    [:git :dir]
-                   #'fetch-repo
+                   #'cache-repo
 
-                   ([:http :file] [:http :jar]
-                    [:local :file] [:local :jar])
-                   #'fetch-file
+                   ([:http :file] [:http :jar])
+                   #'cache-http-file
 
-                   [:maven :jar]
-                   #'fetch-deps
+                   ([:local :file] [:local :jar])
+                   #'cache-local-file
 
                    [:local :dir]
-                   ::skipped)]
-    (merge {:fetch-fn fetch-fn} (fetch-fn params))))
+                   ::no-cache
+
+                   [:maven :jar]
+                   #'cache-deps)]
+
+    (merge {:cache-fn cache-fn} (cache-fn params))))
 
 ;; =============================================================================
 ;; Analyze
@@ -98,9 +108,9 @@
     {:project-path project-path
      :scripts bin-config}))
 
-(defn- analyze-file [{:keys [source-path] :as params}]
+(defn- analyze-file [{:keys [source-path] :as _params}]
   (let [script-name (-> (fs/file-name source-path)
-                        (str/replace #"\.(clj|cljc|bb)$" "")
+                        (str/replace #"\.(clj|cljc|bb|jar)$" "")
                         symbol)]
     {:scripts {script-name {}}}))
 
@@ -134,7 +144,7 @@
 ;; =============================================================================
 ;; Generate
 
-(defn script-meta [{:keys [source-deps] :as _params}]
+(defn- script-meta [{:keys [source-deps] :as _params}]
   (str/join "\n"
             (->> (binding [*print-namespace-maps* false]
                    (with-out-str (pprint/pprint source-deps)))
@@ -154,11 +164,19 @@
                                          template-opts'))]
     {:script-contents script-contents}))
 
-(defn- generate-source-code-script [{:keys [source-contents header]}]
-  {:script-contents (common/insert-script-header source-contents header)})
+(defn- generate-source-code-script [{:keys [header cached-path]}]
+  (let [source-contents (slurp cached-path)]
+    {:script-contents (common/insert-script-header source-contents header)}))
 
-(defn- generate-local-jar-script [params]
-  {:script-contents common/local-jar-template-str})
+(defn- generate-local-jar-script [{:keys [source-path source-deps] :as params}]
+  (let [main-ns (common/jar->main-ns source-path)
+        template-opts {:script/meta (script-meta params)
+                       :script/jar source-path
+                       :script/main-ns main-ns}
+        script-contents (selmer-util/without-escaping
+                          (selmer/render common/local-jar-template-str
+                                         template-opts))]
+    {:script-contents script-contents}))
 
 (defn- generate-maven-jar-script [params]
   {:script-contents common/maven-template-str})
@@ -193,8 +211,9 @@
 ;; =============================================================================
 ;; Write
 
-(defn write-single [{:keys [cli-opts script-name script-config]}]
+(defn- write-single [{:keys [cli-opts script-name script-config]}]
   (let [script-path (str (fs/path (dirs/bin-dir cli-opts) (str script-name)))]
+    ;(fs/copy file-path cached-jar-path {:replace-existing true})
     (spit script-path (:script-contents script-config))
     (when-not util/windows?
       (util/sh ["chmod" "+x" script-path]))
@@ -213,26 +232,17 @@
     {:written written}))
 
 ;; =============================================================================
-;; Report
-
-(defn report
-  "Report the results."
-  [params]
-  {:report {}})
-
-;; =============================================================================
 ;; Install
 
 (def install-steps
   [#'parse
-   #'fetch
+   #'cache
    #'analyze
    #'select
    #'generate
-   #'write
-   #'report])
+   #'write])
 
-(defn install-start [{:keys [cli-opts] :as params}]
+(defn- install-start [{:keys [cli-opts] :as params}]
   (when-not (util/edn? cli-opts)
     (println)
     (println (util/bold "Starting install..." cli-opts))
@@ -251,7 +261,7 @@
       (util/pprint header))
     params'))
 
-(defn install-end [{:keys [cli-opts] :as params}]
+(defn- install-end [{:keys [cli-opts] :as params}]
   (when-not (util/edn? cli-opts)
     (println)
     (println (util/bold "Install complete." cli-opts))
@@ -259,10 +269,11 @@
   params)
 
 (defn install [cli-opts]
-  (-> {:cli-opts cli-opts}
-      install-start
-      install-run
-      install-end))
+  (fs/with-temp-dir [tmp-dir {}]
+    (-> {:cli-opts cli-opts, :tmp-dir tmp-dir}
+        install-start
+        install-run
+        install-end)))
 
 (comment
   (do
