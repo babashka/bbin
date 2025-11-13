@@ -65,9 +65,9 @@
                                  (:script/lib cli-opts)
                                  (:git/sha source-deps))})
 
-(defn- cache-http-file [{:keys [source-path tmp-dir] :as _params}]
-  (let [cached-path (str (fs/path tmp-dir (fs/file-name source-path)))]
-    (io/copy (:body (http/get source-path {:as :bytes})) (fs/file cached-path))
+(defn- cache-http-file [{:keys [source-url tmp-dir] :as _params}]
+  (let [cached-path (str (fs/path tmp-dir (fs/file-name source-url)))]
+    (io/copy (:body (http/get source-url {:as :bytes})) (fs/file cached-path))
     {:cached-path cached-path}))
 
 (defn- cache-local-file [{:keys [source-path tmp-dir] :as _params}]
@@ -108,11 +108,14 @@
     {:project-path project-path
      :scripts bin-config}))
 
-(defn- analyze-file [{:keys [source-path] :as _params}]
-  (let [script-name (-> (fs/file-name source-path)
+(defn- analyze-file [{:keys [cached-path artifact cli-opts] :as _params}]
+  (let [script-name (-> (fs/file-name cached-path)
                         (str/replace #"\.(clj|cljc|bb|jar)$" "")
                         symbol)]
-    {:scripts {script-name {}}}))
+   (cond-> {:scripts {script-name {}}}
+     (= artifact :jar)
+     (assoc :jar-path (fs/file (dirs/jars-dir cli-opts)
+                               (str script-name ".jar"))))))
 
 (defn- analyze-deps [{:keys [source-contents] :as params}]
   (let [script-name 'foo]
@@ -144,10 +147,10 @@
 ;; =============================================================================
 ;; Generate
 
-(defn- script-meta [{:keys [source-deps] :as _params}]
+(defn- script-meta [{:keys [header] :as _params}]
   (str/join "\n"
             (->> (binding [*print-namespace-maps* false]
-                   (with-out-str (pprint/pprint source-deps)))
+                   (with-out-str (pprint/pprint header)))
                  str/split-lines
                  (map #(str common/comment-char " " %)))))
 
@@ -168,10 +171,10 @@
   (let [source-contents (slurp cached-path)]
     {:script-contents (common/insert-script-header source-contents header)}))
 
-(defn- generate-local-jar-script [{:keys [source-path source-deps] :as params}]
-  (let [main-ns (common/jar->main-ns source-path)
+(defn- generate-local-jar-script [{:keys [cached-path jar-path] :as params}]
+  (let [main-ns (common/jar->main-ns cached-path)
         template-opts {:script/meta (script-meta params)
-                       :script/jar source-path
+                       :script/jar jar-path
                        :script/main-ns main-ns}
         script-contents (selmer-util/without-escaping
                           (selmer/render common/local-jar-template-str
@@ -189,7 +192,7 @@
                       (= artifact :file)
                       #'generate-source-code-script
 
-                      (and (= procurer :local) (= artifact :jar))
+                      (and (not= procurer :maven) (= artifact :jar))
                       #'generate-local-jar-script
 
                       (and (= procurer :maven) (= artifact :jar))
@@ -211,9 +214,12 @@
 ;; =============================================================================
 ;; Write
 
-(defn- write-single [{:keys [cli-opts script-name script-config]}]
+(defn- write-single
+  [{:keys [cli-opts cached-path script-name script-config jar-path]}]
   (let [script-path (str (fs/path (dirs/bin-dir cli-opts) (str script-name)))]
-    ;(fs/copy file-path cached-jar-path {:replace-existing true})
+    (when jar-path
+      (fs/create-dirs (dirs/jars-dir cli-opts))
+      (fs/copy cached-path jar-path {:replace-existing true}))
     (spit script-path (:script-contents script-config))
     (when-not util/windows?
       (util/sh ["chmod" "+x" script-path]))
@@ -221,13 +227,14 @@
 
 (defn write
   "Write the script files."
-  [{:keys [generated cli-opts] :as _params}]
+  [{:keys [generated] :as params}]
   (let [written (doall
                   (->> generated
                        (map (fn [[script-name script-config]]
-                              (write-single {:cli-opts cli-opts
-                                             :script-name script-name
-                                             :script-config script-config})))
+                              (write-single
+                                (merge params
+                                       {:script-name script-name
+                                        :script-config script-config}))))
                        (into {})))]
     {:written written}))
 
@@ -285,4 +292,4 @@
 
   (bbin "install ./test-resources/install-sources/test-dir --as btest")
   (bbin "install ./test-resources/install-sources/bbin-test-script-3.clj")
-  (bbin "install ./test-resources/install-sources/test-dir2"))
+  (bbin "install ./test-resources/hello.jar"))

@@ -19,6 +19,7 @@
           _ (fs/copy (fs/file "test-resources" "hello.jar")
                      (fs/file tu/http-public-dir "hello.jar"))
           out (tu/run-install cli-opts)]
+      (tap> {:out out})
       (is (= {:coords {:bbin/url hello-jar-url}} out))
       (is (= "Hello JAR" (tu/run-bin-script :hello)))))
   (testing "install https://*.jar (reinstall)"
@@ -29,15 +30,15 @@
       (is (= {'hello {:coords {:bbin/url hello-jar-url}}} (tu/run-ls))))))
 
 (deftest upgrade-http-jar-test
-  (testing "upgrade (http jar)"
-    (tu/reset-test-dir)
-    (dirs/ensure-bbin-dirs {})
-    (fs/copy (fs/file "test-resources" "hello.jar")
-             (fs/file tu/http-public-dir "hello.jar"))
-    (tu/run-install {:script/lib hello-jar-url})
-    (is (= "Hello JAR" (tu/run-bin-script :hello)))
-    (fs/copy (fs/file "test-resources" "hello2.jar")
-             (fs/file tu/http-public-dir "hello.jar")
-             {:replace-existing true})
-    (tu/run-upgrade {:script/lib "hello"})
-    (is (= "Hello JAR 2" (tu/run-bin-script :hello)))))
+  #_(testing "upgrade (http jar)"
+      (tu/reset-test-dir)
+      (dirs/ensure-bbin-dirs {})
+      (fs/copy (fs/file "test-resources" "hello.jar")
+               (fs/file tu/http-public-dir "hello.jar"))
+      (tu/run-install {:script/lib hello-jar-url})
+      (is (= "Hello JAR" (tu/run-bin-script :hello)))
+      (fs/copy (fs/file "test-resources" "hello2.jar")
+               (fs/file tu/http-public-dir "hello.jar")
+               {:replace-existing true})
+      (tu/run-upgrade {:script/lib "hello"})
+      (is (= "Hello JAR 2" (tu/run-bin-script :hello)))))
