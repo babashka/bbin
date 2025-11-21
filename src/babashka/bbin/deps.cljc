@@ -6,11 +6,11 @@
             [clojure.string :as str]
             [clojure.tools.gitlibs.impl :as gitlibs-impl]
             #?@(:bb [babashka.deps]
-                :clj [borkdude.deps])))
+                :clj [clojure.repl.deps])))
 
-(defn add-deps [params]
-  #?(:bb ((resolve 'babashka.deps/add-deps) params)
-     :clj ((resolve 'borkdude.deps/add-deps) params)))
+(defn add-libs [lib-coords]
+  #?(:bb ((resolve 'babashka.deps/add-deps) {:deps lib-coords})
+     :clj ((resolve 'clojure.repl.deps/add-libs) lib-coords)))
 
 (def lib-opts->template-deps-fn
   "A map to define valid CLI options.
@@ -119,7 +119,9 @@
   (boolean (and (string? x) (re-seq #"^.+@.+:.+\.git$" x))))
 
 (defn- git-http-url? [x]
-  (boolean (and (string? x) (re-seq #"^https?://.+\.git$" x))))
+  (boolean (and (string? x)
+                (or (re-seq #"^https?://.+\.git$" x)
+                    (re-seq #"^https?://github.com/[^/]+/[^/]+$" x)))))
 
 (defn git-repo-url? [s]
   (or (git-http-url? s) (git-ssh-url? s)))

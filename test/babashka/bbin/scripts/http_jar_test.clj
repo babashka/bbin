@@ -19,7 +19,6 @@
           _ (fs/copy (fs/file "test-resources" "hello.jar")
                      (fs/file tu/http-public-dir "hello.jar"))
           out (tu/run-install cli-opts)]
-      (tap> {:out out})
       (is (= {:coords {:bbin/url hello-jar-url}} out))
       (is (= "Hello JAR" (tu/run-bin-script :hello)))))
   (testing "install https://*.jar (reinstall)"
