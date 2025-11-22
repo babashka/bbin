@@ -17,19 +17,13 @@
 ;; =============================================================================
 ;; Parse
 
-(defn- parse-deps-maven? [{:keys [cli-opts] :as _params}]
-  (:mvn/version cli-opts))
-
-(defn- parse-deps-git-https-url? [{:keys [cli-opts] :as _params}]
-  (str/starts-with? (:script/lib cli-opts) "https://"))
-
 (defn- parse-deps [{:keys [cli-opts] :as params}]
   (cond
-    (parse-deps-maven? params)
+    (:mvn/version cli-opts)
     {:source-deps (select-keys cli-opts [:mvn/version])
      :lib (edn/read-string (:script/lib cli-opts))}
 
-    (parse-deps-git-https-url? params)
+    (str/starts-with? (:script/lib cli-opts) "https://")
     (let [git-url (cond-> (:script/lib cli-opts)
                     (not (str/ends-with? (:script/lib cli-opts) ".git"))
                     (str ".git"))
@@ -53,7 +47,15 @@
   {:source-deps {:bbin/url (:script/lib cli-opts)}
    :source-url (:script/lib cli-opts)})
 
-(defn- parse-local [{:keys [cli-opts] :as _params}]
+(defn- parse-local-file [{:keys [cli-opts] :as _params}]
+  (let [source-path (-> (fs/path (:script/lib cli-opts))
+                        (fs/canonicalize {:nofollow-links true})
+                        str)
+        source-deps {:bbin/url (str "file://" source-path)}]
+    {:source-deps source-deps
+     :source-path source-path}))
+
+(defn- parse-local-dir [{:keys [cli-opts] :as _params}]
   (let [source-path (-> (fs/path (:script/lib cli-opts))
                         (fs/canonicalize {:nofollow-links true})
                         str)
@@ -258,17 +260,17 @@
     :generate #'generate-local-jar-script}
 
    [:local :dir]
-   {:parse #'parse-local
+   {:parse #'parse-local-dir
     :analyze #'analyze-file
     :generate #'generate-dir-script}
 
    [:local :file]
-   {:parse #'parse-local
+   {:parse #'parse-local-file
     :analyze #'analyze-file
     :generate #'generate-source-code-script}
 
    [:local :jar]
-   {:parse #'parse-local
+   {:parse #'parse-local-file
     :analyze #'analyze-file
     :generate #'generate-local-jar-script}
 
