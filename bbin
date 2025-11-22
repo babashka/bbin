@@ -1464,10 +1464,8 @@ WARNING: (We won't make any changes without asking you first.)
        :lib lib})))
 
 (defn- parse-http [{:keys [cli-opts] :as _params}]
-  (let [source-deps {:bbin/url (:script/lib cli-opts)}
-        source-url (:script/lib cli-opts)]
-    {:source-deps source-deps
-     :source-url source-url}))
+  {:source-deps {:bbin/url (:script/lib cli-opts)}
+   :source-url (:script/lib cli-opts)})
 
 (defn- parse-local [{:keys [cli-opts] :as _params}]
   (let [source-path (-> (fs/path (:script/lib cli-opts))
@@ -1496,31 +1494,31 @@ WARNING: (We won't make any changes without asking you first.)
 ;; =============================================================================
 ;; Cache
 
-(defn- cache-repo [{:keys [source-deps lib] :as _params}]
+(defn- load-repo [{:keys [source-deps lib] :as _params}]
   {:cached-path (gitlibs/procure (:git/url source-deps)
                                  lib
                                  (:git/sha source-deps))})
 
-(defn- cache-http-file [{:keys [source-url tmp-dir] :as _params}]
+(defn- load-http-file [{:keys [source-url tmp-dir] :as _params}]
   (let [cached-path (str (fs/path tmp-dir (fs/file-name source-url)))]
     (io/copy (:body (http/get source-url {:as :bytes})) (fs/file cached-path))
     {:cached-path cached-path}))
 
-(defn- cache-local-file [{:keys [source-path tmp-dir] :as _params}]
+(defn- load-local-file [{:keys [source-path tmp-dir] :as _params}]
   (let [cached-path (str (fs/path tmp-dir (fs/file-name source-path)))]
     (io/copy (fs/file source-path) (fs/file cached-path))
     {:cached-path cached-path}))
 
-(defn- cache-deps [{:keys [source-deps cli-opts] :as _params}]
+(defn- load-deps [{:keys [source-deps cli-opts] :as _params}]
   (let [lib (or (some-> (:script/lib cli-opts) edn/read-string)
                 'local/root)]
     {:deps-result (deps/add-libs {lib source-deps})}))
 
-(defn cache
+(defn load
   "Cache dependencies for the script."
   [{:keys [procurer artifact config] :as params}]
-  (let [cache-fn (get-in config [[procurer artifact] :cache])]
-    (when cache-fn (cache-fn params))))
+  (let [load-fn (get-in config [[procurer artifact] :cache])]
+    (when load-fn (load-fn params))))
 
 ;; =============================================================================
 ;; Analyze
@@ -1618,10 +1616,11 @@ WARNING: (We won't make any changes without asking you first.)
   [{:keys [selected scripts] :as params}]
   (let [generated (->> (select-keys scripts selected)
                        (map (fn [[script-name script-config]]
-                              [script-name (generate-single
-                                             (merge params
-                                                    {:script-config script-config
-                                                     :script-name script-name}))]))
+                              [script-name
+                               (generate-single
+                                 (merge params
+                                        {:script-config script-config
+                                         :script-name script-name}))]))
                        (into {}))]
     {:generated generated}))
 
@@ -1629,7 +1628,7 @@ WARNING: (We won't make any changes without asking you first.)
 ;; Write
 
 (defn- write-single
-  [{:keys [cli-opts cached-path script-name script-config jar-path]}]
+  [{:keys [cached-path script-name script-config bin-dir jar-path jars-dir]}]
   (let [script-path (str (fs/path (dirs/bin-dir cli-opts) (str script-name)))]
     (when jar-path
       (fs/create-dirs (dirs/jars-dir cli-opts))
@@ -1658,19 +1657,19 @@ WARNING: (We won't make any changes without asking you first.)
 (def default-config
   {[:git :dir]
    {:parse #'parse-deps
-    :cache #'cache-repo
+    :cache #'load-repo
     :analyze #'analyze-dir
     :generate #'generate-dir-script}
 
    [:http :file]
    {:parse #'parse-http
-    :cache #'cache-http-file
+    :cache #'load-http-file
     :analyze #'analyze-file
     :generate #'generate-source-code-script}
 
    [:http :jar]
    {:parse #'parse-http
-    :cache #'cache-http-file
+    :cache #'load-http-file
     :analyze #'analyze-file
     :generate #'generate-local-jar-script}
 
@@ -1681,25 +1680,25 @@ WARNING: (We won't make any changes without asking you first.)
 
    [:local :file]
    {:parse #'parse-local
-    :cache #'cache-local-file
+    :cache #'load-local-file
     :analyze #'analyze-file
     :generate #'generate-source-code-script}
 
    [:local :jar]
    {:parse #'parse-local
-    :cache #'cache-local-file
+    :cache #'load-local-file
     :analyze #'analyze-file
     :generate #'generate-local-jar-script}
 
    [:maven :jar]
    {:parse #'parse-deps
-    :cache #'cache-deps
+    :cache #'load-deps
     :analyze #'analyze-deps
     :generate #'generate-maven-jar-script}})
 
 (def install-steps
   [#'parse
-   #'cache
+   #'load
    #'analyze
    #'select
    #'generate
