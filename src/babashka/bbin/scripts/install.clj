@@ -112,7 +112,8 @@
   (let [bin-config (common/load-bin-config (or loaded-path source-path))]
     {:scripts bin-config}))
 
-(defn- analyze-file [{:keys [loaded-path source-path artifact jars-dir] :as _params}]
+(defn- analyze-file
+  [{:keys [loaded-path source-path artifact jars-dir] :as _params}]
   (let [script-name (-> (fs/file-name (or loaded-path source-path))
                         (str/replace #"\.(clj|cljc|bb|jar)$" "")
                         symbol)]
@@ -168,7 +169,8 @@
   (let [source-contents (slurp (or loaded-path source-path))]
     {:script-contents (common/insert-script-header source-contents header)}))
 
-(defn- generate-local-jar-script [{:keys [loaded-path source-path jar-path] :as params}]
+(defn- generate-local-jar-script
+  [{:keys [loaded-path source-path jar-path] :as params}]
   (let [main-ns (common/jar->main-ns (or loaded-path source-path))
         template-opts {:script/meta (generate-script-meta params)
                        :script/jar jar-path
