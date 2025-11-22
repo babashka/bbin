@@ -97,7 +97,7 @@
 (defn- load-deps [{:keys [lib source-deps] :as _params}]
   {:loaded-deps (deps/add-libs {lib source-deps})})
 
-(defn load
+(defn load!
   "Load files used to generate the script."
   [{:keys [procurer artifact config] :as params}]
   (let [load-fn (get-in config [[procurer artifact] :load])]
@@ -222,7 +222,7 @@
       (util/sh ["chmod" "+x" script-path]))
     [script-name script-path]))
 
-(defn write
+(defn write!
   "Write the script files."
   [{:keys [generated] :as params}]
   (let [written (doall
@@ -280,11 +280,11 @@
 
 (def install-steps
   [#'parse
-   #'load
+   #'load!
    #'analyze
    #'select
    #'generate
-   #'write])
+   #'write!])
 
 (defn- install-start [{:keys [cli-opts] :as params}]
   (when-not (util/edn? cli-opts)
