@@ -103,11 +103,12 @@
         (throw (ex-info (s/explain-str :bbin/bin bin-config)
                         {:bbin/bin bin-config}))))))
 
-(defn default-script-config [cli-opts]
-  (let [[ns name] (str/split (:script/lib cli-opts) #"/")
-        top (last (str/split ns #"\."))]
-    {:main-opts ["-m" (str top "." name)]
-     :ns-default (str top "." name)}))
+(defn default-script-config [lib]
+  (let [lib-ns (namespace lib)
+        lib-name (name lib)
+        top (last (str/split lib-ns #"\."))]
+    {:main-opts ["-m" (str top "." lib-name)]
+     :ns-default (str top "." lib-name)}))
 
 (defn process-main-opts
   "Process main-opts, canonicalizing file paths that follow -f flags."

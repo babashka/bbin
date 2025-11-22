@@ -64,7 +64,7 @@
 (defn parse
   "Parse source from the CLI options."
   [{:keys [cli-opts config] :as params}]
-  (let [{:keys [tool-mode]} cli-opts
+  (let [{:keys [tool-mode as main-opts]} cli-opts
         {:keys [procurer artifact]} (deps/summary cli-opts)
         parse-fn (get-in config [[procurer artifact] :parse])
         parsed (parse-fn params)
@@ -75,58 +75,53 @@
            {:procurer procurer
             :artifact artifact
             :header header
-            :tool-mode tool-mode})))
+            :tool-mode tool-mode
+            :as as
+            :main-opts main-opts
+            :bin-dir (dirs/bin-dir cli-opts)
+            :jars-dir (dirs/jars-dir cli-opts)})))
 
 ;; =============================================================================
-;; Cache
+;; Load
 
 (defn- load-repo [{:keys [source-deps lib] :as _params}]
-  {:cached-path (gitlibs/procure (:git/url source-deps)
+  {:loaded-path (gitlibs/procure (:git/url source-deps)
                                  lib
                                  (:git/sha source-deps))})
 
 (defn- load-http-file [{:keys [source-url tmp-dir] :as _params}]
-  (let [cached-path (str (fs/path tmp-dir (fs/file-name source-url)))]
-    (io/copy (:body (http/get source-url {:as :bytes})) (fs/file cached-path))
-    {:cached-path cached-path}))
+  (let [loaded-path (str (fs/path tmp-dir (fs/file-name source-url)))]
+    (io/copy (:body (http/get source-url {:as :bytes})) (fs/file loaded-path))
+    {:loaded-path loaded-path}))
 
-(defn- load-local-file [{:keys [source-path tmp-dir] :as _params}]
-  (let [cached-path (str (fs/path tmp-dir (fs/file-name source-path)))]
-    (io/copy (fs/file source-path) (fs/file cached-path))
-    {:cached-path cached-path}))
-
-(defn- load-deps [{:keys [source-deps cli-opts] :as _params}]
-  (let [lib (or (some-> (:script/lib cli-opts) edn/read-string)
-                'local/root)]
-    {:deps-result (deps/add-libs {lib source-deps})}))
+(defn- load-deps [{:keys [lib source-deps] :as _params}]
+  {:loaded-deps (deps/add-libs {lib source-deps})})
 
 (defn load
-  "Cache dependencies for the script."
+  "Load files used to generate the script."
   [{:keys [procurer artifact config] :as params}]
-  (let [load-fn (get-in config [[procurer artifact] :cache])]
+  (let [load-fn (get-in config [[procurer artifact] :load])]
     (when load-fn (load-fn params))))
 
 ;; =============================================================================
 ;; Analyze
 
-(defn- analyze-dir [params]
-  (let [bin-config (common/load-bin-config (or (:cached-path params)
-                                               (:source-path params)))]
+(defn- analyze-dir [{:keys [loaded-path source-path] :as _params}]
+  (let [bin-config (common/load-bin-config (or loaded-path source-path))]
     {:scripts bin-config}))
 
-(defn- analyze-file [{:keys [cached-path artifact cli-opts] :as _params}]
-  (let [script-name (-> (fs/file-name cached-path)
+(defn- analyze-file [{:keys [loaded-path source-path artifact jars-dir] :as _params}]
+  (let [script-name (-> (fs/file-name (or loaded-path source-path))
                         (str/replace #"\.(clj|cljc|bb|jar)$" "")
                         symbol)]
    (cond-> {:scripts {script-name {}}}
      (= artifact :jar)
-     (assoc :jar-path (fs/file (dirs/jars-dir cli-opts)
-                               (str script-name ".jar"))))))
+     (assoc :jar-path (fs/file jars-dir (str script-name ".jar"))))))
 
-(defn- analyze-deps [{:keys [cli-opts] :as _params}]
-  (let [script-name (or (:as cli-opts)
-                        (second (str/split (:script/lib cli-opts) #"/")))]
-    {:scripts {script-name (common/default-script-config cli-opts)}}))
+(defn- analyze-deps [{:keys [as lib] :as _params}]
+  (let [script-name (or as (name lib))
+        script-config (common/default-script-config lib)]
+    {:scripts {script-name script-config}}))
 
 (defn- analyze
   "Analyze source contents to find scripts."
@@ -145,33 +140,35 @@
 ;; =============================================================================
 ;; Generate
 
-(defn- script-meta [{:keys [header] :as _params}]
+(defn- generate-script-meta [{:keys [header] :as _params}]
   (str/join "\n"
             (->> (binding [*print-namespace-maps* false]
                    (with-out-str (pprint/pprint header)))
                  str/split-lines
                  (map #(str common/comment-char " " %)))))
 
-(defn- generate-dir-script [{:keys [source-path source-deps main-opts] :as params}]
-  (let [template-opts {:script/meta (script-meta params)
+(defn- generate-dir-script
+  [{:keys [source-path source-deps main-opts] :as params}]
+  (let [template-opts {:script/meta (generate-script-meta params)
                        :script/root source-path
                        :script/lib (pr-str (key (first source-deps)))
                        :script/coords (binding [*print-namespace-maps* false]
                                         (pr-str (val (first source-deps))))}
-        main-opts (common/process-main-opts main-opts source-path)
-        template-opts' (assoc template-opts :script/main-opts main-opts)
+        main-opts' (common/process-main-opts main-opts source-path)
+        template-opts' (assoc template-opts :script/main-opts main-opts')
         script-contents (selmer-util/without-escaping
-                          (selmer/render common/git-or-local-template-str-with-bb-edn
-                                         template-opts'))]
+                          (selmer/render
+                            common/git-or-local-template-str-with-bb-edn
+                            template-opts'))]
     {:script-contents script-contents}))
 
-(defn- generate-source-code-script [{:keys [header cached-path]}]
-  (let [source-contents (slurp cached-path)]
+(defn- generate-source-code-script [{:keys [header loaded-path source-path]}]
+  (let [source-contents (slurp (or loaded-path source-path))]
     {:script-contents (common/insert-script-header source-contents header)}))
 
-(defn- generate-local-jar-script [{:keys [cached-path jar-path] :as params}]
-  (let [main-ns (common/jar->main-ns cached-path)
-        template-opts {:script/meta (script-meta params)
+(defn- generate-local-jar-script [{:keys [loaded-path source-path jar-path] :as params}]
+  (let [main-ns (common/jar->main-ns (or loaded-path source-path))
+        template-opts {:script/meta (generate-script-meta params)
                        :script/jar jar-path
                        :script/main-ns main-ns}
         script-contents (selmer-util/without-escaping
@@ -180,14 +177,14 @@
     {:script-contents script-contents}))
 
 (defn- generate-maven-jar-script
-  [{:keys [cli-opts cached-path script-config header] :as params}]
-  (let [main-opts (-> (or (some-> (:main-opts cli-opts) edn/read-string)
-                          (:main-opts script-config))
-                      (common/process-main-opts cached-path))
-        template-opts {:script/meta (script-meta params)
+  [{:keys [main-opts loaded-path script-config header] :as params}]
+  (let [main-opts' (-> (or (some-> main-opts edn/read-string)
+                           (:main-opts script-config))
+                       (common/process-main-opts loaded-path))
+        template-opts {:script/meta (generate-script-meta params)
                        :script/coords (:coords header)
                        :script/lib (:lib header)
-                       :script/main-opts main-opts}
+                       :script/main-opts main-opts'}
         script-contents (selmer-util/without-escaping
                           (selmer/render common/maven-template-str
                                          template-opts))]
@@ -214,11 +211,12 @@
 ;; Write
 
 (defn- write-single
-  [{:keys [cached-path script-name script-config bin-dir jar-path jars-dir]}]
-  (let [script-path (str (fs/path (dirs/bin-dir cli-opts) (str script-name)))]
+  [{:keys [loaded-path source-path script-name script-config bin-dir
+           jar-path jars-dir]}]
+  (let [script-path (str (fs/path bin-dir (str script-name)))]
     (when jar-path
-      (fs/create-dirs (dirs/jars-dir cli-opts))
-      (fs/copy cached-path jar-path {:replace-existing true}))
+      (fs/create-dirs jars-dir)
+      (fs/copy (or loaded-path source-path) jar-path {:replace-existing true}))
     (spit script-path (:script-contents script-config))
     (when-not util/windows?
       (util/sh ["chmod" "+x" script-path]))
@@ -243,19 +241,19 @@
 (def default-config
   {[:git :dir]
    {:parse #'parse-deps
-    :cache #'load-repo
+    :load #'load-repo
     :analyze #'analyze-dir
     :generate #'generate-dir-script}
 
    [:http :file]
    {:parse #'parse-http
-    :cache #'load-http-file
+    :load #'load-http-file
     :analyze #'analyze-file
     :generate #'generate-source-code-script}
 
    [:http :jar]
    {:parse #'parse-http
-    :cache #'load-http-file
+    :load #'load-http-file
     :analyze #'analyze-file
     :generate #'generate-local-jar-script}
 
@@ -266,19 +264,17 @@
 
    [:local :file]
    {:parse #'parse-local
-    :cache #'load-local-file
     :analyze #'analyze-file
     :generate #'generate-source-code-script}
 
    [:local :jar]
    {:parse #'parse-local
-    :cache #'load-local-file
     :analyze #'analyze-file
     :generate #'generate-local-jar-script}
 
    [:maven :jar]
    {:parse #'parse-deps
-    :cache #'load-deps
+    :load #'load-deps
     :analyze #'analyze-deps
     :generate #'generate-maven-jar-script}})
 
