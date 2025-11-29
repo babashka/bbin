@@ -252,9 +252,9 @@
 ;; Write
 
 (defn- write-single
-  [{::parse/keys [source-path bin-dir jar-path]
+  [{::parse/keys [source-path bin-dir]
     ::load/keys [loaded-path]
-    ::analyze/keys [jars-dir]
+    ::analyze/keys [jars-dir jar-path]
     ::generate/keys [script-name script-config]
     :as _params}]
   (let [script-path (str (fs/path bin-dir (str script-name)))]
