@@ -1280,16 +1280,16 @@ WARNING: (We won't make any changes without asking you first.)
   (:require [babashka.bbin.deps :as deps]
             [babashka.bbin.dirs :as dirs]
             [babashka.bbin.scripts.common :as common]
-            [babashka.bbin.util :as util]
-            [babashka.fs :as fs]
-            [babashka.http-client :as http]
-            [babashka.bbin.scripts.install.input :as-alias input]
             [babashka.bbin.scripts.install.analyze :as-alias analyze]
             [babashka.bbin.scripts.install.generate :as-alias generate]
+            [babashka.bbin.scripts.install.input :as-alias input]
             [babashka.bbin.scripts.install.load :as-alias load]
             [babashka.bbin.scripts.install.parse :as-alias parse]
             [babashka.bbin.scripts.install.select :as-alias select]
             [babashka.bbin.scripts.install.write :as-alias write]
+            [babashka.bbin.util :as util]
+            [babashka.fs :as fs]
+            [babashka.http-client :as http]
             [clojure.edn :as edn]
             [clojure.java.io :as io]
             [clojure.pprint :as pprint]
@@ -1530,16 +1530,16 @@ WARNING: (We won't make any changes without asking you first.)
 ;; Write
 
 (defn- write-single
-  [{::parse/keys [source-path bin-dir jar-path]
+  [{::parse/keys [source-path bin-dir]
     ::load/keys [loaded-path]
-    ::analyze/keys [jars-dir]
+    ::analyze/keys [jars-dir jar-path]
     ::generate/keys [script-name script-config]
     :as _params}]
   (let [script-path (str (fs/path bin-dir (str script-name)))]
     (when jar-path
       (fs/create-dirs jars-dir)
       (fs/copy (or loaded-path source-path) jar-path {:replace-existing true}))
-    (spit script-path (:script-contents script-config))
+    (spit script-path (::generate/script-contents script-config))
     (when-not util/windows?
       (util/sh ["chmod" "+x" script-path]))
     [script-name {::write/script-path script-path}]))

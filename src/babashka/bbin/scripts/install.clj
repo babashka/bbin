@@ -261,7 +261,7 @@
     (when jar-path
       (fs/create-dirs jars-dir)
       (fs/copy (or loaded-path source-path) jar-path {:replace-existing true}))
-    (spit script-path (:script-contents script-config))
+    (spit script-path (::generate/script-contents script-config))
     (when-not util/windows?
       (util/sh ["chmod" "+x" script-path]))
     [script-name {::write/script-path script-path}]))
