@@ -828,12 +828,17 @@ WARNING: (We won't make any changes without asking you first.)
                    (str/replace #"--+" "-")))]
     (symbol "org.babashka.bbin" s)))
 
-(defn local-lib-path [script-deps]
-  (let [lib (key (first script-deps))
-        coords (val (first script-deps))]
-    (if (#{::no-lib} lib)
-      (:local/root coords)
-      (fs/expand-home (str/join fs/file-separator ["~" ".gitlibs" "libs" (namespace lib) (name lib) (:git/sha coords)])))))
+(defn local-lib-path
+  ([script-deps]
+   (local-lib-path script-deps (System/getenv "GITLIBS")))
+  ([script-deps gitlibs-env]
+   (let [lib (key (first script-deps))
+         coords (val (first script-deps))
+         gitlibs-root (or (not-empty gitlibs-env)
+                          (str (fs/path (fs/home) ".gitlibs")))]
+     (if (#{::no-lib} lib)
+       (:local/root coords)
+       (fs/expand-home (str/join fs/file-separator [gitlibs-root "libs" (namespace lib) (name lib) (:git/sha coords)]))))))
 
 (defn- load-bin-config [script-root]
   (let [bb-file (fs/file script-root "bb.edn")

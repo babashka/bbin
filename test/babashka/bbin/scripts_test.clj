@@ -26,6 +26,16 @@
     (spit (fs/file (dirs/bin-dir nil) "test-script") test-script)
     (is (= {'test-script bbin-test-lib} (scripts/load-scripts (dirs/bin-dir nil))))))
 
+(deftest local-lib-path-test
+  (let [script-deps {'io.github.example/foo {:git/sha "abc123"}}
+        expected-suffix "libs/io.github.example/foo/abc123"
+        home-gitlibs   (str (fs/path (fs/home) ".gitlibs") "/" expected-suffix)
+        custom-gitlibs (str  "/custom/gitlibs/" expected-suffix)]
+    (testing "uses ~/.gitlibs when GITLIBS is empty"
+      (is (= (str (common/local-lib-path script-deps "")))))
+    (testing "uses custom path when GITLIBS is set"
+      (is (= (str (common/local-lib-path script-deps "/custom/gitlibs")))))))
+
 (deftest uninstall-test
   (testing "uninstall foo"
     (tu/reset-test-dir)
