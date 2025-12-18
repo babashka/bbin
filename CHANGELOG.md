@@ -10,6 +10,11 @@
 <!-- - Create tag -->
 <!-- - Go to https://github.com/babashka/homebrew-brew and run `bb update-bbin` and publish the new Formula -->
 
+## 0.2.5
+
+- [Fix #78: Installation fails if $GITLIBS are set](https://github.com/babashka/bbin/issues/73) ([@Ramblurr](https://github.com/babashka/bbin/issues/73))
+- [Fix #98: main-opts is limited to two values?](https://github.com/babashka/bbin/issues/98)
+
 ## 0.2.4
 
 - [Fix #88: NPE when using `bbin ls` in dirs with zero-length files](https://github.com/babashka/bbin/issues/88)
