@@ -32,9 +32,11 @@
         home-gitlibs   (str (fs/path (fs/home) ".gitlibs") "/" expected-suffix)
         custom-gitlibs (str  "/custom/gitlibs/" expected-suffix)]
     (testing "uses ~/.gitlibs when GITLIBS is empty"
-      (is (= (str (common/local-lib-path script-deps "")))))
+      (is (= home-gitlibs
+             (str (common/local-lib-path script-deps "")))))
     (testing "uses custom path when GITLIBS is set"
-      (is (= (str (common/local-lib-path script-deps "/custom/gitlibs")))))))
+      (is (= custom-gitlibs
+             (str (common/local-lib-path script-deps "/custom/gitlibs")))))))
 
 (deftest uninstall-test
   (testing "uninstall foo"
