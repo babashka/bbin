@@ -267,7 +267,7 @@ WARNING: (We won't make any changes without asking you first.)
         lib-opts->template-deps-fn))
 
 (defn- invalid-lib-opts-error [provided-lib-opts]
-  (ex-info (str "Provided invalid combination of CLI options")
+  (ex-info "Provided invalid combination of CLI options"
            {:provided-opts (set (keys provided-lib-opts))
             :valid-combinations valid-lib-opts}))
 
@@ -383,8 +383,9 @@ WARNING: (We won't make any changes without asking you first.)
         (and (#{:http} procurer) (re-seq #"\.git$" (:script/lib cli-opts))))
     :dir
 
-    (or (and (#{:local} procurer) (and (:script/lib cli-opts)
-                                       (regular-file? (:script/lib cli-opts))))
+    (or (and (#{:local} procurer)
+             (:script/lib cli-opts)
+             (regular-file? (:script/lib cli-opts)))
         (and (#{:http} procurer) (re-seq #"\.(cljc?|bb)$" (:script/lib cli-opts))))
     :file
 
