@@ -28,9 +28,9 @@
 
 (deftest local-lib-path-test
   (let [script-deps {'io.github.example/foo {:git/sha "abc123"}}
-        expected-suffix "libs/io.github.example/foo/abc123"
-        home-gitlibs   (str (fs/path (fs/home) ".gitlibs") "/" expected-suffix)
-        custom-gitlibs (str  "/custom/gitlibs/" expected-suffix)]
+        expected-suffix ["libs" "io.github.example" "foo" "abc123"]
+        home-gitlibs   (str (apply fs/path (fs/home) ".gitlibs" expected-suffix))
+        custom-gitlibs (str (apply fs/path "/custom/gitlibs/" expected-suffix))]
     (testing "uses ~/.gitlibs when GITLIBS is empty"
       (is (= home-gitlibs
              (str (common/local-lib-path script-deps "")))))
