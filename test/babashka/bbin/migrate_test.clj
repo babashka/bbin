@@ -76,9 +76,9 @@
                                       [:copying {:src (str (fs/file (dirs/legacy-bin-dir) "hello.bat"))
                                                  :dest (str (fs/file (dirs/xdg-bin-dir nil) "hello.bat"))}])
                                     [:moving {:src (str (dirs/legacy-bin-dir))
-                                              :dest (str (migrate/src-backup-path
-                                                          (dirs/legacy-bin-dir)
-                                                          (inst-ms (util/now))))}]
+                                              :dest (migrate/src-backup-path
+                                                     (dirs/legacy-bin-dir)
+                                                     (inst-ms (util/now)))}]
                                     [:done]])
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
@@ -113,9 +113,9 @@
                             [:migrating]
                             [:skipping {:src (str (fs/file (dirs/legacy-bin-dir) "hello"))}]
                             [:moving {:src (str (dirs/legacy-bin-dir))
-                                      :dest (str (migrate/src-backup-path
-                                                  (dirs/legacy-bin-dir)
-                                                  (inst-ms (util/now))))}]
+                                      :dest (migrate/src-backup-path
+                                             (dirs/legacy-bin-dir)
+                                             (inst-ms (util/now)))}]
                             [:done]]
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
@@ -161,13 +161,13 @@
                                     [:copying {:src (str (fs/file (dirs/legacy-jars-dir) "hello.jar"))
                                                :dest (str (fs/file (dirs/xdg-jars-dir nil) "hello.jar"))}]
                                     [:moving {:src (str (dirs/legacy-bin-dir))
-                                              :dest (str (migrate/src-backup-path
-                                                          (dirs/legacy-bin-dir)
-                                                          (inst-ms (util/now))))}]
+                                              :dest (migrate/src-backup-path
+                                                     (dirs/legacy-bin-dir)
+                                                     (inst-ms (util/now)))}]
                                     [:moving {:src (str (dirs/legacy-jars-dir))
-                                              :dest (str (migrate/src-backup-path
-                                                          (dirs/legacy-jars-dir)
-                                                          (inst-ms (util/now))))}]
+                                              :dest (migrate/src-backup-path
+                                                     (dirs/legacy-jars-dir)
+                                                     (inst-ms (util/now)))}]
                                     [:done]])
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
