@@ -17,7 +17,7 @@
                      (run 'lint)
                      (log/info "bb run test")
                      (run 'test))}
-         lint (let [classpath (:out (shell {:out :string} "clojure -Spath"))]
+         lint (let [classpath (:out (shell {:out :string} "bb print-deps --format classpath"))]
                 (shell "mkdir -p .clj-kondo")
                 (shell
                   "clj-kondo --dependencies --parallel --copy-configs"
