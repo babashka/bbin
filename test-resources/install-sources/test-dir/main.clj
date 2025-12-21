@@ -1,6 +1,5 @@
 (ns main)
 
-#_:clj-kondo/ignore
 (defn -main [& args]
   (prn "main:" args))
 
