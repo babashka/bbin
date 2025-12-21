@@ -342,6 +342,11 @@
                                      (name x))
                             x))))))
 
+(defn log-tap [x]
+  (spit "debug.log" (prn-str x) :append true))
+
+(add-tap #'log-tap)
+
 (defn- install-run [{::input/keys [cli-opts] :as params}]
   (let [params' (reduce (fn [params step-fn]
                           (try

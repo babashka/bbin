@@ -54,6 +54,12 @@ jobs:
       - name: bb test
         run: |
           bb run test
+      - name: Upload debug log
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-log
+          path: debug.log
+
 
   bb-run-lint:
     runs-on: ubuntu-latest
