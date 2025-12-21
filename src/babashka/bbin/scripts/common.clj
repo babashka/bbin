@@ -1,16 +1,12 @@
 (ns babashka.bbin.scripts.common
-  (:require [babashka.bbin.deps :as bbin-deps]
-            [babashka.bbin.dirs :as dirs]
-            [babashka.bbin.meta :as meta]
+  (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.specs]
             [babashka.bbin.util :as util :refer [sh]]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.main :as main]
             [clojure.spec.alpha :as s]
-            [clojure.string :as str]
-            [selmer.parser :as selmer]
-            [selmer.util :as selmer-util])
+            [clojure.string :as str])
   (:import (java.util.jar JarFile)))
 
 (def bb-shebang-str "#!/usr/bin/env bb")
@@ -56,7 +52,7 @@
   Side-effecting."
   ([{:keys [script-name header script-file template-out cli-opts] :as _params}]
    (install-script script-name header script-file template-out cli-opts))
-  ([script-name header path contents & {:keys [dry-run] :as cli-opts}]
+  ([_script-name _header path contents & {:keys [dry-run] :as _cli-opts}]
    (let [path-str (str path)]
      (if dry-run
        (util/pprint {:script-file path-str
@@ -225,68 +221,6 @@
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
-(def ^:private local-dir-template-str-without-bb-edn
-  (str/trim "
-#!/usr/bin/env bb
-
-; :bbin/start
-;
-{{script/meta}}
-;
-; :bbin/end
-
-(require '[babashka.process :as process]
-         '[babashka.fs :as fs]
-         '[clojure.string :as str])
-
-(def script-root {{script/root|pr-str}})
-(def script-main-opts {{script/main-opts}})
-
-(def tmp-edn
-  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-    (spit (str \"{:deps {local/deps {:local/root \" (pr-str script-root) \"}}}\"))
-    (fs/delete-on-exit)))
-
-(def base-command
-  (vec (concat [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)]
-               script-main-opts
-               [\"--\"])))
-
-(process/exec (into base-command *command-line-args*))
-"))
-
-(def ^:private git-or-local-template-str-without-bb-edn
-  (str/trim "
-#!/usr/bin/env bb
-
-; :bbin/start
-;
-{{script/meta}}
-;
-; :bbin/end
-
-(require '[babashka.process :as process]
-         '[babashka.fs :as fs]
-         '[clojure.string :as str])
-
-(def script-root {{script/root|pr-str}})
-(def script-lib '{{script/lib}})
-(def script-coords {{script/coords|str}})
-(def script-main-opts {{script/main-opts}})
-
-(def tmp-edn
-  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
-    (fs/delete-on-exit)))
-
-(def base-command
-  (vec (concat [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)]
-               script-main-opts
-               [\"--\"])))
-
-(process/exec (into base-command *command-line-args*))
-"))
-
 (def git-or-local-template-str-with-bb-edn
   (str/trim "
 #!/usr/bin/env bb
@@ -309,158 +243,6 @@
 
 (process/exec (into base-command *command-line-args*))
 "))
-
-(defn calc-script-deps [{:keys [cli-opts summary] :as params}]
-  (let [{:keys [procurer]} summary
-        script-deps (cond
-                      (and (#{:local} procurer) (not (:local/root cli-opts)))
-                      {::no-lib {:local/root (str (fs/canonicalize (:script/lib cli-opts) {:nofollow-links true}))}}
-
-                      (bbin-deps/git-repo-url? (:script/lib cli-opts))
-                      (bbin-deps/infer
-                        (cond-> (assoc cli-opts :lib (str (generate-deps-lib-name (:script/lib cli-opts)))
-                                                :git/url (:script/lib cli-opts))
-                          (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
-                          (assoc :latest-sha true)))
-
-                      :else
-                      (bbin-deps/infer (assoc cli-opts :lib (:script/lib cli-opts))))]
-    (assoc params :script-deps script-deps)))
-
-(defn calc-header [{:keys [script-deps] :as params}]
-  (let [lib (key (first script-deps))
-        coords (val (first script-deps))
-        header (merge {:coords coords} (when-not (#{::no-lib} lib) {:lib lib}))
-        header' (if (#{::no-lib} lib)
-                  {:coords {:bbin/url (str "file://" (get-in header [:coords :local/root]))}}
-                  header)
-        header' (assoc header' :bbin/version meta/version)]
-    (assoc params :header header')))
-
-(defn add-deps [{:keys [script-deps] :as params}]
-  (let [lib (key (first script-deps))]
-    (when-not (#{::no-lib} lib)
-      (bbin-deps/add-libs script-deps))
-    params))
-
-(defn calc-script-root [{:keys [header script-deps] :as params}]
-  (let [script-root (fs/canonicalize (or (get-in header [:coords :local/root])
-                                         (local-lib-path script-deps))
-                                     {:nofollow-links true})]
-    (assoc params :script-root script-root)))
-
-(defn calc-bin-config [{:keys [script-root] :as params}]
-  (assoc params :bin-config (load-bin-config script-root)))
-
-(defn calc-script-name
-  [{:keys [cli-opts script-deps bin-config header] :as params}]
-  (let [lib (key (first script-deps))
-        script-name (or (:as cli-opts)
-                        (some-> bin-config first key str)
-                        (and (not (#{::no-lib} lib))
-                             (second (str/split (:script/lib cli-opts) #"/"))))]
-    (when (str/blank? script-name)
-      (throw (ex-info "Script name not found. Use --as or :bbin/bin to provide a script name."
-                      header)))
-    (assoc params :script-name script-name)))
-
-(defn calc-script-config [{:keys [cli-opts bin-config script-deps] :as params}]
-  (let [lib (key (first script-deps))
-        script-config (merge (when-not (#{::no-lib} lib)
-                               (default-script-config cli-opts))
-                             (some-> bin-config first val)
-                             (when (:ns-default cli-opts)
-                               {:ns-default (edn/read-string (:ns-default cli-opts))}))]
-    (assoc params :script-config script-config)))
-
-(defn calc-script-edn-out [{:keys [header] :as params}]
-  (let [script-edn-out (with-out-str
-                         (binding [*print-namespace-maps* false]
-                           (util/pprint header)))]
-    (assoc params :script-edn-out script-edn-out)))
-
-(defn calc-tool-mode [{:keys [cli-opts bin-config] :as params}]
-  (let [tool-mode (or (:tool cli-opts)
-                      (and (some-> bin-config first val :ns-default)
-                           (not (some-> bin-config first val :main-opts))))]
-    (assoc params :tool-mode tool-mode)))
-
-(defn calc-main-opts [{:keys [cli-opts tool-mode script-config] :as params}]
-  (let [main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
-                      (:main-opts script-config))]
-    (when (and (not tool-mode) (not (seq main-opts)))
-      (throw (ex-info "Main opts not found. Use --main-opts or :bbin/bin to provide main opts."
-                      {})))
-    (assoc params :main-opts main-opts)))
-
-(defn calc-template-opts
-  [{:keys [script-edn-out script-root script-deps script-config main-opts
-           tool-mode]
-    :as params}]
-  (let [template-opts {:script/meta (->> script-edn-out
-                                         str/split-lines
-                                         (map #(str comment-char " " %))
-                                         (str/join "\n"))
-                       :script/root script-root
-                       :script/lib (pr-str (key (first script-deps)))
-                       :script/coords (binding [*print-namespace-maps* false] (pr-str (val (first script-deps))))}
-        template-opts' (if tool-mode
-                         (assoc template-opts :script/ns-default (:ns-default script-config))
-                         (assoc template-opts :script/main-opts
-                                              (process-main-opts main-opts script-root)))]
-    (assoc params :template-opts template-opts')))
-
-(defn calc-template-str [{:keys [script-deps script-root tool-mode] :as params}]
-  (let [lib (key (first script-deps))
-        bb-file (fs/file script-root "bb.edn")
-        bb-edn-exists (fs/exists? bb-file)
-        template-str (cond
-                       (and tool-mode (#{::no-lib} lib))
-                       local-dir-tool-template-str
-
-                       (and tool-mode (not (#{::no-lib} lib)))
-                       deps-tool-template-str
-
-                       (and (not tool-mode) bb-edn-exists)
-                       git-or-local-template-str-with-bb-edn
-
-                       (and (not tool-mode)
-                            (not bb-edn-exists)
-                            (#{::no-lib} lib))
-                       local-dir-template-str-without-bb-edn
-
-                       (and (not tool-mode)
-                            (not bb-edn-exists)
-                            (not (#{::no-lib} lib)))
-                       git-or-local-template-str-without-bb-edn)]
-    (assoc params :template-str template-str)))
-
-(defn calc-template-out [{:keys [template-str template-opts] :as params}]
-  (let [template-out (selmer-util/without-escaping
-                       (selmer/render template-str template-opts))]
-    (assoc params :template-out template-out)))
-
-(defn calc-script-file [{:keys [cli-opts script-name] :as params}]
-  (let [script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
-    (assoc params :script-file script-file)))
-
-(defn install-deps-git-or-local [cli-opts summary]
-  (-> {:cli-opts cli-opts, :summary summary}
-      calc-script-deps
-      calc-header
-      calc-script-root
-      calc-bin-config
-      calc-script-name
-      calc-script-config
-      calc-script-edn-out
-      calc-tool-mode
-      calc-main-opts
-      calc-template-opts
-      calc-template-str
-      calc-template-out
-      calc-script-file
-      add-deps
-      install-script))
 
 (defn jar->main-ns [jar-path]
   (with-open [jar-file (JarFile. (fs/file jar-path))]

@@ -8,7 +8,9 @@
             #?@(:bb [babashka.deps]
                 :clj [clojure.repl.deps])))
 
-(defn add-libs [lib-coords]
+#_:clj-kondo/ignore
+(defn add-libs
+  [lib-coords]
   #?(:bb ((resolve 'babashka.deps/add-deps) {:deps lib-coords})
      :clj ((resolve 'clojure.repl.deps/add-libs) lib-coords)))
 

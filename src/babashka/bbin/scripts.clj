@@ -1,7 +1,6 @@
 (ns babashka.bbin.scripts
   (:require
    [babashka.bbin.dirs :as dirs]
-   [babashka.bbin.protocols :as p]
    [babashka.bbin.scripts.common :as common]
    [babashka.bbin.scripts.install :as install]
    [babashka.bbin.util :as util]
@@ -64,10 +63,9 @@
 (defn upgrade [cli-opts]
   (if-not (:script/lib cli-opts)
     (util/print-help)
-    (do
-      (dirs/ensure-bbin-dirs cli-opts)
-      #_(let [script (load-script cli-opts)]
-          (p/upgrade script)))))
+    (dirs/ensure-bbin-dirs cli-opts)
+    #_(let [script (load-script cli-opts)]
+        (p/upgrade script))))
 
 (defn uninstall [cli-opts]
   (if-not (:script/lib cli-opts)

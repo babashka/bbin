@@ -375,8 +375,7 @@
 
 (comment
   (do
-    (require '[clojure.string :as str]
-             '[babashka.bbin.cli :as cli])
+    (require '[babashka.bbin.cli :as cli])
 
     (defn bbin [command]
       (apply cli/-main (str/split command #" "))))
