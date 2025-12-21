@@ -17,7 +17,15 @@
                      (run 'lint)
                      (log/info "bb run test")
                      (run 'test))}
-         lint (shell "clj-kondo --lint .")
+         lint (let [classpath (:out (shell {:out :string} "clojure -Spath"))]
+                (shell "mkdir -p .clj-kondo")
+                (shell
+                  "clj-kondo --dependencies --parallel --copy-configs"
+                  "--lint" classpath
+                  "--skip-lint")
+                (apply shell
+                  "clj-kondo --parallel --lint ."
+                  *command-line-args*))
          test {:depends [gen-script]
                :extra-deps {io.github.cognitect-labs/test-runner
                             {:git/tag "v0.5.1" :git/sha "dfb30dd"}
