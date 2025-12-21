@@ -285,7 +285,9 @@
       (fs/create-dirs jars-dir)
       (fs/copy artifact-path jar-path {:replace-existing true}))
     (spit script-path (::generate/script-contents script-config))
-    (when-not util/windows?
+    (if util/windows?
+      (spit (str script-path ".bat")
+            (str "@bb -f %~dp0" (fs/file-name script-path) " -- %*"))
       (util/sh ["chmod" "+x" script-path]))
     [script-name {::write/script-path script-path}]))
 
