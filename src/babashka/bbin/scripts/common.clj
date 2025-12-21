@@ -123,7 +123,7 @@
 
 (def comment-char ";")
 
-(def ^:private local-dir-tool-template-str
+(def local-dir-tool-template-str
   (str/trim "
 #!/usr/bin/env bb
 

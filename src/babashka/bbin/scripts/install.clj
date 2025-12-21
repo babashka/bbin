@@ -23,12 +23,6 @@
             [selmer.util :as selmer-util]))
 
 ;; =============================================================================
-;; Common
-
-(defn ->artifact-path [params]
-  (or (::load/loaded-path params) (::parse/source-path params)))
-
-;; =============================================================================
 ;; Parse
 
 (defn- parse-deps [{::input/keys [cli-opts] :as _params}]
@@ -61,16 +55,22 @@
   {::parse/coords {:bbin/url (:script/lib cli-opts)}})
 
 (defn- parse-local [{::input/keys [cli-opts] :as _params}]
-  (let [source-path (-> (fs/path (:script/lib cli-opts))
+  (let [source-path (-> (fs/path (or (:local/root cli-opts)
+                                     (:script/lib cli-opts)))
                         (fs/canonicalize {:nofollow-links true})
                         str)]
-    {::parse/coords {:bbin/url (str "file://" source-path)}
-     ::parse/source-path source-path}))
+    (cond-> {::parse/coords (if (:local/root cli-opts)
+                              {:local/root source-path}
+                              {:bbin/url (str "file://" source-path)})
+             ::parse/source-path source-path}
+
+      (:local/root cli-opts)
+      (assoc ::parse/lib (edn/read-string (:script/lib cli-opts))))))
 
 (defn parse
   "Parse coords from the CLI options."
   [{::input/keys [cli-opts] :as params}]
-  (let [{:keys [tool-mode as main-opts]} cli-opts
+  (let [{:keys [tool as main-opts]} cli-opts
         {:keys [procurer artifact]} (deps/summary cli-opts)
         parsed (case [procurer artifact]
                  ([:git :dir] [:maven :jar])
@@ -85,7 +85,7 @@
                    (set/rename-keys {::parse/lib :lib
                                      ::parse/coords :coords}))
         extra (->> {::parse/header header
-                    ::parse/tool-mode tool-mode
+                    ::parse/tool tool
                     ::parse/as as
                     ::parse/main-opts main-opts
                     ::parse/bin-dir (str (dirs/bin-dir cli-opts))
@@ -114,29 +114,34 @@
 
 (defn load!
   "Load files used to generate the script."
-  [{::parse/keys [coords] :as params}]
-  (cond
-    (:git/url coords)
-    (load-repo params)
+  [{::parse/keys [coords source-path] :as params}]
+  (let [loaded (cond
+                 (:git/url coords)
+                 (load-repo params)
 
-    (some->> (:bbin/url coords) (re-matches #"^https?://.+"))
-    (load-http-file params)
+                 (some->> (:bbin/url coords) (re-matches #"^https?://.+"))
+                 (load-http-file params)
 
-    (not (:bbin/url coords))
-    (load-deps params)))
+                 (not (or (:bbin/url coords) (:local/root coords)))
+                 (load-deps params))
+        artifact-path (or (::load/loaded-path loaded) source-path)]
+    (merge loaded {::load/artifact-path artifact-path})))
 
 ;; =============================================================================
 ;; Analyze
 
-(defn- analyze-dir [params]
-  (let [artifact-path (->artifact-path params)
-        bin-config (common/load-bin-config artifact-path)]
+(defn- analyze-dir
+  [{::parse/keys [as lib] ::load/keys [artifact-path] :as _params}]
+  (let [script-name (or as (-> (fs/file-name artifact-path)
+                               (str/replace #"\.(clj|cljc|bb|jar)$" "")))
+        bin-config {script-name (merge (when lib (common/default-script-config lib))
+                                       (some-> artifact-path common/load-bin-config first val))}]
     {::analyze/scripts (update-keys bin-config str)}))
 
-(defn- analyze-file [{::parse/keys [jars-dir] :as params}]
-  (let [artifact-path (->artifact-path params)
-        script-name (-> (fs/file-name artifact-path)
-                        (str/replace #"\.(clj|cljc|bb|jar)$" ""))]
+(defn- analyze-file
+  [{::parse/keys [as jars-dir] ::load/keys [artifact-path] :as _params}]
+  (let [script-name (or as (-> (fs/file-name artifact-path)
+                               (str/replace #"\.(clj|cljc|bb|jar)$" "")))]
    (cond-> {::analyze/scripts {script-name {}}}
      (str/ends-with? artifact-path ".jar")
      (assoc ::analyze/jar-path (str (fs/file jars-dir (str script-name ".jar")))))))
@@ -148,14 +153,12 @@
 
 (defn- analyze
   "Analyze source contents to find scripts."
-  [{::parse/keys [coords source-path] ::load/keys [loaded-path] :as params}]
+  [{::parse/keys [coords] ::load/keys [artifact-path] :as params}]
   (cond
-    (or (some-> loaded-path fs/directory?)
-        (some-> source-path fs/directory?))
+    (some-> artifact-path fs/directory?)
     (analyze-dir params)
 
-    (or (some-> loaded-path fs/regular-file?)
-        (some-> source-path fs/regular-file?))
+    (some-> artifact-path fs/regular-file?)
     (analyze-file params)
 
     coords
@@ -180,28 +183,34 @@
        (str/join "\n")))
 
 (defn- generate-dir-script
-  [{::parse/keys [source-path coords main-opts] :as params}]
+  [{::parse/keys [source-path coords tool main-opts]
+    ::generate/keys [script-config]
+    :as params}]
   (let [template-opts {:script/meta (generate-script-meta params)
                        :script/root source-path
                        :script/lib (pr-str (key (first coords)))
                        :script/coords (binding [*print-namespace-maps* false]
-                                        (pr-str (val (first coords))))}
-        main-opts' (common/process-main-opts main-opts source-path)
+                                        (pr-str (val (first coords))))
+                       :script/ns-default (:ns-default script-config)}
+        main-opts' (common/process-main-opts (or main-opts (:main-opts script-config))
+                                             source-path)
         template-opts' (assoc template-opts :script/main-opts main-opts')
         script-contents (selmer-util/without-escaping
                           (selmer/render
-                            common/git-or-local-template-str-with-bb-edn
+                            (if tool
+                              common/local-dir-tool-template-str
+                              common/git-or-local-template-str-with-bb-edn)
                             template-opts'))]
     {::generate/script-contents script-contents}))
 
-(defn- generate-source-code-script [{::parse/keys [header] :as params}]
-  (let [artifact-path (->artifact-path params)
-        source-contents (slurp artifact-path)]
+(defn- generate-source-code-script
+  [{::parse/keys [header] ::load/keys [artifact-path] :as _params}]
+  (let [source-contents (slurp artifact-path)]
     {::generate/script-contents (common/insert-script-header source-contents header)}))
 
-(defn- generate-local-jar-script [{::analyze/keys [jar-path] :as params}]
-  (let [artifact-path (->artifact-path params)
-        main-ns (common/jar->main-ns artifact-path)
+(defn- generate-local-jar-script
+  [{::analyze/keys [jar-path] ::load/keys [artifact-path] :as params}]
+  (let [main-ns (common/jar->main-ns artifact-path)
         template-opts {:script/meta (generate-script-meta params)
                        :script/jar jar-path
                        :script/main-ns main-ns}
@@ -212,12 +221,12 @@
 
 (defn- generate-maven-jar-script
   [{::parse/keys [main-opts header]
-    ::load/keys [loaded-path]
+    ::load/keys [artifact-path]
     ::generate/keys [script-config]
     :as params}]
   (let [main-opts' (-> (or (some-> main-opts edn/read-string)
                            (:main-opts script-config))
-                       (common/process-main-opts loaded-path))
+                       (common/process-main-opts artifact-path))
         template-opts {:script/meta (generate-script-meta params)
                        :script/coords (:coords header)
                        :script/lib (:lib header)
@@ -227,20 +236,20 @@
                                          template-opts))]
     {::generate/script-contents script-contents}))
 
-(defn- generate-single [{::parse/keys [coords] :as params}]
-  (let [artifact-path (->artifact-path params)]
-    (cond
-      (some-> artifact-path (str/ends-with? ".jar"))
-      (generate-local-jar-script params)
+(defn- generate-single
+  [{::parse/keys [coords] ::load/keys [artifact-path] :as params}]
+  (cond
+    (some-> artifact-path (str/ends-with? ".jar"))
+    (generate-local-jar-script params)
 
-      (:mvn/version coords)
-      (generate-maven-jar-script params)
+    (:mvn/version coords)
+    (generate-maven-jar-script params)
 
-      (some-> artifact-path fs/directory?)
-      (generate-dir-script params)
+    (some-> artifact-path fs/directory?)
+    (generate-dir-script params)
 
-      (some-> artifact-path fs/regular-file?)
-      (generate-source-code-script params))))
+    (some-> artifact-path fs/regular-file?)
+    (generate-source-code-script params)))
 
 (defn generate
   "Generate the script contents."
@@ -258,11 +267,11 @@
 
 (defn- write-single
   [{::parse/keys [bin-dir jars-dir]
+    ::load/keys [artifact-path]
     ::analyze/keys [jar-path]
     ::generate/keys [script-name script-config]
-    :as params}]
-  (let [artifact-path (->artifact-path params)
-        script-path (str (fs/path bin-dir (str script-name)))]
+    :as _params}]
+  (let [script-path (str (fs/path bin-dir (str script-name)))]
     (when jar-path
       (fs/create-dirs jars-dir)
       (fs/copy artifact-path jar-path {:replace-existing true}))
