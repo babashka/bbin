@@ -71,7 +71,7 @@
 
          nil)))))
 
-(defn- generate-deps-lib-name [git-url]
+(defn generate-deps-lib-name [git-url]
   (let [s (str "script-"
                (.hashCode git-url)
                "-"

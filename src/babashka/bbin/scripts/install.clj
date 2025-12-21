@@ -31,14 +31,17 @@
     {::parse/coords (select-keys cli-opts [:mvn/version])
      ::parse/lib (edn/read-string (:script/lib cli-opts))}
 
-    (str/starts-with? (:script/lib cli-opts) "https://")
+
+    (deps/git-repo-url? (:script/lib cli-opts))
     (let [git-url (cond-> (:script/lib cli-opts)
-                    (not (str/ends-with? (:script/lib cli-opts) ".git"))
+                    (and (str/starts-with? (:script/lib cli-opts) "https://")
+                         (not (str/ends-with? (:script/lib cli-opts) ".git")))
                     (str ".git"))
-          lib (symbol "bbin" (Integer/toHexString (hash git-url)))
-          inferred (deps/infer (-> cli-opts
-                                (assoc :lib (str lib))
-                                (assoc :git/url git-url)))
+          lib (common/generate-deps-lib-name git-url)
+          inferred (deps/infer
+                     (cond-> (merge cli-opts {:lib (str lib), :git/url git-url})
+                       (not (some cli-opts [:latest-tag :latest-sha :git/sha :git/tag]))
+                       (assoc :latest-sha true)))
           coords (get inferred lib)]
       {::parse/coords coords
        ::parse/lib lib})
@@ -132,11 +135,16 @@
 
 (defn- analyze-dir
   [{::parse/keys [as lib] ::load/keys [artifact-path] :as _params}]
-  (let [script-name (or as (-> (fs/file-name artifact-path)
-                               (str/replace #"\.(clj|cljc|bb|jar)$" "")))
-        bin-config {script-name (merge (when lib (common/default-script-config lib))
-                                       (some-> artifact-path common/load-bin-config first val))}]
-    {::analyze/scripts (update-keys bin-config str)}))
+  (let [bin-config (common/load-bin-config artifact-path)
+        script-name (str (or as
+                             (some-> bin-config first key)
+                             (some-> lib name)
+                             (-> (fs/file-name artifact-path)
+                                 (str/replace #"\.(clj|cljc|bb|jar)$" ""))))
+        script-config (merge (some-> lib common/default-script-config)
+                             (some-> bin-config first val))
+        bin-config' {script-name script-config}]
+    {::analyze/scripts bin-config'}))
 
 (defn- analyze-file
   [{::parse/keys [as jars-dir] ::load/keys [artifact-path] :as _params}]
@@ -183,17 +191,18 @@
        (str/join "\n")))
 
 (defn- generate-dir-script
-  [{::parse/keys [source-path coords tool main-opts]
+  [{::parse/keys [header tool main-opts]
+    ::load/keys [artifact-path]
     ::generate/keys [script-config]
     :as params}]
   (let [template-opts {:script/meta (generate-script-meta params)
-                       :script/root source-path
-                       :script/lib (pr-str (key (first coords)))
+                       :script/root artifact-path
+                       :script/lib (:lib header)
                        :script/coords (binding [*print-namespace-maps* false]
-                                        (pr-str (val (first coords))))
+                                        (pr-str (:coords header)))
                        :script/ns-default (:ns-default script-config)}
         main-opts' (common/process-main-opts (or main-opts (:main-opts script-config))
-                                             source-path)
+                                             artifact-path)
         template-opts' (assoc template-opts :script/main-opts main-opts')
         script-contents (selmer-util/without-escaping
                           (selmer/render
