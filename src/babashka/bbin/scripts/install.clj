@@ -343,7 +343,7 @@
                             x))))))
 
 (defn log-tap [x]
-  (spit "debug.log" (prn-str x) :append true))
+  (spit (fs/file (fs/cwd) "debug.log") (prn-str x) :append true))
 
 (add-tap #'log-tap)
 
