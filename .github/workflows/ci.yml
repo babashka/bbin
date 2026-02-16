@@ -53,8 +53,7 @@ jobs:
           cp bb.exe "$(which bb)"
       - name: bb test
         run: |
-          bb gen-script
-          bb clojure -M:test -n babashka.bbin.scripts.git-dir-test
+          bb test -n babashka.bbin.scripts.git-dir-test
       - name: Upload debug log
         if: failure()
         uses: actions/upload-artifact@v4
