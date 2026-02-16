@@ -55,6 +55,7 @@ jobs:
         run: |
           bb run test
       - name: Upload debug log
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: debug-log
