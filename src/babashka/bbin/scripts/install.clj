@@ -351,10 +351,10 @@
   (let [params' (reduce (fn [params step-fn]
                           (try
                             (let [ret (step-fn params)]
-                              (tap> {:_step-fn step-fn, :params params, :ret ret})
+                              (tap> {:_step-fn (symbol step-fn), :params params, :ret ret})
                               (merge params ret))
                             (catch Exception e
-                              (tap> {:_step-fn step-fn, :params params, :error e})
+                              (tap> {:_step-fn (symbol step-fn), :params params, :error e})
                               (throw e))))
                         params
                         install-steps)]
