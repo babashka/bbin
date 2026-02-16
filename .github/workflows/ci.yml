@@ -54,7 +54,7 @@ jobs:
       - name: bb test
         run: |
           bb gen-script
-          clj -M:test -n babashka.bbin.scripts.git-dir-test
+          bb clojure -M:test -n babashka.bbin.scripts.git-dir-test
       - name: Upload debug log
         if: failure()
         uses: actions/upload-artifact@v4
