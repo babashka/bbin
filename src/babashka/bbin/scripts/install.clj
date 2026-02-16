@@ -101,18 +101,21 @@
 ;; Load
 
 (defn- load-repo [{::parse/keys [coords lib] :as _params}]
+  (tap> 'load-repo)
   {::load/loaded-path (gitlibs/procure (:git/url coords)
                                        lib
                                        (:git/sha coords))})
 
 (defn- load-http-file
   [{::input/keys [tmp-dir] ::parse/keys [coords] :as _params}]
+  (tap> 'load-http-file)
   (let [loaded-path (str (fs/path tmp-dir (fs/file-name (:bbin/url coords))))]
     (io/copy (:body (http/get (:bbin/url coords) {:as :bytes}))
              (fs/file loaded-path))
     {::load/loaded-path loaded-path}))
 
 (defn- load-deps [{::parse/keys [lib coords] :as _params}]
+  (tap> 'load-deps)
   {::load/loaded-deps (deps/add-libs {lib coords})})
 
 (defn load!
