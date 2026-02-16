@@ -30,7 +30,8 @@
                :extra-deps {io.github.cognitect-labs/test-runner
                             {:git/tag "v0.5.1" :git/sha "dfb30dd"}
                             ring/ring-core {:mvn/version "1.12.1"}}
-               :task cognitect.test-runner/-main}
+               :requires ([cognitect.test-runner])
+               :task (cognitect.test-runner/-main "-n" "babashka.bbin.scripts.git-dir-test")}
          gen-script {:doc "Build the bbin script"
                      :extra-deps {org.clojure/tools.namespace
                                   {:mvn/version "1.5.0"}}
