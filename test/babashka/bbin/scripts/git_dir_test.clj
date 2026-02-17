@@ -6,7 +6,7 @@
 
 (use-fixtures :once
   (tu/bbin-dirs-fixture)
-  (tu/bbin-private-keys-fixture))
+  #_(tu/bbin-private-keys-fixture))
 
 (def bbin-test-lib
   '{:lib io.github.rads/bbin-test-lib,
