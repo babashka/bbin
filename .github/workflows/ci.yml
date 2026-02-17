@@ -54,6 +54,8 @@ jobs:
       - name: bb test
         run: |
           bb test -n babashka.bbin.scripts.git-dir-test
+        env:
+          GITLIBS_DEBUG: true
       - name: Upload debug log
         if: failure()
         uses: actions/upload-artifact@v4
