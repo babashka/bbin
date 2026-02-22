@@ -91,15 +91,3 @@
       (is (= git-ssh-url-lib out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (tu/run-bin-script 'hello))))))
-
-(defn read-all
-  [file]
-  (let [rdr (-> file io/file io/reader PushbackReader.)]
-    (loop [forms []]
-      (let [form (try (read rdr) (catch Exception e nil))]
-        (if form
-          (recur (conj forms form))
-          forms)))))
-
-(comment
-  (run! tap> (read-all "debug.edn")))
