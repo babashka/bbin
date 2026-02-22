@@ -25,7 +25,7 @@
                        {:dir lib-dir})]
     (tap> {'lib-dir lib-dir
            'branch branch
-           'log-result log-result})
+           'out (:out log-result)})
     (str/trim-newline (:out log-result))))
 
 (defn find-git-tag [client git-url tag]
