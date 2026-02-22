@@ -16,7 +16,8 @@
         _ (tap> {'ls (:out (sh "ls" {:dir lib-dir}))
                  'remote (:out (sh "git remote" {:dir lib-dir
                                                  :extra-env {"LC_ALL" "C"}}))
-                 'remote-info (:out remote-info)})
+                 'remote-info-out (:out remote-info)
+                 'remote-info-err (:err remote-info)})
         [[_ branch]] (->> (:out remote-info)
                           str/split-lines
                           (some #(re-seq #"HEAD branch: (\w+)" %)))]
