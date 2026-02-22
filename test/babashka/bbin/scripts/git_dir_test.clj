@@ -2,11 +2,13 @@
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.test-util :as tu]
             [babashka.fs :as fs]
-            [clojure.test :refer [deftest is testing use-fixtures]]))
+            [clojure.java.io :as io]
+            [clojure.test :refer [deftest is testing use-fixtures]])
+  (:import (java.io PushbackReader)))
 
 (use-fixtures :once
   (tu/bbin-dirs-fixture)
-  #_(tu/bbin-private-keys-fixture))
+  (tu/bbin-private-keys-fixture))
 
 (def bbin-test-lib
   '{:lib io.github.rads/bbin-test-lib,
@@ -25,16 +27,16 @@
              :git/tag "v0.0.1",
              :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
 
-;(deftest install-from-qualified-lib-name-public-test
-;  (testing "install */* (public Git repo)"
-;    (tu/reset-test-dir)
-;    (dirs/ensure-bbin-dirs {})
-;    (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib"}
-;          out (tu/run-install cli-opts)
-;          bin-file (fs/file (dirs/bin-dir nil) "hello")]
-;      (is (= bbin-test-lib out))
-;      (is (fs/exists? bin-file))
-;      (is (= "Hello world!" (tu/run-bin-script 'hello))))))
+(deftest install-from-qualified-lib-name-public-test
+  (testing "install */* (public Git repo)"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [cli-opts {:script/lib "io.github.rads/bbin-test-lib"}
+          out (tu/run-install cli-opts)
+          bin-file (fs/file (dirs/bin-dir nil) "hello")]
+      (is (= bbin-test-lib out))
+      (is (fs/exists? bin-file))
+      (is (= "Hello world!" (tu/run-bin-script 'hello))))))
 
 (deftest install-from-qualified-lib-name-no-tag-test
   (testing "install */* (public Git repo, no tags)"
@@ -47,16 +49,16 @@
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (tu/run-bin-script 'hello))))))
 
-;(deftest install-from-qualified-lib-name-private-test
-;  (testing "install */* (private Git repo)"
-;    (tu/reset-test-dir)
-;    (dirs/ensure-bbin-dirs {})
-;    (let [cli-opts {:script/lib "io.bitbucket.radsmith/bbin-test-lib-private"}
-;          out (tu/run-install cli-opts)
-;          bin-file (fs/file (dirs/bin-dir nil) "hello")]
-;      (is (= bbin-test-lib-private out))
-;      (is (fs/exists? bin-file))
-;      (is (= "Hello world!" (tu/run-bin-script 'hello))))))
+(deftest install-from-qualified-lib-name-private-test
+  (testing "install */* (private Git repo)"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [cli-opts {:script/lib "io.bitbucket.radsmith/bbin-test-lib-private"}
+          out (tu/run-install cli-opts)
+          bin-file (fs/file (dirs/bin-dir nil) "hello")]
+      (is (= bbin-test-lib-private out))
+      (is (fs/exists? bin-file))
+      (is (= "Hello world!" (tu/run-bin-script 'hello))))))
 ;
 ;(def git-http-url-lib
 ;  '{:lib org.babashka.bbin/script-1039504783-https-github-com-rads-bbin-test-lib-git
@@ -89,3 +91,15 @@
 ;      (is (= git-ssh-url-lib out))
 ;      (is (fs/exists? bin-file))
 ;      (is (= "Hello world!" (tu/run-bin-script 'hello))))))
+
+(defn read-all
+  [file]
+  (let [rdr (-> file io/file io/reader PushbackReader.)]
+    (loop [forms []]
+      (let [form (try (read rdr) (catch Exception e nil))]
+        (if form
+          (recur (conj forms form))
+          forms)))))
+
+(comment
+  (run! tap> (read-all "debug.edn")))

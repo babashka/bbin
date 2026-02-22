@@ -55,6 +55,7 @@ jobs:
         run: |
           bb test -n babashka.bbin.scripts.git-dir-test
         env:
+          GIT_SSH_COMMAND: core.sshCommand=ssh -o StrictHostKeyChecking=no -i ./test-resources/id_ed25519_bbin_test_lib_private
           GITLIBS_DEBUG: true
       - name: Upload debug log
         if: failure()
