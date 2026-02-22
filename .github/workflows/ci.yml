@@ -65,6 +65,7 @@ jobs:
           cp bb.exe "$(which bb)"
       - name: bb test
         run: |
+          mkdir /tmp
           cp test-resources/id_ed25519_bbin_test_lib_private /tmp/id_ed25519_bbin_test_lib_private
           bb test
         env:
