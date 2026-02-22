@@ -13,6 +13,7 @@
   (let [lib-dir (ensure-git-dir client git-url)
         remote-info (sh "git remote show origin" {:dir lib-dir
                                                   :extra-env {"LC_ALL" "C"}})
+        _ (tap> {'remote-info (:out remote-info)})
         [[_ branch]] (->> (:out remote-info)
                           str/split-lines
                           (some #(re-seq #"HEAD branch: (\w+)" %)))]
