@@ -1,36 +1,48 @@
 name: CI
 on: [push, pull_request]
 jobs:
-#  bb-run-test-linux:
-#    runs-on: ubuntu-latest
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        bb-version: [1.3.190, latest]
-#    steps:
-#      - name: Check out repository code
-#        uses: actions/checkout@v3
-#      - name: Install clojure tools
-#        uses: DeLaGuardo/setup-clojure@9.4
-#        with:
-#          bb: ${{ matrix.bb-version }}
-#      - run: bb run test
-#
-#  bb-run-test-macos:
-#    runs-on: macos-latest
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        bb-version: [1.3.190, latest]
-#    steps:
-#      - name: Check out repository code
-#        uses: actions/checkout@v3
-#      - name: Install clojure tools
-#        uses: DeLaGuardo/setup-clojure@9.4
-#        with:
-#          bb: ${{ matrix.bb-version }}
-#      - run: bb run test
-#
+  bb-run-test-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bb-version: [1.3.190, latest]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@9.4
+        with:
+          bb: ${{ matrix.bb-version }}
+      - run: bb run test
+      - name: Upload debug log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-debug-log
+          path: linux-debug.log
+
+  bb-run-test-macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bb-version: [1.3.190, latest]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@9.4
+        with:
+          bb: ${{ matrix.bb-version }}
+      - run: bb run test
+      - name: Upload debug log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-debug-log
+          path: macos-debug.log
+
   bb-run-test-windows:
     runs-on: windows-latest
     strategy:
@@ -61,22 +73,22 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: debug-log
-          path: debug.log
-#
-#
-#  bb-run-lint:
-#    runs-on: ubuntu-latest
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        bb-version: [1.3.190, latest]
-#    steps:
-#      - name: Check out repository code
-#        uses: actions/checkout@v3
-#      - name: Install clojure tools
-#        uses: DeLaGuardo/setup-clojure@9.4
-#        with:
-#          bb: ${{ matrix.bb-version }}
-#          clj-kondo: latest
-#      - run: bb run lint
+          name: windows-debug-log
+          path: windows-debug.log
+
+
+  bb-run-lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        bb-version: [1.3.190, latest]
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Install clojure tools
+        uses: DeLaGuardo/setup-clojure@9.4
+        with:
+          bb: ${{ matrix.bb-version }}
+          clj-kondo: latest
+      - run: bb run lint
