@@ -65,7 +65,7 @@ jobs:
           cp bb.exe "$(which bb)"
       - name: bb test
         run: |
-          cp /test-resources/id_ed25519_bbin_test_lib_private /tmp/id_ed25519_bbin_test_lib_private
+          cp test-resources/id_ed25519_bbin_test_lib_private /tmp/id_ed25519_bbin_test_lib_private
           bb test
         env:
           GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=no -i /tmp/id_ed25519_bbin_test_lib_private
