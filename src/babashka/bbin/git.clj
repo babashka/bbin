@@ -23,6 +23,9 @@
         branch (default-branch client git-url)
         log-result (sh ["git" "log" "-n" "1" branch "--pretty=format:%H"]
                        {:dir lib-dir})]
+    (tap> {'lib-dir lib-dir
+           'branch branch
+           'log-result log-result})
     (str/trim-newline (:out log-result))))
 
 (defn find-git-tag [client git-url tag]
