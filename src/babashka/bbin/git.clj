@@ -69,7 +69,7 @@
       :sourcehut (str "https://git.sr.ht/~" s))))
 
 (defn git-ssh-url [lib]
-  (let [provider (some #(when (re-seq (key %) (str lib)) %) providers)
+  (let [provider (get-lib-provider lib)
         s (clean-lib-str (str lib))]
     (case (val provider)
       :github (str "git@github.com:" s ".git")
