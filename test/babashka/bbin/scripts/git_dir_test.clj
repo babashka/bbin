@@ -63,11 +63,24 @@
     :coords {:git/url "https://github.com/rads/bbin-test-lib.git"
              :git/sha "cefb15e3320dd4c599e8be62f7a01a00b07e2e72"}})
 
-(deftest install-from-git-http-url-test
+(deftest install-from-git-http-url-with-suffix-test
   (testing "install https://*.git"
     (tu/reset-test-dir)
     (dirs/ensure-bbin-dirs {})
     (let [cli-opts {:script/lib (get-in git-http-url-lib [:coords :git/url])}
+          out (tu/run-install cli-opts)
+          bin-file (fs/file (dirs/bin-dir nil) "hello")]
+      (is (= git-http-url-lib out))
+      (is (fs/exists? bin-file))
+      (is (= "Hello world!" (tu/run-bin-script 'hello))))))
+
+(deftest
+  ^{:github-issue-numbers [100]}
+  install-from-git-http-url-no-suffix-test
+  (testing "install https://*"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [cli-opts {:script/lib "https://github.com/rads/bbin-test-lib"}
           out (tu/run-install cli-opts)
           bin-file (fs/file (dirs/bin-dir nil) "hello")]
       (is (= git-http-url-lib out))
