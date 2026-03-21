@@ -358,10 +358,13 @@
                               (throw e))))
                         params
                         install-steps)]
-    (when (util/edn? cli-opts)
+    (if (util/edn? cli-opts)
       (prn (-> params'
                (select-keys [::parse/coords ::parse/lib])
-               (set/rename-keys {::parse/coords :coords, ::parse/lib :lib}))))
+               (set/rename-keys {::parse/coords :coords, ::parse/lib :lib})))
+      (let [out-scripts {(first (::select/selected params'))
+                         (::parse/header params')}]
+        (util/print-scripts (util/printable-scripts out-scripts) cli-opts)))
     params'))
 
 (defn- install-end [{::input/keys [cli-opts] :as params}]
