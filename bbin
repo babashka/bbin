@@ -158,8 +158,13 @@ WARNING: (We won't make any changes without asking you first.)
   (->> (reduce #(str/replace %1 %2 "") lib (keys providers))
        symbol))
 
+(defn- get-lib-provider [lib]
+  (if-let [provider (some #(when (re-seq (key %) (str lib)) %) providers)]
+    provider
+    (throw (ex-info "Unable to find an appropriate provider" {:lib lib}))))
+
 (defn git-http-url [lib]
-  (let [provider (some #(when (re-seq (key %) (str lib)) %) providers)
+  (let [provider (get-lib-provider lib)
         s (clean-lib-str (str lib))]
     (case (val provider)
       :github (str "https://github.com/" s ".git")
@@ -171,7 +176,7 @@ WARNING: (We won't make any changes without asking you first.)
       :sourcehut (str "https://git.sr.ht/~" s))))
 
 (defn git-ssh-url [lib]
-  (let [provider (some #(when (re-seq (key %) (str lib)) %) providers)
+  (let [provider (get-lib-provider lib)
         s (clean-lib-str (str lib))]
     (case (val provider)
       :github (str "git@github.com:" s ".git")
@@ -187,7 +192,7 @@ WARNING: (We won't make any changes without asking you first.)
       (ensure-git-dir client url)
       url)
     (catch Exception e
-      (if (re-seq #"^Unable to clone " (ex-message e))
+      (if (re-seq #"^Unable to " (ex-message e))
         (let [url (git-ssh-url lib)]
           (ensure-git-dir client url)
           url)
