@@ -10,6 +10,13 @@
 <!-- - Create tag -->
 <!-- - Go to https://github.com/babashka/homebrew-brew and run `bb update-bbin` and publish the new Formula -->
 
+## 0.3.0
+
+- [Fix #64: Remove usage of local/deps in generated scripts](https://github.com/babashka/bbin/issues/64)
+- [Fix #78: Do not require deps.edn when using local bbin install](https://github.com/babashka/bbin/issues/78)
+- [Fix #86: Temporary files are not getting cleaned up on exit](https://github.com/babashka/bbin/issues/86)
+- [Fix #100: Support installing https://github.com/foo/bar](https://github.com/babashka/bbin/issues/100)
+
 ## 0.2.5
 
 - [Fix #78: Installation fails if $GITLIBS are set](https://github.com/babashka/bbin/issues/73) ([@Ramblurr](https://github.com/babashka/bbin/issues/73))
