@@ -1,4 +1,5 @@
 {:paths ["src"]
+ :mvn/repos {"clojars" {:url "https://repo.clojars.org/"}}
  :deps {babashka/fs {:mvn/version "0.3.17"}
         babashka/process {:mvn/version "0.4.14"}
         com.taoensso/timbre {:mvn/version "5.2.1"}
