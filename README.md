@@ -210,10 +210,10 @@ If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo w
 
 ## Dev
 
--To install a development version of bbin, first install bbin stable, then install bbin with bbin.
+To install a development version of bbin, first install bbin stable, then install bbin with bbin.
 
 ```
-$ bbin install . --as bbin-dev --main-opts '["-m" babashka.bbin.cli/-main]'
+$ bbin install . --as bbin-dev --main-opts '["-m" "babashka.bbin.cli/-main"]'
 ```
 
 You can now run your development copy of bbin with `bbin-dev`.

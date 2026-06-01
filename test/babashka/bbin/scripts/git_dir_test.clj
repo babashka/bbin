@@ -102,3 +102,11 @@
       (is (= git-ssh-url-lib out))
       (is (fs/exists? bin-file))
       (is (= "Hello world!" (tu/run-bin-script 'hello))))))
+
+(deftest install-lib-fail-if-provider-not-found
+  (testing "install lib name fails provider lookup"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [cli-opts {:script/lib "something-broken"}]
+      (is (thrown? Exception "Unable to find an appropriate provider" (tu/run-install cli-opts)))
+      )))
