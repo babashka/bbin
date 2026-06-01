@@ -889,7 +889,7 @@ WARNING: (We won't make any changes without asking you first.)
     (fs/delete-on-exit)))
 
 (def base-command
-  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)])
+  [\"bb\" \"--config\" (str tmp-edn)])
 
 (defn help-eval-str []
   (str \"(require '\" script-ns-default \")
@@ -929,7 +929,6 @@ WARNING: (We won't make any changes without asking you first.)
          '[babashka.fs :as fs]
          '[clojure.string :as str])
 
-(def script-root {{script/root|pr-str}})
 (def script-lib '{{script/lib}})
 (def script-coords {{script/coords|str}})
 (def script-ns-default '{{script/ns-default}})
@@ -941,7 +940,7 @@ WARNING: (We won't make any changes without asking you first.)
     (fs/delete-on-exit)))
 
 (def base-command
-  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)])
+  [\"bb\" \"--config\" (str tmp-edn)])
 
 (defn help-eval-str []
   (str \"(require '\" script-ns-default \")
@@ -1269,7 +1268,9 @@ WARNING: (We won't make any changes without asking you first.)
         script-contents (selmer-util/without-escaping
                           (selmer/render
                             (if tool
-                              common/local-dir-tool-template-str
+                              (if (:lib header)
+                                common/deps-tool-template-str
+                                common/local-dir-tool-template-str)
                               common/git-or-local-template-str-with-bb-edn)
                             template-opts'))]
     {::generate/script-contents script-contents}))

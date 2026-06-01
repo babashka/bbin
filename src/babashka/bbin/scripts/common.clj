@@ -143,7 +143,7 @@
     (fs/delete-on-exit)))
 
 (def base-command
-  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)])
+  [\"bb\" \"--config\" (str tmp-edn)])
 
 (defn help-eval-str []
   (str \"(require '\" script-ns-default \")
@@ -183,7 +183,6 @@
          '[babashka.fs :as fs]
          '[clojure.string :as str])
 
-(def script-root {{script/root|pr-str}})
 (def script-lib '{{script/lib}})
 (def script-coords {{script/coords|str}})
 (def script-ns-default '{{script/ns-default}})
@@ -195,7 +194,7 @@
     (fs/delete-on-exit)))
 
 (def base-command
-  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)])
+  [\"bb\" \"--config\" (str tmp-edn)])
 
 (defn help-eval-str []
   (str \"(require '\" script-ns-default \")

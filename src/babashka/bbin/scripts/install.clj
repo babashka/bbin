@@ -207,7 +207,9 @@
         script-contents (selmer-util/without-escaping
                           (selmer/render
                             (if tool
-                              common/local-dir-tool-template-str
+                              (if (:lib header)
+                                common/deps-tool-template-str
+                                common/local-dir-tool-template-str)
                               common/git-or-local-template-str-with-bb-edn)
                             template-opts'))]
     {::generate/script-contents script-contents}))
