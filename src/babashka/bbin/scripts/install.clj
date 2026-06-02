@@ -18,7 +18,6 @@
             [clojure.set :as set]
             [clojure.string :as str]
             [clojure.tools.gitlibs :as gitlibs]
-            [clojure.walk :as walk]
             [selmer.parser :as selmer]
             [selmer.util :as selmer-util]))
 
@@ -324,26 +323,6 @@
     (println))
   params)
 
-(defn format-params [params]
-  (let [step-ns (map (fn [step-var]
-                       (let [var-name (-> step-var meta :name)]
-                         (str (namespace ::this)
-                              "."
-                              (str/replace var-name "!" ""))))
-                     install-steps)]
-    (->> params
-         (sort-by (fn [[k]] [(.indexOf step-ns (namespace k)) k]))
-         (walk/postwalk (fn [x]
-                          (if (and (keyword? x)
-                                   (namespace x)
-                                   (str/starts-with? (namespace x)
-                                                     (namespace ::this)))
-                            (keyword (str/replace (namespace x)
-                                                  (str (namespace ::this) ".")
-                                                  "")
-                                     (name x))
-                            x))))))
-
 (defn log-tap [x]
   (spit (fs/file (fs/cwd) "debug.log") (prn-str x) :append true))
 
@@ -384,62 +363,3 @@
             install-start
             install-run
             install-end))))
-
-(comment
-  (do
-    (require '[babashka.bbin.cli :as cli])
-
-    (defn bbin [command]
-      (apply cli/-main (str/split command #" "))))
-
-  (bbin "install ./test-resources/install-sources/test-dir --as btest")
-  (bbin "install ./test-resources/install-sources/bbin-test-script-3.clj")
-  (bbin "install ./test-resources/hello.jar")
-  (bbin "install org.babashka/http-server --mvn/version 0.1.11"))
-
-;(comment
-;  ;; local jar
-;  {; parse
-;   :cli-opts {:script/lib "./test-resources/hello.jar"}
-;
-;   ; analyze
-;   :parse/source-path "./test-resources/hello.jar"
-;
-;   ; select
-;   :analyze/scripts {"http-server" {}}
-;   :select/user-input "http-server"
-;
-;   ; generate
-;   :select/scripts {"http-server" {}}
-;
-;   ; write
-;   :generate/generated [{:script-name "http-server"
-;                         :script-config {:script-contents "maven-jar-script"}}]
-;   :analyze/jar-path "~/.cache/babashka/bbin/jars/hello.jar"
-;   :parse/bin-dir "~/.local/bin"}
-;
-;  ;; maven jar
-;  {; parse
-;   :cli-opts {:script/lib "org.babashka/http-server"
-;              :mvn/version "0.1.11"}
-;
-;   ; load
-;   :lib 'org.babashka/http-server
-;   :coords {:mvn/version "0.1.11"}
-;
-;   ; analyze
-;   :lib 'org.babashka/http-server
-;   :coords {:mvn/version "0.1.11"}
-;
-;   ; select
-;   :scripts {"http-server" {}}
-;   :user-input "http-server"
-;
-;   ; generate
-;   :scripts {"http-server" {}}
-;   :selected #{"http-server"}
-;
-;   ; write
-;   :generated [{:script-name "http-server"
-;                :script-config {:script-contents "maven-jar-script"}}]
-;   :bin-dir "~/.local/bin"})
