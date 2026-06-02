@@ -19,7 +19,8 @@
             [clojure.string :as str]
             [clojure.tools.gitlibs :as gitlibs]
             [selmer.parser :as selmer]
-            [selmer.util :as selmer-util]))
+            [selmer.util :as selmer-util]
+            [taoensso.timbre :as log]))
 
 ;; =============================================================================
 ;; Parse
@@ -323,22 +324,17 @@
     (println))
   params)
 
-(defn log-tap [x]
-  (spit (fs/file (fs/cwd) "debug.log") (prn-str x) :append true))
+(defn- install-run-single-step [params step-fn]
+  (try
+    (let [ret (step-fn params)]
+      (log/debug {:step-fn step-fn, :params params, :ret ret})
+      (merge params ret))
+    (catch Exception e
+      (log/debug {:step-fn step-fn, :params params, :error e})
+      (throw e))))
 
-(add-tap #'log-tap)
-
-(defn- install-run [{::input/keys [cli-opts] :as params}]
-  (let [params' (reduce (fn [params step-fn]
-                          (try
-                            (let [ret (step-fn params)]
-                              (tap> {:_step-fn step-fn, :params params, :ret ret})
-                              (merge params ret))
-                            (catch Exception e
-                              (tap> {:_step-fn step-fn, :params params, :error e})
-                              (throw e))))
-                        params
-                        install-steps)]
+(defn- install-run-all-steps [{::input/keys [cli-opts] :as params}]
+  (let [params' (reduce install-run-single-step params install-steps)]
     (if (util/edn? cli-opts)
       (prn (-> params'
                (select-keys [::parse/coords ::parse/lib])
@@ -361,5 +357,5 @@
                   ::input/tmp-dir (str tmp-dir)}]
         (-> params
             install-start
-            install-run
+            install-run-all-steps
             install-end))))
