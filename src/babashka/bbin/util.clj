@@ -44,8 +44,17 @@
   (doto (p/sh cmd (merge {:err :inherit} opts))
     p/check))
 
+(defn- stderr-println-appender []
+  (let [appender (log/println-appender)
+        appender-fn (:fn appender)]
+    (assoc appender
+           :fn (fn [data]
+                 (binding [*out* *err*]
+                   (appender-fn data))))))
+
 (defn set-logging-config! [{:keys [debug]}]
-  (log/merge-config! {:min-level (if debug :debug :warn)}))
+  (log/merge-config! {:min-level (if debug :debug :warn)
+                      :appenders {:println (stderr-println-appender)}}))
 
 (defn pprint [x & _]
   (binding [*print-namespace-maps* false]

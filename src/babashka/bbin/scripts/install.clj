@@ -327,10 +327,10 @@
 (defn- install-run-single-step [params step-fn]
   (try
     (let [ret (step-fn params)]
-      (log/debug {:step-fn step-fn, :params params, :ret ret})
+      (log/debug {:step-fn (symbol step-fn), :params params, :ret ret})
       (merge params ret))
     (catch Exception e
-      (log/debug {:step-fn step-fn, :params params, :error e})
+      (log/debug {:step-fn (symbol step-fn), :params params, :error e})
       (throw e))))
 
 (defn- install-run-all-steps [{::input/keys [cli-opts] :as params}]

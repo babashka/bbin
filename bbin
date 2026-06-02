@@ -473,8 +473,17 @@ WARNING: (We won't make any changes without asking you first.)
   (doto (p/sh cmd (merge {:err :inherit} opts))
     p/check))
 
+(defn- stderr-println-appender []
+  (let [appender (log/println-appender)
+        appender-fn (:fn appender)]
+    (assoc appender
+           :fn (fn [data]
+                 (binding [*out* *err*]
+                   (appender-fn data))))))
+
 (defn set-logging-config! [{:keys [debug]}]
-  (log/merge-config! {:min-level (if debug :debug :warn)}))
+  (log/merge-config! {:min-level (if debug :debug :warn)
+                      :appenders {:println (stderr-println-appender)}}))
 
 (defn pprint [x & _]
   (binding [*print-namespace-maps* false]
@@ -1393,10 +1402,10 @@ WARNING: (We won't make any changes without asking you first.)
 (defn- install-run-single-step [params step-fn]
   (try
     (let [ret (step-fn params)]
-      (log/debug {:step-fn step-fn, :params params, :ret ret})
+      (log/debug {:step-fn (symbol step-fn), :params params, :ret ret})
       (merge params ret))
     (catch Exception e
-      (log/debug {:step-fn step-fn, :params params, :error e})
+      (log/debug {:step-fn (symbol step-fn), :params params, :error e})
       (throw e))))
 
 (defn- install-run-all-steps [{::input/keys [cli-opts] :as params}]
