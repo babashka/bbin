@@ -83,7 +83,12 @@
                  (parse-http params)
 
                  ([:local :file] [:local :jar] [:local :dir])
-                 (parse-local params))
+                 (parse-local params)
+
+                 (throw (ex-info "Invalid script coordinates.\nIf you're trying to install from the filesystem, make sure the path actually exists."
+                                 {:script/lib (:script/lib cli-opts)
+                                  :procurer procurer
+                                  :artifact artifact})))
         header (-> (select-keys parsed [::parse/lib ::parse/coords])
                    (set/rename-keys {::parse/lib :lib
                                      ::parse/coords :coords}))
