@@ -54,6 +54,44 @@
         (is (fs/exists? (fs/file (dirs/bin-dir nil) "foo")))
         (is (= {'foo {:coords {:bbin/url script-url}}} (tu/run-ls)))))))
 
+(deftest install-from-deps-edn-only-dir-test
+  (testing "install ./ for a project with deps.edn but no bb.edn"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [local-root (str (fs/file tu/test-dir "deps-only"))]
+      (fs/create-dirs (fs/file local-root "src"))
+      (spit (fs/file local-root "deps.edn") (pr-str {:paths ["src"]}))
+      (spit (fs/file local-root "src" "deps_only_script.clj")
+            "(ns deps-only-script)\n(defn -main [& args] (println \"deps-only-ok\" (vec args)))\n")
+      ;; --main-opts is provided as a string (as the CLI passes it) to exercise
+      ;; edn parsing of main-opts on the dir path.
+      (let [cli-opts {:script/lib local-root
+                      :main-opts "[\"-m\" \"deps-only-script\"]"
+                      :as "deps-only"}]
+        (tu/run-install cli-opts)
+        (is (fs/exists? (fs/file (dirs/bin-dir nil) "deps-only")))
+        (is (str/includes? (tu/run-bin-script "deps-only" "a" "b")
+                           "deps-only-ok [a b]"))))))
+
+(deftest install-dir-without-main-opts-test
+  (testing "install ./ with no :bbin/bin and no --main-opts throws"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [local-root (str (fs/file tu/test-dir "no-opts"))]
+      (fs/create-dir local-root)
+      (spit (fs/file local-root "bb.edn") (pr-str {}))
+      (spit (fs/file local-root "deps.edn") (pr-str {}))
+      (is (thrown-with-msg? ExceptionInfo #"Main opts not found"
+                            (tu/run-install {:script/lib local-root}))))))
+
+(deftest install-invalid-coordinates-test
+  (testing "install of a nonexistent path throws a friendly error"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [missing (str (fs/file tu/test-dir "does-not-exist"))]
+      (is (thrown-with-msg? ExceptionInfo #"Invalid script coordinates"
+                            (tu/run-install {:script/lib missing}))))))
+
 (deftest install-tool-from-local-root-test
   (testing "install ./ --tool"
     (tu/reset-test-dir)

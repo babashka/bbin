@@ -230,13 +230,19 @@
 ;
 ; :bbin/end
 
-(require '[babashka.process :as process])
+(require '[babashka.fs :as fs]
+         '[babashka.process :as process])
 
 (def script-root {{script/root|pr-str}})
 (def script-main-opts {{script/main-opts}})
 
+(def script-config
+  (let [bb-edn (fs/file script-root \"bb.edn\")
+        deps-edn (fs/file script-root \"deps.edn\")]
+    (str (if (fs/exists? bb-edn) bb-edn deps-edn))))
+
 (def base-command
-  (vec (concat [\"bb\" \"--config\" (str script-root \"/bb.edn\")]
+  (vec (concat [\"bb\" \"--config\" script-config]
                script-main-opts
                [\"--\"])))
 

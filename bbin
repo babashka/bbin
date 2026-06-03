@@ -990,13 +990,19 @@ WARNING: (We won't make any changes without asking you first.)
 ;
 ; :bbin/end
 
-(require '[babashka.process :as process])
+(require '[babashka.fs :as fs]
+         '[babashka.process :as process])
 
 (def script-root {{script/root|pr-str}})
 (def script-main-opts {{script/main-opts}})
 
+(def script-config
+  (let [bb-edn (fs/file script-root \"bb.edn\")
+        deps-edn (fs/file script-root \"deps.edn\")]
+    (str (if (fs/exists? bb-edn) bb-edn deps-edn))))
+
 (def base-command
-  (vec (concat [\"bb\" \"--config\" (str script-root \"/bb.edn\")]
+  (vec (concat [\"bb\" \"--config\" script-config]
                script-main-opts
                [\"--\"])))
 
@@ -1281,8 +1287,14 @@ WARNING: (We won't make any changes without asking you first.)
                        :script/coords (binding [*print-namespace-maps* false]
                                         (pr-str (:coords header)))
                        :script/ns-default (:ns-default script-config)}
-        main-opts' (common/process-main-opts (or main-opts (:main-opts script-config))
-                                             artifact-path)
+        main-opts-source (or (some-> main-opts edn/read-string)
+                             (:main-opts script-config))
+        tool-mode (or tool (and (:ns-default script-config)
+                                (not (:main-opts script-config))))
+        _ (when (and (not tool-mode) (not (seq main-opts-source)))
+            (throw (ex-info "Main opts not found. Use --main-opts or :bbin/bin to provide main opts."
+                            {})))
+        main-opts' (common/process-main-opts main-opts-source artifact-path)
         template-opts' (assoc template-opts :script/main-opts main-opts')
         script-contents (selmer-util/without-escaping
                           (selmer/render

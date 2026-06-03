@@ -206,8 +206,14 @@
                        :script/coords (binding [*print-namespace-maps* false]
                                         (pr-str (:coords header)))
                        :script/ns-default (:ns-default script-config)}
-        main-opts' (common/process-main-opts (or main-opts (:main-opts script-config))
-                                             artifact-path)
+        main-opts-source (or (some-> main-opts edn/read-string)
+                             (:main-opts script-config))
+        tool-mode (or tool (and (:ns-default script-config)
+                                (not (:main-opts script-config))))
+        _ (when (and (not tool-mode) (not (seq main-opts-source)))
+            (throw (ex-info "Main opts not found. Use --main-opts or :bbin/bin to provide main opts."
+                            {})))
+        main-opts' (common/process-main-opts main-opts-source artifact-path)
         template-opts' (assoc template-opts :script/main-opts main-opts')
         script-contents (selmer-util/without-escaping
                           (selmer/render
