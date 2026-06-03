@@ -14,6 +14,10 @@
             [taoensso.timbre :as log])
   (:import (java.net ServerSocket)))
 
+;; Configure logging like the CLI entry point does, so debug output goes to
+;; stderr instead of polluting the stdout that tests parse as EDN.
+(util/set-logging-config! {})
+
 (defmethod test/report :begin-test-var [m]
   (println "===" (-> m :var meta :name))
   (println))
