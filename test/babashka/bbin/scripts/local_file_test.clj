@@ -78,6 +78,21 @@
       (is (= "Hello world" (tu/run-bin-script :hello)))
       (is (= {'hello {:coords {:bbin/url script-url}}} (tu/run-ls))))))
 
+(deftest install-from-local-root-underscore-name-test
+  (testing "install ./*.clj with underscores normalizes the script name to hyphens"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [script-file (doto (fs/file tu/test-dir "hello_world.clj")
+                        (spit "#!/usr/bin/env bb\n(println \"Hello world\")"))
+          script-url (str "file://" script-file)
+          cli-opts {:script/lib (str script-file)}
+          out (tu/run-install cli-opts)]
+      (is (= {:coords {:bbin/url script-url}} out))
+      (is (not (fs/exists? (fs/file (dirs/bin-dir nil) "hello_world"))))
+      (is (fs/exists? (fs/file (dirs/bin-dir nil) "hello-world")))
+      (is (= "Hello world" (tu/run-bin-script :hello-world)))
+      (is (= {'hello-world {:coords {:bbin/url script-url}}} (tu/run-ls))))))
+
 (deftest upgrade-local-file-test
   #_(testing "upgrade (local file)"
       (tu/reset-test-dir)

@@ -145,7 +145,8 @@
                              (some-> bin-config first key)
                              (some-> lib name)
                              (-> (fs/file-name artifact-path)
-                                 (str/replace #"\.(clj|cljc|bb|jar)$" ""))))
+                                 (str/replace #"\.(clj|cljc|bb|jar)$" "")
+                                 util/snake-case)))
         script-config (merge (some-> lib common/default-script-config)
                              (some-> bin-config first val))
         bin-config' {script-name script-config}]
@@ -154,7 +155,8 @@
 (defn- analyze-file
   [{::parse/keys [as jars-dir] ::load/keys [artifact-path] :as _params}]
   (let [script-name (or as (-> (fs/file-name artifact-path)
-                               (str/replace #"\.(clj|cljc|bb|jar)$" "")))]
+                               (str/replace #"\.(clj|cljc|bb|jar)$" "")
+                               util/snake-case))]
    (cond-> {::analyze/scripts {script-name {}}}
      (str/ends-with? artifact-path ".jar")
      (assoc ::analyze/jar-path (str (fs/file jars-dir (str script-name ".jar")))))))
