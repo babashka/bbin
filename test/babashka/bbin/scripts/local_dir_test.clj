@@ -110,3 +110,23 @@
       (is (= {'footool {:coords {:local/root full-path}
                         :lib 'bbin/foo}}
              (tu/run-ls))))))
+
+(deftest install-tool-mode-from-bbin-bin-test
+  (testing "install ./ with :bbin/bin :ns-default and no --tool"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [local-root (str (fs/file tu/test-dir "auto-tool"))]
+      (fs/create-dirs (fs/file local-root "src" "bbin"))
+      (spit (fs/file local-root "deps.edn") (pr-str {}))
+      (spit (fs/file local-root "bb.edn")
+            (pr-str {:bbin/bin {'foo {:ns-default 'bbin.foo}}}))
+      (spit (fs/file local-root "src" "bbin" "foo.clj")
+            (str "(ns bbin.foo)\n"
+                 "(defn k \"just `keys`\" [m] (prn (keys m)))\n"
+                 "(defn v \"just `vals`\" [m] (prn (vals m)))\n"))
+      (tu/run-install {:script/lib local-root})
+      (is (fs/exists? (fs/file (dirs/bin-dir nil) "foo")))
+      (let [usage-out (tu/run-bin-script "foo")]
+        (is (every? #(str/includes? usage-out %) ["`keys`" "`vals`"])))
+      (is (str/includes? (tu/run-bin-script "foo" "k" ":a" "1") "(:a)"))
+      (is (str/includes? (tu/run-bin-script "foo" "v" ":a" "1") "(1)")))))

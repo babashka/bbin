@@ -219,7 +219,7 @@
         template-opts' (assoc template-opts :script/main-opts main-opts')
         script-contents (selmer-util/without-escaping
                           (selmer/render
-                            (if tool
+                            (if tool-mode
                               (if (:lib header)
                                 common/deps-tool-template-str
                                 common/local-dir-tool-template-str)
