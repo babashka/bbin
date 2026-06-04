@@ -107,11 +107,14 @@
      :ns-default (str top "." lib-name)}))
 
 (defn process-main-opts
-  "Process main-opts, canonicalizing file paths that follow -f flags."
+  "Process main-opts, canonicalizing file paths that follow -f flags.
+  When `script-root` is nil (e.g. Maven installs, which have no source
+  root), paths are left unchanged."
   [main-opts script-root]
   (->> main-opts
        (map-indexed (fn [i arg]
-                      (if (and (pos? i) (= "-f" (nth main-opts (dec i))))
+                      (if (and script-root
+                               (pos? i) (= "-f" (nth main-opts (dec i))))
                         (str (fs/canonicalize (fs/file script-root arg)
                                               {:nofollow-links true}))
                         arg)))
