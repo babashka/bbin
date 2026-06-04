@@ -792,18 +792,6 @@ WARNING: (We won't make any changes without asking you first.)
                      (concat [bb-shebang-str] header prefix))]
     (str/join "\n" next-lines)))
 
-(defn file-path->script-name [file-path]
-  (-> file-path
-      fs/file-name
-      fs/strip-ext
-      util/snake-case))
-
-(defn http-url->script-name [http-url]
-  (util/snake-case
-   (first
-    (str/split (last (str/split http-url #"/"))
-               #"\."))))
-
 (def windows-wrapper-extension ".bat")
 
 (defn install-script
@@ -835,18 +823,6 @@ WARNING: (We won't make any changes without asking you first.)
                    (str/replace #"[^a-zA-Z0-9-]" "-")
                    (str/replace #"--+" "-")))]
     (symbol "org.babashka.bbin" s)))
-
-(defn local-lib-path
-  ([script-deps]
-   (local-lib-path script-deps (System/getenv "GITLIBS")))
-  ([script-deps gitlibs-env]
-   (let [lib (key (first script-deps))
-         coords (val (first script-deps))
-         gitlibs-root (or (not-empty gitlibs-env)
-                          (str (fs/path (fs/home) ".gitlibs")))]
-     (if (#{::no-lib} lib)
-       (:local/root coords)
-       (fs/expand-home (str/join fs/file-separator [gitlibs-root "libs" (namespace lib) (name lib) (:git/sha coords)]))))))
 
 (defn load-bin-config [script-root]
   (let [bb-file (fs/file script-root "bb.edn")
@@ -1519,6 +1495,10 @@ WARNING: (We won't make any changes without asking you first.)
       (let [cli-opts' (util/canonicalized-cli-opts cli-opts)]
         (install/install cli-opts')))))
 
+;; NOTE: `upgrade` is not released yet. It is gated behind the
+;; BABASHKA_BBIN_FLAG_UPGRADE env flag (see util/upgrade-enabled?) and the
+;; install-pipeline refactor has not been wired up to it, so the actual
+;; upgrade logic below is commented out until then.
 (defn upgrade [cli-opts]
   (if-not (:script/lib cli-opts)
     (util/print-help)
@@ -1804,6 +1784,8 @@ Otherwise, you can either a) migrate manually or b) override:
          :fn #(run (:migrate-fn opts) %
                    :disable-legacy-paths-check true)}
 
+        ;; `upgrade` is not released yet: only enabled behind the
+        ;; BABASHKA_BBIN_FLAG_UPGRADE env flag (see util/upgrade-enabled?).
         (when (util/upgrade-enabled?)
           {:cmds ["upgrade"]
            :fn #(run (:upgrade-fn opts) %)

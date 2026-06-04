@@ -32,18 +32,6 @@
                      (concat [bb-shebang-str] header prefix))]
     (str/join "\n" next-lines)))
 
-(defn file-path->script-name [file-path]
-  (-> file-path
-      fs/file-name
-      fs/strip-ext
-      util/snake-case))
-
-(defn http-url->script-name [http-url]
-  (util/snake-case
-   (first
-    (str/split (last (str/split http-url #"/"))
-               #"\."))))
-
 (def windows-wrapper-extension ".bat")
 
 (defn install-script
@@ -75,18 +63,6 @@
                    (str/replace #"[^a-zA-Z0-9-]" "-")
                    (str/replace #"--+" "-")))]
     (symbol "org.babashka.bbin" s)))
-
-(defn local-lib-path
-  ([script-deps]
-   (local-lib-path script-deps (System/getenv "GITLIBS")))
-  ([script-deps gitlibs-env]
-   (let [lib (key (first script-deps))
-         coords (val (first script-deps))
-         gitlibs-root (or (not-empty gitlibs-env)
-                          (str (fs/path (fs/home) ".gitlibs")))]
-     (if (#{::no-lib} lib)
-       (:local/root coords)
-       (fs/expand-home (str/join fs/file-separator [gitlibs-root "libs" (namespace lib) (name lib) (:git/sha coords)]))))))
 
 (defn load-bin-config [script-root]
   (let [bb-file (fs/file script-root "bb.edn")

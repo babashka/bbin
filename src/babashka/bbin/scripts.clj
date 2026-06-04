@@ -60,6 +60,10 @@
       (let [cli-opts' (util/canonicalized-cli-opts cli-opts)]
         (install/install cli-opts')))))
 
+;; NOTE: `upgrade` is not released yet. It is gated behind the
+;; BABASHKA_BBIN_FLAG_UPGRADE env flag (see util/upgrade-enabled?) and the
+;; install-pipeline refactor has not been wired up to it, so the actual
+;; upgrade logic below is commented out until then.
 (defn upgrade [cli-opts]
   (if-not (:script/lib cli-opts)
     (util/print-help)
