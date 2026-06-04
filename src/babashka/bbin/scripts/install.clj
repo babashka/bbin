@@ -140,6 +140,10 @@
 
 (defn- analyze-dir
   [{::parse/keys [as lib] ::load/keys [artifact-path] :as _params}]
+  ;; NOTE: A directory's bb.edn `:bbin/bin` may declare multiple scripts, but
+  ;; only the first entry is installed. This matches the pre-refactor behavior
+  ;; of `install-deps-git-or-local` (which also took `(first bin-config)`);
+  ;; installing every entry would be a new feature, not a regression to fix.
   (let [bin-config (common/load-bin-config artifact-path)
         script-name (str (or as
                              (some-> bin-config first key)
