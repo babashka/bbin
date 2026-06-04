@@ -78,9 +78,12 @@
 (defn default-script-config [lib]
   (let [lib-ns (namespace lib)
         lib-name (name lib)
-        top (last (str/split lib-ns #"\."))]
-    {:main-opts ["-m" (str top "." lib-name)]
-     :ns-default (str top "." lib-name)}))
+        ;; An unqualified lib (no namespace) has no group segment; fall back to
+        ;; the lib name alone instead of NPEing on (str/split nil ...).
+        top (some-> lib-ns (str/split #"\.") last)
+        main-ns (if top (str top "." lib-name) lib-name)]
+    {:main-opts ["-m" main-ns]
+     :ns-default main-ns}))
 
 (defn process-main-opts
   "Process main-opts, canonicalizing file paths that follow -f flags.
