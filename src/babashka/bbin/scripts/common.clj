@@ -199,7 +199,7 @@
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
-(def git-or-local-template-str-with-bb-edn
+(def local-dir-template-str-with-bb-edn
   (str/trim "
 #!/usr/bin/env bb
 
@@ -222,6 +222,36 @@
 
 (def base-command
   (vec (concat [\"bb\" \"--config\" script-config]
+               script-main-opts
+               [\"--\"])))
+
+(process/exec (into base-command *command-line-args*))
+"))
+
+(def git-dir-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs])
+
+(def script-lib '{{script/lib}})
+(def script-coords {{script/coords|str}})
+(def script-main-opts {{script/main-opts}})
+
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  (vec (concat [\"bb\" \"--config\" (str tmp-edn)]
                script-main-opts
                [\"--\"])))
 

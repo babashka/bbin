@@ -223,7 +223,9 @@
                               (if (:lib header)
                                 common/deps-tool-template-str
                                 common/local-dir-tool-template-str)
-                              common/git-or-local-template-str-with-bb-edn)
+                              (if (:git/url (:coords header))
+                                common/git-dir-template-str
+                                common/local-dir-template-str-with-bb-edn))
                             template-opts'))]
     {::generate/script-contents script-contents}))
 

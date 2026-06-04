@@ -2,6 +2,7 @@
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.test-util :as tu]
             [babashka.fs :as fs]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing use-fixtures]]))
 
 (use-fixtures :once
@@ -25,6 +26,17 @@
              :git/tag "v0.0.1",
              :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
 
+(defn- assert-git-wrapper-embeds-coords [bin-file {:keys [lib coords]}]
+  (let [contents (slurp bin-file)]
+    (is (str/includes? contents (str "(def script-lib '" lib ")")))
+    (is (str/includes? contents (:git/url coords)))
+    (is (str/includes? contents (:git/sha coords)))
+    (is (str/includes? contents "(spit (str \"{:deps {\" script-lib script-coords \"}}\"))"))
+    (is (str/includes? contents "[\"bb\" \"--config\" (str tmp-edn)]"))
+    (is (not (str/includes? contents "(def script-config")))
+    (is (not (str/includes? contents "\"bb.edn\"")))
+    (is (not (str/includes? contents "\"deps.edn\"")))))
+
 (deftest install-from-qualified-lib-name-public-test
   (testing "install */* (public Git repo)"
     (tu/reset-test-dir)
@@ -34,6 +46,7 @@
           bin-file (fs/file (dirs/bin-dir nil) "hello")]
       (is (= bbin-test-lib out))
       (is (fs/exists? bin-file))
+      (assert-git-wrapper-embeds-coords bin-file bbin-test-lib)
       (is (= "Hello world!" (tu/run-bin-script 'hello))))))
 
 (deftest install-from-qualified-lib-name-no-tag-test
