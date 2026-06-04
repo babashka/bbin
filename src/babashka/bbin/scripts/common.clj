@@ -1,6 +1,5 @@
 (ns babashka.bbin.scripts.common
-  (:require [babashka.bbin.dirs :as dirs]
-            [babashka.bbin.specs]
+  (:require [babashka.bbin.specs]
             [babashka.bbin.util :as util :refer [sh]]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
@@ -271,14 +270,6 @@
       (if main-class
         (main/demunge main-class)
         (throw (ex-info "jar has no Main-Class" {:jar-path jar-path}))))))
-
-(defn delete-files [cli-opts]
-  (let [script-name (:script/lib cli-opts)
-        script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
-    (when (fs/delete-if-exists script-file)
-      (when util/windows? (fs/delete-if-exists (fs/file (str script-file windows-wrapper-extension))))
-      (fs/delete-if-exists (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar")))
-      (println "Removing" (str script-file)))))
 
 (def local-jar-template-str
   (str/trim "
