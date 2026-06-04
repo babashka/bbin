@@ -73,7 +73,7 @@
 (defn parse
   "Parse coords from the CLI options."
   [{::input/keys [cli-opts] :as params}]
-  (let [{:keys [tool as main-opts]} cli-opts
+  (let [{:keys [tool as main-opts ns-default]} cli-opts
         {:keys [procurer artifact]} (deps/summary cli-opts)
         parsed (case [procurer artifact]
                  ([:git :dir] [:maven :jar])
@@ -96,6 +96,7 @@
                     ::parse/tool tool
                     ::parse/as as
                     ::parse/main-opts main-opts
+                    ::parse/ns-default (some-> ns-default edn/read-string)
                     ::parse/bin-dir (str (dirs/bin-dir cli-opts))
                     ::parse/jars-dir (str (dirs/jars-dir cli-opts))}
                    (filter #(some? (val %)))
@@ -139,7 +140,7 @@
 ;; Analyze
 
 (defn- analyze-dir
-  [{::parse/keys [as lib] ::load/keys [artifact-path] :as _params}]
+  [{::parse/keys [as lib ns-default] ::load/keys [artifact-path] :as _params}]
   ;; NOTE: A directory's bb.edn `:bbin/bin` may declare multiple scripts, but
   ;; only the first entry is installed. This matches the pre-refactor behavior
   ;; of `install-deps-git-or-local` (which also took `(first bin-config)`);
@@ -152,7 +153,10 @@
                                  (str/replace #"\.(clj|cljc|bb|jar)$" "")
                                  util/snake-case)))
         script-config (merge (some-> lib common/default-script-config)
-                             (some-> bin-config first val))
+                             (some-> bin-config first val)
+                             ;; `--ns-default` overrides both the derived
+                             ;; default and any bb.edn `:bbin/bin` value.
+                             (when ns-default {:ns-default ns-default}))
         bin-config' {script-name script-config}]
     {::analyze/scripts bin-config'}))
 

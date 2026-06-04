@@ -111,6 +111,28 @@
                         :lib 'bbin/foo}}
              (tu/run-ls))))))
 
+(deftest install-tool-with-ns-default-override-test
+  (testing "install ./ --tool --ns-default overrides the derived ns-default"
+    (tu/reset-test-dir)
+    (dirs/ensure-bbin-dirs {})
+    (let [local-root (str (fs/file tu/test-dir "ns-override"))]
+      (fs/create-dirs (fs/file local-root "src" "bbin"))
+      (spit (fs/file local-root "deps.edn") (pr-str {}))
+      (spit (fs/file local-root "bb.edn") (pr-str {:paths ["src"]}))
+      ;; The real code lives at `bbin.api`, but the lib `bbin/foo` derives a
+      ;; default ns-default of `bbin.foo`; `--ns-default` must point dispatch
+      ;; at `bbin.api` instead.
+      (spit (fs/file local-root "src" "bbin" "api.clj")
+            (str "(ns bbin.api)\n"
+                 "(defn k \"just `keys`\" [m] (prn (keys m)))\n"))
+      (tu/run-install {:script/lib "bbin/foo"
+                       :local/root local-root
+                       :as "footool"
+                       :tool true
+                       :ns-default "bbin.api"})
+      (is (fs/exists? (fs/file (dirs/bin-dir nil) "footool")))
+      (is (str/includes? (tu/run-bin-script "footool" "k" ":a" "1") "(:a)")))))
+
 (deftest install-tool-mode-from-bbin-bin-test
   (testing "install ./ with :bbin/bin :ns-default and no --tool"
     (tu/reset-test-dir)
