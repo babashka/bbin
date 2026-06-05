@@ -106,10 +106,15 @@
 ;; =============================================================================
 ;; Load
 
-(defn- load-repo [{::parse/keys [coords lib] :as _params}]
-  {::load/loaded-path (gitlibs/procure (:git/url coords)
-                                       lib
-                                       (:git/sha coords))})
+(defn- event! [params event]
+  (log/debug (assoc event ::params params)))
+
+(defn- load-repo [{::parse/keys [coords lib] :as params}]
+  (let [ret {::load/loaded-path (gitlibs/procure (:git/url coords)
+                                                 lib
+                                                 (:git/sha coords))}]
+    (event! params {::event-type ::gitlibs-procured})
+    ret))
 
 (defn- load-http-file
   [{::input/keys [tmp-dir] ::parse/keys [coords] :as _params}]
@@ -350,10 +355,14 @@
 (defn- install-run-single-step [params step-fn]
   (try
     (let [ret (step-fn params)]
-      (log/debug {:step-fn (symbol step-fn), :params params, :ret ret})
+      (event! params {::event-type ::step-completed
+                      :step (symbol step-fn)
+                      :ret ret})
       (merge params ret))
     (catch Exception e
-      (log/debug {:step-fn (symbol step-fn), :params params, :error e})
+      (event! params {::event-type ::step-failed
+                      :step (symbol step-fn)
+                      :error e})
       (throw e))))
 
 (defn- install-run-all-steps [{::input/keys [cli-opts] :as params}]
@@ -378,7 +387,7 @@
   (fs/with-temp-dir [tmp-dir {}]
     (let [params {::input/cli-opts cli-opts
                   ::input/tmp-dir (str tmp-dir)}]
-        (-> params
-            install-start
-            install-run-all-steps
-            install-end))))
+      (-> params
+          install-start
+          install-run-all-steps
+          install-end))))
