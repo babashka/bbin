@@ -22,6 +22,9 @@
             [selmer.util :as selmer-util]
             [taoensso.timbre :as log]))
 
+(defn- event! [params event]
+  (log/debug (assoc event ::params params)))
+
 ;; =============================================================================
 ;; Parse
 
@@ -106,38 +109,35 @@
 ;; =============================================================================
 ;; Load
 
-(defn- event! [params event]
-  (log/debug (assoc event ::params params)))
-
-(defn- load-repo [{::parse/keys [coords lib] :as params}]
-  (let [ret {::load/loaded-path (gitlibs/procure (:git/url coords)
-                                                 lib
-                                                 (:git/sha coords))}]
+(defn- load-repo! [{::parse/keys [coords lib] :as params}]
+  (let [loaded-path (gitlibs/procure (:git/url coords) lib (:git/sha coords))]
     (event! params {::event-type ::gitlibs-procured})
-    ret))
+    {::load/loaded-path loaded-path}))
 
-(defn- load-http-file
-  [{::input/keys [tmp-dir] ::parse/keys [coords] :as _params}]
+(defn- load-http-file!
+  [{::input/keys [tmp-dir] ::parse/keys [coords] :as params}]
   (let [loaded-path (str (fs/path tmp-dir (fs/file-name (:bbin/url coords))))]
     (io/copy (:body (http/get (:bbin/url coords) {:as :bytes}))
              (fs/file loaded-path))
+    (event! params {::event-type ::http-file-loaded})
     {::load/loaded-path loaded-path}))
 
-(defn- load-deps [{::parse/keys [lib coords] :as _params}]
-  {::load/loaded-deps (deps/add-libs {lib coords})})
+(defn- load-deps! [{::parse/keys [lib coords] :as params}]
+  (deps/add-libs {lib coords})
+  (event! params {::event-type ::deps-loaded}))
 
 (defn load!
   "Load files used to generate the script."
   [{::parse/keys [coords source-path] :as params}]
   (let [loaded (cond
                  (:git/url coords)
-                 (load-repo params)
+                 (load-repo! params)
 
                  (some->> (:bbin/url coords) (re-matches #"^https?://.+"))
-                 (load-http-file params)
+                 (load-http-file! params)
 
                  (not (or (:bbin/url coords) (:local/root coords)))
-                 (load-deps params))
+                 (load-deps! params))
         artifact-path (or (::load/loaded-path loaded) source-path)]
     (merge loaded {::load/artifact-path artifact-path})))
 
@@ -304,21 +304,23 @@
 ;; =============================================================================
 ;; Write
 
-(defn- write-single
+(defn- write-single!
   [{::parse/keys [bin-dir jars-dir]
     ::load/keys [artifact-path]
     ::analyze/keys [jar-path]
     ::generate/keys [script-name script-config]
-    :as _params}]
+    :as params}]
   (let [script-path (str (fs/path bin-dir (str script-name)))]
     (when jar-path
       (fs/create-dirs jars-dir)
-      (fs/copy artifact-path jar-path {:replace-existing true}))
+      (fs/copy artifact-path jar-path {:replace-existing true})
+      (event! params {::event-type ::jar-copied}))
     (spit script-path (::generate/script-contents script-config))
     (if util/windows?
       (spit (str script-path ".bat")
             (str "@bb -f %~dp0" (fs/file-name script-path) " -- %*"))
       (util/sh ["chmod" "+x" script-path]))
+    (event! params {::event-type ::script-written})
     [script-name {::write/script-path script-path}]))
 
 (defn write!
@@ -327,7 +329,7 @@
   (let [written (doall
                   (->> generated
                        (map (fn [[script-name script-config]]
-                              (write-single
+                              (write-single!
                                 (merge params
                                        {::generate/script-name script-name
                                         ::generate/script-config script-config}))))
