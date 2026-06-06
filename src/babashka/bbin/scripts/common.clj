@@ -1,5 +1,5 @@
 (ns babashka.bbin.scripts.common
-  (:require [babashka.bbin.specs]
+  (:require [babashka.bbin.specs :as specs]
             [babashka.bbin.util :as util :refer [sh]]
             [babashka.fs :as fs]
             [clojure.edn :as edn]
@@ -63,16 +63,43 @@
                    (str/replace #"--+" "-")))]
     (symbol "org.babashka.bbin" s)))
 
-(defn load-bin-config [script-root]
+(defn read-bb-edn [script-root]
   (let [bb-file (fs/file script-root "bb.edn")
         bb-edn (when (fs/exists? bb-file)
-                 (some-> bb-file slurp edn/read-string))
-        bin-config (:bbin/bin bb-edn)]
+                 (some-> bb-file slurp edn/read-string))]
+    bb-edn))
+
+(defn load-bin-config [script-root]
+  (let [bb-edn (read-bb-edn script-root)
+        bin-config (or (get-in bb-edn [:bbin :bin])
+                       (:bbin/bin bb-edn))]
     (when bin-config
-      (if (s/valid? :bbin/bin bin-config)
+      (if (s/valid? ::specs/bin bin-config)
         bin-config
-        (throw (ex-info (s/explain-str :bbin/bin bin-config)
+        (throw (ex-info (s/explain-str ::specs/bin bin-config)
                         {:bbin/bin bin-config}))))))
+
+(defn classpath-source [script-root]
+  (let [bb-file (fs/file script-root "bb.edn")
+        deps-file (fs/file script-root "deps.edn")
+        bb-edn (read-bb-edn script-root)]
+    (cond
+      (and bb-edn (contains? bb-edn :bbin))
+      :bb-edn
+
+      (fs/exists? deps-file)
+      :deps-edn
+
+      (fs/exists? bb-file)
+      :bb-edn
+
+      :else
+      (throw
+        (ex-info
+          (str "No bb.edn or deps.edn found in " script-root
+               ". Add a bb.edn with :paths (and an optional :bbin map) "
+               "to make this project installable.")
+          {:script/root script-root})))))
 
 (defn default-script-config [lib]
   (let [lib-ns (namespace lib)
@@ -124,7 +151,7 @@
     (fs/delete-on-exit)))
 
 (def base-command
-  [\"bb\" \"--config\" (str tmp-edn)])
+  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)])
 
 (defn help-eval-str []
   (str \"(require '\" script-ns-default \")
@@ -164,6 +191,7 @@
          '[babashka.fs :as fs]
          '[clojure.string :as str])
 
+(def script-root {{script/root|pr-str}})
 (def script-lib '{{script/lib}})
 (def script-coords {{script/coords|str}})
 (def script-ns-default '{{script/ns-default}})
@@ -175,7 +203,7 @@
     (fs/delete-on-exit)))
 
 (def base-command
-  [\"bb\" \"--config\" (str tmp-edn)])
+  [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)])
 
 (defn help-eval-str []
   (str \"(require '\" script-ns-default \")
@@ -201,7 +229,7 @@
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
-(def local-dir-template-str-with-bb-edn
+(def local-dir-template-str
   (str/trim "
 #!/usr/bin/env bb
 
@@ -217,10 +245,33 @@
 (def script-root {{script/root|pr-str}})
 (def script-main-opts {{script/main-opts}})
 
-(def script-config
-  (let [bb-edn (fs/file script-root \"bb.edn\")
-        deps-edn (fs/file script-root \"deps.edn\")]
-    (str (if (fs/exists? bb-edn) bb-edn deps-edn))))
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {local/deps {:local/root \" (pr-str script-root) \"}}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  (vec (concat [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)]
+               script-main-opts
+               [\"--\"])))
+
+(process/exec (into base-command *command-line-args*))
+"))
+
+(def config-dir-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process])
+
+(def script-config {{script/config|pr-str}})
+(def script-main-opts {{script/main-opts}})
 
 (def base-command
   (vec (concat [\"bb\" \"--config\" script-config]
@@ -243,6 +294,7 @@
 (require '[babashka.process :as process]
          '[babashka.fs :as fs])
 
+(def script-root {{script/root|pr-str}})
 (def script-lib '{{script/lib}})
 (def script-coords {{script/coords|str}})
 (def script-main-opts {{script/main-opts}})
@@ -253,11 +305,56 @@
     (fs/delete-on-exit)))
 
 (def base-command
-  (vec (concat [\"bb\" \"--config\" (str tmp-edn)]
+  (vec (concat [\"bb\" \"--deps-root\" script-root \"--config\" (str tmp-edn)]
                script-main-opts
                [\"--\"])))
 
 (process/exec (into base-command *command-line-args*))
+"))
+
+(def config-tool-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(def script-config {{script/config|pr-str}})
+(def script-ns-default '{{script/ns-default}})
+(def script-name (fs/file-name *file*))
+
+(def base-command
+  [\"bb\" \"--config\" script-config])
+
+(defn help-eval-str []
+  (str \"(require '\" script-ns-default \")
+        (def fns (filter #(fn? (deref (val %))) (ns-publics '\" script-ns-default \")))
+        (def max-width (->> (keys fns) (map (comp count str)) (apply max)))
+        (defn pad-right [x] (format (str \\\"%-\\\" max-width \\\"s\\\") x))
+        (println (str \\\"Usage: \" script-name \" <command>\\\"))
+        (newline)
+        (doseq [[k v] fns]
+          (println
+            (str \\\"  \" script-name \" \\\" (pad-right k) \\\"  \\\"
+               (when (:doc (meta v))
+                 (first (str/split-lines (:doc (meta v))))))))\"))
+
+(def first-arg (first *command-line-args*))
+(def rest-args (rest *command-line-args*))
+
+(if first-arg
+  (process/exec
+    (vec (concat base-command
+                 [\"-x\" (str script-ns-default \"/\" first-arg)]
+                 rest-args)))
+  (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
 (defn jar->main-ns [jar-path]

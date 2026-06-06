@@ -127,14 +127,19 @@ $ bbin bin
 - By default, scripts will be installed to `~/.local/bin`
     - If `$BABASHKA_BBIN_BIN_DIR` is set, then use `$BABASHKA_BBIN_BIN_DIR` (explicit override)
 - Each bin script is a self-contained shell script that fetches deps and invokes `bb` with the correct arguments.
-- The bin scripts can be configured using the CLI options or the `:bbin/bin` key in `bb.edn`
+- The bin scripts can be configured using the CLI options or the `:bbin {:bin ...}` key in `bb.edn`
 - [See the Packaging page for additional info on setting up your code to work with bbin](docs/packaging.md)
 
 **Example `bb.edn` Config:**
 
 ```clojure
-{:bbin/bin {neil {:main-opts ["-f" "neil"]}}}
+{:paths ["src"]
+ :bbin {:bin {neil {:main-opts ["-m" "neil.main"]}}}}
 ```
+
+When `bb.edn` contains a top-level `:bbin` map, installed directory and Git scripts run with `bb --config bb.edn`, so `bb.edn` is the source of truth for `:paths`, `:deps`, and other Babashka config. Without `:bbin`, projects that also have `deps.edn` keep the legacy deps.edn-based behavior. Projects with only `bb.edn` use `bb.edn`.
+
+The legacy `:bbin/bin` key is still supported for script configuration, but it is deprecated and does not opt a project into `bb.edn` as the classpath source.
 
 **Supported Options:**
 
@@ -144,6 +149,10 @@ If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo w
 
 - `--as`
     - The name of the script to be saved in the `bbin bin` path
+- `--config`
+    - Use the given config file as the source of truth for a directory or Git install
+    - Relative paths are resolved from the installed project root
+    - The resolved config path is stored in the generated script metadata and reused by reinstall/upgrade flows
 - `--git/sha`
     - The SHA for a Git repo
 - `--git/tag`
@@ -158,12 +167,12 @@ If no `--git/tag` or `--git/sha` is provided, the latest tag from the Git repo w
     - The provided options (EDN format) will be passed to the `bb` command-line when the installed script is run
     - By default, `--main-opts` will be set to `["-m" ...]`, inferring the main function from the lib name
     - For example, if you provide a lib name like `io.github.rads/watch`, `bbin` will infer `rads.watch/-main`
-    - Project authors can provide a default in the `:bbin/bin` key in `bb.edn`
+    - Project authors can provide a default in the `:bbin {:bin ...}` key in `bb.edn`
 - `--mvn/version`
     - The version of a Maven dependency
 - `--ns-default`
     - The namespace to use to find functions (tool mode only)
-    - Project authors can provide a default in the `:bbin/bin` key in `bb.edn`
+    - Project authors can provide a default in the `:bbin {:bin ...}` key in `bb.edn`
 - `--tool`
     - If this option is provided, the script will be installed using **tool mode**
     - When enabled, the installed script acts as an entry point for functions in a namespace, similar to `clj -T`

@@ -15,15 +15,19 @@ There is no central registry for `bbin` - it leverages existing infrastructure l
 
 ## Configuration
 
-To properly package your repo for bbin, include a configuration in your `bb.edn` file that specifies the binaries to install:
+To properly package your repo for bbin, include a top-level `:bbin` map in `bb.edn` that specifies the binaries to install:
 
 ```clojure
-{:bbin/bin {cmd-name {:main-opts ["-m" "cmd.core"]}}}
+{:paths ["src"]
+ :bbin {:bin {cmd-name {:main-opts ["-m" "cmd.core"]}}}}
 ```
 
 This configuration defines:
 - The binary name (`neil` in this example)
 - How to execute it (with the main namespace to run being `cmd.core`)
+- That `bb.edn` is the source of truth when bbin generates the installed wrapper
+
+The older `:bbin/bin` key is still accepted for compatibility, but it is deprecated. A project with both `deps.edn` and `bb.edn` only opts into `bb.edn` classpath behavior when the top-level `:bbin` map is present. If you are installing a repo you do not control, `bbin install ... --config bb.edn` forces that config file to be used by the generated wrapper.
 
 ## Installation Methods
 
