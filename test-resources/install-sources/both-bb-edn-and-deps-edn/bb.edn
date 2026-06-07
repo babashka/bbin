@@ -1,0 +1,1 @@
+{:bbin/bin {both-bb-edn-and-deps-edn {:main-opts ["-m" "main"]}}}
