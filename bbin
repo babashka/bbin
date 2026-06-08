@@ -424,6 +424,7 @@ WARNING: (We won't make any changes without asking you first.)
 
 (s/def ::ns-default symbol?)
 (s/def ::main-opts (s/coll-of string?))
+(s/def :bbin/bb-opts (s/coll-of string?))
 (s/def ::script-config (s/keys :opt-un [::main-opts ::ns-default]))
 (s/def :bbin/bin (s/map-of symbol? ::script-config))
 
@@ -823,16 +824,56 @@ WARNING: (We won't make any changes without asking you first.)
                    (str/replace #"--+" "-")))]
     (symbol "org.babashka.bbin" s)))
 
-(defn load-bin-config [script-root]
+(defn read-bb-edn [script-root]
   (let [bb-file (fs/file script-root "bb.edn")
         bb-edn (when (fs/exists? bb-file)
-                 (some-> bb-file slurp edn/read-string))
-        bin-config (:bbin/bin bb-edn)]
+                 (some-> bb-file slurp edn/read-string))]
+    bb-edn))
+
+(defn load-bin-config [script-root]
+  (let [bin-config (:bbin/bin (read-bb-edn script-root))]
     (when bin-config
       (if (s/valid? :bbin/bin bin-config)
         bin-config
         (throw (ex-info (s/explain-str :bbin/bin bin-config)
                         {:bbin/bin bin-config}))))))
+
+(defn bb-opts->config [bb-opts]
+  (->> bb-opts
+       (drop-while #(not= "--config" %))
+       second))
+
+(defn- resolve-config [script-root config]
+  (let [config-file (fs/file config)]
+    (str (fs/canonicalize
+           (if (.isAbsolute config-file)
+             config-file
+             (fs/file script-root config))
+           {:nofollow-links true}))))
+
+(defn dir-config-strategy [script-root cli-config]
+  (let [bb-edn (read-bb-edn script-root)
+        author-config (bb-opts->config (:bbin/bb-opts bb-edn))
+        has-deps? (fs/exists? (fs/file script-root "deps.edn"))
+        has-bb? (fs/exists? (fs/file script-root "bb.edn"))]
+    (cond
+      cli-config
+      {:strategy :explicit-config
+       :config (resolve-config script-root cli-config)}
+
+      author-config
+      {:strategy :explicit-config
+       :config (resolve-config script-root author-config)}
+
+      has-deps?
+      {:strategy :generated}
+
+      has-bb?
+      {:strategy :explicit-config
+       :config (resolve-config script-root "bb.edn")}
+
+      :else
+      {:strategy :no-config})))
 
 (defn default-script-config [lib]
   (let [lib-ns (namespace lib)
@@ -961,7 +1002,7 @@ WARNING: (We won't make any changes without asking you first.)
   (process/exec (into base-command [\"-e\" (help-eval-str)])))
 "))
 
-(def local-dir-template-str-with-bb-edn
+(def local-dir-template-str
   (str/trim "
 #!/usr/bin/env bb
 
@@ -977,15 +1018,101 @@ WARNING: (We won't make any changes without asking you first.)
 (def script-root {{script/root|pr-str}})
 (def script-main-opts {{script/main-opts}})
 
-(def script-config
-  (let [bb-edn (fs/file script-root \"bb.edn\")
-        deps-edn (fs/file script-root \"deps.edn\")]
-    (str (if (fs/exists? bb-edn) bb-edn deps-edn))))
+(def tmp-edn
+  (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
+    (spit (str \"{:deps {local/deps {:local/root \" (pr-str script-root) \"}}}\"))
+    (fs/delete-on-exit)))
+
+(def base-command
+  (vec (concat [\"bb\" \"--config\" (str tmp-edn)]
+               script-main-opts
+               [\"--\"])))
+
+(process/exec (into base-command *command-line-args*))
+"))
+
+(def config-dir-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process])
+
+(def script-config {{script/config|pr-str}})
+(def script-main-opts {{script/main-opts}})
 
 (def base-command
   (vec (concat [\"bb\" \"--config\" script-config]
                script-main-opts
                [\"--\"])))
+
+(process/exec (into base-command *command-line-args*))
+"))
+
+(def config-tool-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process]
+         '[babashka.fs :as fs]
+         '[clojure.string :as str])
+
+(def script-config {{script/config|pr-str}})
+(def script-ns-default '{{script/ns-default}})
+(def script-name (fs/file-name *file*))
+
+(def base-command
+  [\"bb\" \"--config\" script-config])
+
+(defn help-eval-str []
+  (str \"(require '\" script-ns-default \")
+        (def fns (filter #(fn? (deref (val %))) (ns-publics '\" script-ns-default \")))
+        (def max-width (->> (keys fns) (map (comp count str)) (apply max)))
+        (defn pad-right [x] (format (str \\\"%-\\\" max-width \\\"s\\\") x))
+        (println (str \\\"Usage: \" script-name \" <command>\\\"))
+        (newline)
+        (doseq [[k v] fns]
+          (println
+            (str \\\"  \" script-name \" \\\" (pad-right k) \\\"  \\\"
+               (when (:doc (meta v))
+                 (first (str/split-lines (:doc (meta v))))))))\"))
+
+(def first-arg (first *command-line-args*))
+(def rest-args (rest *command-line-args*))
+
+(if first-arg
+  (process/exec
+    (vec (concat base-command
+                 [\"-x\" (str script-ns-default \"/\" first-arg)]
+                 rest-args)))
+  (process/exec (into base-command [\"-e\" (help-eval-str)])))
+"))
+
+(def no-config-dir-template-str
+  (str/trim "
+#!/usr/bin/env bb
+
+; :bbin/start
+;
+{{script/meta}}
+;
+; :bbin/end
+
+(require '[babashka.process :as process])
+
+(def script-main-opts {{script/main-opts}})
+(def base-command (vec (concat [\"bb\"] script-main-opts [\"--\"])))
 
 (process/exec (into base-command *command-line-args*))
 "))
@@ -1019,6 +1146,23 @@ WARNING: (We won't make any changes without asking you first.)
 
 (process/exec (into base-command *command-line-args*))
 "))
+
+(defn dir-template [strategy {:keys [git? tool-mode? lib?]}]
+  (case (:strategy strategy)
+    :explicit-config
+    (if tool-mode? config-tool-template-str config-dir-template-str)
+
+    :no-config
+    (if tool-mode?
+      (throw (ex-info "Tool mode requires a bb.edn or deps.edn in the directory." {}))
+      no-config-dir-template-str)
+
+    :generated
+    (cond
+      (and tool-mode? lib?) deps-tool-template-str
+      tool-mode? local-dir-tool-template-str
+      git? git-dir-template-str
+      :else local-dir-template-str)))
 
 (defn jar->main-ns [jar-path]
   (with-open [jar-file (JarFile. (fs/file jar-path))]
@@ -1152,7 +1296,7 @@ WARNING: (We won't make any changes without asking you first.)
 (defn parse
   "Parse coords from the CLI options."
   [{{:keys [cli-opts]} :input :as params}]
-  (let [{:keys [tool as main-opts ns-default]} cli-opts
+  (let [{:keys [tool as main-opts ns-default bb-opts]} cli-opts
         {:keys [procurer artifact]} (deps/summary cli-opts)
         parsed (case [procurer artifact]
                  ([:git :dir] [:maven :jar])
@@ -1172,6 +1316,7 @@ WARNING: (We won't make any changes without asking you first.)
         extra (->> {:header header
                     :tool tool
                     :as as
+                    :bb-opts bb-opts
                     :main-opts main-opts
                     :ns-default (some-> ns-default edn/read-string)
                     :bin-dir (str (dirs/bin-dir cli-opts))
@@ -1285,12 +1430,19 @@ WARNING: (We won't make any changes without asking you first.)
        (str/join "\n")))
 
 (defn- generate-dir-script
-  [{{:keys [header tool main-opts]} :parse
+  [{{:keys [header tool main-opts bb-opts]} :parse
     {:keys [artifact-path]} :load
     {:keys [script-config]} :generate
     :as params}]
-  (let [template-opts {:script/meta (generate-script-meta params)
+  (let [bb-opts' (cond
+                   (string? bb-opts) (edn/read-string bb-opts)
+                   (nil? bb-opts) nil
+                   :else bb-opts)
+        cli-config (common/bb-opts->config bb-opts')
+        strategy (common/dir-config-strategy artifact-path cli-config)
+        template-opts {:script/meta (generate-script-meta params)
                        :script/root artifact-path
+                       :script/config (:config strategy)
                        :script/lib (:lib header)
                        :script/coords (binding [*print-namespace-maps* false]
                                         (pr-str (:coords header)))
@@ -1304,15 +1456,13 @@ WARNING: (We won't make any changes without asking you first.)
                             {})))
         main-opts' (common/process-main-opts main-opts-source artifact-path)
         template-opts' (assoc template-opts :script/main-opts main-opts')
+        template (common/dir-template strategy
+                                      {:git? (boolean (:git/url (:coords header)))
+                                       :tool-mode? (boolean tool-mode)
+                                       :lib? (boolean (:lib header))})
         script-contents (selmer-util/without-escaping
                           (selmer/render
-                            (if tool-mode
-                              (if (:lib header)
-                                common/deps-tool-template-str
-                                common/local-dir-tool-template-str)
-                              (if (:git/url (:coords header))
-                                common/git-dir-template-str
-                                common/local-dir-template-str-with-bb-edn))
+                            template
                             template-opts'))]
     {:script-contents script-contents}))
 

@@ -68,7 +68,7 @@
 (defn parse
   "Parse coords from the CLI options."
   [{{:keys [cli-opts]} :input :as params}]
-  (let [{:keys [tool as main-opts ns-default]} cli-opts
+  (let [{:keys [tool as main-opts ns-default bb-opts]} cli-opts
         {:keys [procurer artifact]} (deps/summary cli-opts)
         parsed (case [procurer artifact]
                  ([:git :dir] [:maven :jar])
@@ -88,6 +88,7 @@
         extra (->> {:header header
                     :tool tool
                     :as as
+                    :bb-opts bb-opts
                     :main-opts main-opts
                     :ns-default (some-> ns-default edn/read-string)
                     :bin-dir (str (dirs/bin-dir cli-opts))
@@ -201,12 +202,19 @@
        (str/join "\n")))
 
 (defn- generate-dir-script
-  [{{:keys [header tool main-opts]} :parse
+  [{{:keys [header tool main-opts bb-opts]} :parse
     {:keys [artifact-path]} :load
     {:keys [script-config]} :generate
     :as params}]
-  (let [template-opts {:script/meta (generate-script-meta params)
+  (let [bb-opts' (cond
+                   (string? bb-opts) (edn/read-string bb-opts)
+                   (nil? bb-opts) nil
+                   :else bb-opts)
+        cli-config (common/bb-opts->config bb-opts')
+        strategy (common/dir-config-strategy artifact-path cli-config)
+        template-opts {:script/meta (generate-script-meta params)
                        :script/root artifact-path
+                       :script/config (:config strategy)
                        :script/lib (:lib header)
                        :script/coords (binding [*print-namespace-maps* false]
                                         (pr-str (:coords header)))
@@ -220,15 +228,13 @@
                             {})))
         main-opts' (common/process-main-opts main-opts-source artifact-path)
         template-opts' (assoc template-opts :script/main-opts main-opts')
+        template (common/dir-template strategy
+                                      {:git? (boolean (:git/url (:coords header)))
+                                       :tool-mode? (boolean tool-mode)
+                                       :lib? (boolean (:lib header))})
         script-contents (selmer-util/without-escaping
                           (selmer/render
-                            (if tool-mode
-                              (if (:lib header)
-                                common/deps-tool-template-str
-                                common/local-dir-tool-template-str)
-                              (if (:git/url (:coords header))
-                                common/git-dir-template-str
-                                common/local-dir-template-str-with-bb-edn))
+                            template
                             template-opts'))]
     {:script-contents script-contents}))
 
