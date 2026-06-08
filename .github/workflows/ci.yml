@@ -68,7 +68,6 @@ jobs:
           bb test
         env:
           GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=no -i $GITHUB_WORKSPACE\\test-resources\\id_ed25519_bbin_test_lib_private
-          GITLIBS_DEBUG: true
       - name: Upload debug log
         if: failure()
         uses: actions/upload-artifact@v4
