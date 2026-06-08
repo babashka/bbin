@@ -15,6 +15,12 @@ jobs:
         with:
           bb: ${{ matrix.bb-version }}
       - run: bb run test
+      - name: Upload debug log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-debug-log
+          path: debug.log
 
   bb-run-test-macos:
     runs-on: macos-latest
@@ -30,6 +36,12 @@ jobs:
         with:
           bb: ${{ matrix.bb-version }}
       - run: bb run test
+      - name: Upload debug log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-debug-log
+          path: debug.log
 
   bb-run-test-windows:
     runs-on: windows-latest
@@ -53,7 +65,16 @@ jobs:
           cp bb.exe "$(which bb)"
       - name: bb test
         run: |
-          bb run test
+          bb test
+        env:
+          GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=no -i $GITHUB_WORKSPACE\\test-resources\\id_ed25519_bbin_test_lib_private
+      - name: Upload debug log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-debug-log
+          path: debug.log
+
 
   bb-run-lint:
     runs-on: ubuntu-latest

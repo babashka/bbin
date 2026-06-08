@@ -44,10 +44,7 @@
       (f))))
 
 (def git-wrapper-path
-  (-> (if (fs/windows?)
-        "test-resources/git-wrapper.bat"
-        "test-resources/git-wrapper")
-      fs/file
+  (-> (fs/file "test-resources/git-wrapper")
       fs/canonicalize
       str))
 
@@ -56,7 +53,9 @@
 
 (defn bbin-private-keys-fixture []
   (fn [f]
-    (set-gitlibs-command)
+    ; FIXME: Windows batch file escaping prevents usage of git-wrapper
+    (when-not (fs/windows?)
+      (set-gitlibs-command))
     (f)))
 
 (defn bbin [main-args & {:as opts}]
