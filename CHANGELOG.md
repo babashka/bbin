@@ -13,8 +13,7 @@
 ## 0.3.0
 
 - [Fix #64: Remove usage of local/deps in generated scripts](https://github.com/babashka/bbin/issues/64)
-- [Fix #78: Make `bb.edn` an opt-in source of truth for directory and Git installs via `:bbin`, while preserving legacy deps.edn behavior by default](https://github.com/babashka/bbin/issues/78)
-- Add `bbin install --config <file>` as an installer-side override for directory and Git installs
+- [Fix #78: Do not require deps.edn when using local bbin install](https://github.com/babashka/bbin/issues/78)
 - [Fix #86: Temporary files are not getting cleaned up on exit](https://github.com/babashka/bbin/issues/86)
 - [Fix #100: Support installing https://github.com/foo/bar](https://github.com/babashka/bbin/issues/100)
 

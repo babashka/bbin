@@ -68,7 +68,7 @@
 (defn parse
   "Parse coords from the CLI options."
   [{{:keys [cli-opts]} :input :as params}]
-  (let [{:keys [tool as main-opts ns-default config]} cli-opts
+  (let [{:keys [tool as main-opts ns-default]} cli-opts
         {:keys [procurer artifact]} (deps/summary cli-opts)
         parsed (case [procurer artifact]
                  ([:git :dir] [:maven :jar])
@@ -90,7 +90,6 @@
                     :as as
                     :main-opts main-opts
                     :ns-default (some-> ns-default edn/read-string)
-                    :config config
                     :bin-dir (str (dirs/bin-dir cli-opts))
                     :jars-dir (str (dirs/jars-dir cli-opts))}
                    (filter #(some? (val %)))
@@ -117,16 +116,9 @@
   (deps/add-libs {lib coords})
   (event! params {::event-type ::deps-loaded}))
 
-(defn- resolve-config-override [artifact-path config]
-  (let [config-file (fs/file config)
-        config-file' (if (fs/absolute? config-file)
-                       config-file
-                       (fs/file artifact-path config))]
-    (str (fs/canonicalize config-file' {:nofollow-links true}))))
-
 (defn load!
   "Load files used to generate the script."
-  [{{:keys [config coords source-path] :as parse} :parse :as params}]
+  [{{:keys [coords source-path]} :parse :as params}]
   (let [loaded (cond
                  (:git/url coords)
                  (load-repo! params)
@@ -136,15 +128,8 @@
 
                  (not (or (:bbin/url coords) (:local/root coords)))
                  (load-deps! params))
-        artifact-path (or (:loaded-path loaded) source-path)
-        config' (when (and config (some-> artifact-path fs/directory?))
-                  (resolve-config-override artifact-path config))
-        parse' (cond-> parse
-                 config' (assoc :config config'
-                                :header (assoc (:header parse)
-                                               :bbin/config config')))]
-    (cond-> {:load (merge loaded {:artifact-path artifact-path})}
-      config' (assoc :parse parse'))))
+        artifact-path (or (:loaded-path loaded) source-path)]
+    {:load (merge loaded {:artifact-path artifact-path})}))
 
 ;; =============================================================================
 ;; Analyze
@@ -215,46 +200,13 @@
        (map #(str common/comment-char " " %))
        (str/join "\n")))
 
-(defn- config-source? [source]
-  (contains? #{:bb-edn :config} source))
-
-(defn- source->config-path [source artifact-path config]
-  (case source
-    :config config
-    :bb-edn (str (fs/file artifact-path "bb.edn"))
-    nil))
-
-(defn- dir-template [source {:keys [git? tool-mode? lib?]}]
-  (cond
-    (and (config-source? source) tool-mode?)
-    common/config-tool-template-str
-
-    (config-source? source)
-    common/config-dir-template-str
-
-    (and tool-mode? lib?)
-    common/deps-tool-template-str
-
-    tool-mode?
-    common/local-dir-tool-template-str
-
-    git?
-    common/git-dir-template-str
-
-    :else
-    common/local-dir-template-str))
-
 (defn- generate-dir-script
-  [{{:keys [config header tool main-opts]} :parse
+  [{{:keys [header tool main-opts]} :parse
     {:keys [artifact-path]} :load
     {:keys [script-config]} :generate
     :as params}]
-  (let [source (or (when config :config)
-                   (common/classpath-source artifact-path))
-        script-config-path (source->config-path source artifact-path config)
-        template-opts {:script/meta (generate-script-meta params)
+  (let [template-opts {:script/meta (generate-script-meta params)
                        :script/root artifact-path
-                       :script/config script-config-path
                        :script/lib (:lib header)
                        :script/coords (binding [*print-namespace-maps* false]
                                         (pr-str (:coords header)))
@@ -270,10 +222,13 @@
         template-opts' (assoc template-opts :script/main-opts main-opts')
         script-contents (selmer-util/without-escaping
                           (selmer/render
-                            (dir-template source
-                                          {:git? (boolean (:git/url (:coords header)))
-                                           :tool-mode? (boolean tool-mode)
-                                           :lib? (boolean (:lib header))})
+                            (if tool-mode
+                              (if (:lib header)
+                                common/deps-tool-template-str
+                                common/local-dir-tool-template-str)
+                              (if (:git/url (:coords header))
+                                common/git-dir-template-str
+                                common/local-dir-template-str-with-bb-edn))
                             template-opts'))]
     {:script-contents script-contents}))
 
