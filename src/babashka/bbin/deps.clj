@@ -113,7 +113,9 @@
   (boolean (and (string? x) (re-seq #"^.+@.+:.+\.git$" x))))
 
 (defn- git-http-url? [x]
-  (boolean (and (string? x) (re-seq #"^https?://.+\.git$" x))))
+  (boolean (and (string? x)
+                (or (re-seq #"^https?://.+\.git$" x)
+                    (re-seq #"^https?://github.com/[^/]+/[^/]+$" x)))))
 
 (defn git-repo-url? [s]
   (or (git-http-url? s) (git-ssh-url? s)))

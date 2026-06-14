@@ -2,7 +2,6 @@
   (:require [babashka.bbin.cli :as bbin]
             [babashka.bbin.dirs :as dirs]
             [babashka.bbin.scripts :as scripts]
-            [babashka.bbin.util :as util]
             [babashka.fs :as fs]
             [babashka.process :as p]
             [clojure.edn :as edn]
@@ -77,7 +76,7 @@
           edn/read-string))
 
 (defn exec-cmd-line [script-name]
-  (concat (when util/windows? ["cmd" "/c"])
+  (concat (when (fs/windows?) ["cmd" "/c"])
           [(str (fs/canonicalize (fs/file (dirs/bin-dir nil) (name script-name)) {:nofollow-links true}))]))
 
 (defn run-bin-script [script-name & script-args]
