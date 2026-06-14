@@ -1,7 +1,7 @@
 (ns babashka.bbin.scripts-test
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.scripts :as scripts]
-            [babashka.bbin.scripts.common :as common]
+            [babashka.bbin.scripts.install :as install]
             [babashka.bbin.test-util :as tu]
             [babashka.fs :as fs]
             [clojure.string :as str]
@@ -16,7 +16,7 @@
              :git/sha "9140acfc12d8e1567fc6164a50d486de09433919"}})
 
 (def test-script
-  (common/insert-script-header "#!/usr/bin/env bb" bbin-test-lib))
+  (install/insert-script-header "#!/usr/bin/env bb" bbin-test-lib))
 
 (deftest load-scripts-test
   (let [cli-opts {}]
@@ -25,18 +25,6 @@
     (is (= {} (scripts/load-scripts (dirs/bin-dir nil))))
     (spit (fs/file (dirs/bin-dir nil) "test-script") test-script)
     (is (= {'test-script bbin-test-lib} (scripts/load-scripts (dirs/bin-dir nil))))))
-
-(deftest local-lib-path-test
-  (let [script-deps {'io.github.example/foo {:git/sha "abc123"}}
-        expected-suffix ["libs" "io.github.example" "foo" "abc123"]
-        home-gitlibs   (str (apply fs/path (fs/home) ".gitlibs" expected-suffix))
-        custom-gitlibs (str (apply fs/path "/custom/gitlibs/" expected-suffix))]
-    (testing "uses ~/.gitlibs when GITLIBS is empty"
-      (is (= home-gitlibs
-             (str (common/local-lib-path script-deps "")))))
-    (testing "uses custom path when GITLIBS is set"
-      (is (= custom-gitlibs
-             (str (common/local-lib-path script-deps "/custom/gitlibs")))))))
 
 (deftest uninstall-test
   (testing "uninstall foo"

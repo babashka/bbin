@@ -40,6 +40,8 @@
          :fn #(run (:migrate-fn opts) %
                    :disable-legacy-paths-check true)}
 
+        ;; `upgrade` is not released yet: only enabled behind the
+        ;; BABASHKA_BBIN_FLAG_UPGRADE env flag (see util/upgrade-enabled?).
         (when (util/upgrade-enabled?)
           {:cmds ["upgrade"]
            :fn #(run (:upgrade-fn opts) %)

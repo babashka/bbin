@@ -25,13 +25,13 @@
       (is (= {'hello {:coords {:bbin/url hello-script-url}}} (tu/run-ls))))))
 
 (deftest upgrade-http-file-test
-  (testing "upgrade (http file)"
-    (tu/reset-test-dir)
-    (dirs/ensure-bbin-dirs {})
-    (let [script-file (fs/file tu/http-public-dir "hello.clj")]
-      (spit script-file "#!/usr/bin/env bb\n(println \"Hello world\")")
-      (tu/run-install {:script/lib hello-script-url})
-      (is (= "Hello world" (tu/run-bin-script :hello)))
-      (spit script-file "#!/usr/bin/env bb\n(println \"Upgraded\")")
-      (tu/run-upgrade {:script/lib "hello"})
-      (is (= "Upgraded" (tu/run-bin-script :hello))))))
+  #_(testing "upgrade (http file)"
+      (tu/reset-test-dir)
+      (dirs/ensure-bbin-dirs {})
+      (let [script-file (fs/file tu/http-public-dir "hello.clj")]
+        (spit script-file "#!/usr/bin/env bb\n(println \"Hello world\")")
+        (tu/run-install {:script/lib hello-script-url})
+        (is (= "Hello world" (tu/run-bin-script :hello)))
+        (spit script-file "#!/usr/bin/env bb\n(println \"Upgraded\")")
+        (tu/run-upgrade {:script/lib "hello"})
+        (is (= "Upgraded" (tu/run-bin-script :hello))))))

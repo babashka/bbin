@@ -283,11 +283,6 @@
     (println)
     (println (str "Usage: bbin <command>\n\n" (str/join "\n" lines)))))
 
-(def windows?
-  (some-> (System/getProperty "os.name")
-          (str/lower-case)
-          (str/index-of "win")))
-
 (defn print-version [& {:as opts}]
   (if (:help opts)
     (print-help)
