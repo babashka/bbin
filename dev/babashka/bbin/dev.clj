@@ -1,5 +1,7 @@
 (ns babashka.bbin.dev
-  (:require [babashka.process :refer [sh]]
+  (:require [babashka.fs :as fs]
+            [babashka.nrepl.server :as nrepl]
+            [babashka.process :refer [sh]]
             [clojure.core.async :refer [<!] :as async]
             [clojure.string :as str]
             [pod.babashka.fswatcher :as fw]
@@ -29,6 +31,11 @@
   (doseq [p watch-paths]
     (fw/watch p #(async/put! build-events %) {:recursive true})))
 
+(defn- start-nrepl []
+  (let [{:keys [port]} (nrepl/start-server! {:port 0})]
+    (spit ".nrepl-port" port)
+    (fs/delete-on-exit ".nrepl-port")))
+
 (defn dev []
   (let [build-xf (filter build-event?)
         build-events (async/chan (async/sliding-buffer 1) build-xf)]
@@ -36,4 +43,5 @@
     (start-watchers watch-paths build-events)
     (build-once {:type ::startup-build})
     (start-builder build-events)
+    (start-nrepl)
     (deref (promise))))

@@ -5,11 +5,23 @@
                                  :git/sha "951b49b8c173244e66443b8188e3ff928a0a71e7"}
         local/deps {:local/root "."}}
  :bbin/bin {bbin {:main-opts ["-f" "bbin"]}}
- :tasks {bbin {:requires ([babashka.bbin.cli :as bbin])
+ :tasks {:requires ([babashka.fs :as fs]
+                    [clojure.string :as str])
+         :init (defn test-env []
+                 (if (fs/windows?)
+                   (let [key-path (-> (fs/absolutize "test-resources/id_ed25519_bbin_test_lib_private")
+                                      str
+                                      (str/replace "\\" "/"))]
+                     {"GIT_SSH_COMMAND" (str "ssh -o StrictHostKeyChecking=no"
+                                             " -o UserKnownHostsFile=/dev/null"
+                                             " -i '" key-path "'")})
+                   {"GITLIBS_COMMAND" (str (fs/absolutize "test-resources/git-wrapper"))}))
+         bbin {:requires ([babashka.bbin.cli :as bbin])
                :task (apply bbin/-main *command-line-args*)}
-         dev {:doc "Starts watcher to auto-build bbin script"
-              :requires ([babashka.bbin.dev :as dev])
-              :task (dev/dev)}
+         dev {:doc "Starts watcher to auto-build bbin script and an nREPL server"
+              :task (shell {:extra-env (test-env)} "bb run -dev")}
+         -dev {:requires ([babashka.bbin.dev :as dev])
+               :task (dev/dev)}
          ci {:doc "Run all CI tasks locally"
              :requires ([taoensso.timbre :as log])
              :task (do
@@ -27,18 +39,7 @@
                   "clj-kondo --parallel --lint ."
                   *command-line-args*))
          test {:depends [gen-script]
-               :requires ([babashka.fs :as fs]
-                          [clojure.string :as str])
-               :task (let [key-path (-> (fs/absolutize "test-resources/id_ed25519_bbin_test_lib_private")
-                                        str
-                                        (str/replace "\\" "/"))
-                           ssh-command (str "ssh -o StrictHostKeyChecking=no"
-                                            " -o UserKnownHostsFile=/dev/null"
-                                            " -i '" key-path "'")]
-                       (when-not (fs/windows?)
-                         (fs/set-posix-file-permissions key-path "rw-------"))
-                       (apply shell {:extra-env {"GIT_SSH_COMMAND" ssh-command}}
-                              "bb run -test" *command-line-args*))}
+               :task (apply shell {:extra-env (test-env)} "bb run -test" *command-line-args*)}
          -test {:extra-deps {io.github.cognitect-labs/test-runner
                              {:git/tag "v0.5.1" :git/sha "dfb30dd"}
                              ring/ring-core {:mvn/version "1.12.1"}}
