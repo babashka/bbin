@@ -17,7 +17,7 @@ jobs:
       - run: bb run test
       - name: Upload debug log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: linux-debug-log
           path: debug.log
@@ -38,7 +38,7 @@ jobs:
       - run: bb run test
       - name: Upload debug log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-debug-log
           path: debug.log
@@ -68,7 +68,7 @@ jobs:
           bb test
       - name: Upload debug log
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: windows-debug-log
           path: debug.log
