@@ -9,7 +9,7 @@ jobs:
         bb-version: [1.3.190, latest]
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
       - name: Install clojure tools
         uses: DeLaGuardo/setup-clojure@13.7.0
         with:
@@ -30,7 +30,7 @@ jobs:
         bb-version: [1.3.190, latest]
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
       - name: Install clojure tools
         uses: DeLaGuardo/setup-clojure@13.7.0
         with:
@@ -51,7 +51,7 @@ jobs:
         bb-version: [latest]
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
       - name: Install clojure tools
         uses: DeLaGuardo/setup-clojure@13.7.0
         with:
@@ -82,7 +82,7 @@ jobs:
         bb-version: [1.3.190, latest]
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
       - name: Install clojure tools
         uses: DeLaGuardo/setup-clojure@13.7.0
         with:
