@@ -49,21 +49,6 @@
               dirs/*xdg-jars-dir* (relativize (dirs/xdg-jars-dir nil))]
       (f))))
 
-(def git-wrapper-path
-  (-> (fs/file "test-resources/git-wrapper")
-      fs/canonicalize
-      str))
-
-(defn- set-gitlibs-command []
-  (System/setProperty "clojure.gitlibs.command" git-wrapper-path))
-
-(defn bbin-private-keys-fixture []
-  (fn [f]
-    ; FIXME: Windows batch file escaping prevents usage of git-wrapper
-    (when-not (fs/windows?)
-      (set-gitlibs-command))
-    (f)))
-
 (defn bbin [main-args & {:as opts}]
   (let [out (str/trim (with-out-str (bbin/bbin main-args opts)))]
     (if (#{:edn} (:out opts))
