@@ -11,7 +11,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v3
       - name: Install clojure tools
-        uses: DeLaGuardo/setup-clojure@9.4
+        uses: DeLaGuardo/setup-clojure@13.7.0
         with:
           bb: ${{ matrix.bb-version }}
       - run: bb run test
@@ -32,7 +32,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v3
       - name: Install clojure tools
-        uses: DeLaGuardo/setup-clojure@9.4
+        uses: DeLaGuardo/setup-clojure@13.7.0
         with:
           bb: ${{ matrix.bb-version }}
       - run: bb run test
@@ -53,7 +53,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v3
       - name: Install clojure tools
-        uses: DeLaGuardo/setup-clojure@9.4
+        uses: DeLaGuardo/setup-clojure@13.7.0
         with:
           bb: ${{ matrix.bb-version }}
       - name: bb test
@@ -84,7 +84,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v3
       - name: Install clojure tools
-        uses: DeLaGuardo/setup-clojure@9.4
+        uses: DeLaGuardo/setup-clojure@13.7.0
         with:
           bb: ${{ matrix.bb-version }}
           clj-kondo: latest
