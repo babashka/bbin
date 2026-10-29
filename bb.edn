@@ -45,7 +45,7 @@
                 :task cognitect.test-runner/-main}
          gen-script {:doc "Build the bbin script"
                      :extra-deps {org.clojure/tools.namespace
-                                  {:mvn/version "1.5.0"}}
+                                  {:mvn/version "1.5.1"}}
                      :requires ([babashka.bbin.gen-script :as gen-script])
                      :task (gen-script/gen-script)}
          render-templates {:requires ([clojure.string :as str]
