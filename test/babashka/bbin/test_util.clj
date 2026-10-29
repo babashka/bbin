@@ -32,6 +32,12 @@
 (def http-public-dir (fs/file test-dir "public"))
 (def http-port (random-available-port))
 
+(def local-root-dir
+  (let [path (str (fs/file (fs/temp-dir) "bbin-test-local-root"))]
+    (fs/delete-tree path)
+    (fs/create-dirs path)
+    (doto path (fs/delete-on-exit))))
+
 (defn- relativize [original]
   (fs/file test-dir (fs/relativize (dirs/user-home) original)))
 
