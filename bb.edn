@@ -28,14 +28,14 @@
                      (run 'lint)
                      (log/info "bb run test")
                      (run 'test))}
-         lint (let [classpath (:out (shell {:out :string} "bb clojure -Spath"))]
+         lint (let [classpath (:out (shell {:out :string} "bb clojure -Spath -M:test"))]
                 (shell "mkdir -p .clj-kondo")
                 (shell
                   "clj-kondo --dependencies --parallel --copy-configs"
                   "--lint" classpath
                   "--skip-lint")
                 (apply shell
-                  "clj-kondo --parallel --lint ."
+                  "clj-kondo --parallel --lint src test dev bb.edn deps.edn"
                   *command-line-args*))
          test {:depends [gen-script]
                :task (apply shell {:extra-env (test-env)} "bb run -test" *command-line-args*)}
