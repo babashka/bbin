@@ -32,6 +32,12 @@
 (def http-public-dir (fs/file test-dir "public"))
 (def http-port (random-available-port))
 
+(def local-root-dir
+  (let [path (str (fs/file (fs/temp-dir) "bbin-test-local-root"))]
+    (fs/delete-tree path)
+    (fs/create-dirs path)
+    (doto path (fs/delete-on-exit))))
+
 (defn- relativize [original]
   (fs/file test-dir (fs/relativize (dirs/user-home) original)))
 
@@ -42,21 +48,6 @@
               dirs/*xdg-bin-dir* (relativize (dirs/xdg-bin-dir nil))
               dirs/*xdg-jars-dir* (relativize (dirs/xdg-jars-dir nil))]
       (f))))
-
-(def git-wrapper-path
-  (-> (fs/file "test-resources/git-wrapper")
-      fs/canonicalize
-      str))
-
-(defn- set-gitlibs-command []
-  (System/setProperty "clojure.gitlibs.command" git-wrapper-path))
-
-(defn bbin-private-keys-fixture []
-  (fn [f]
-    ; FIXME: Windows batch file escaping prevents usage of git-wrapper
-    (when-not (fs/windows?)
-      (set-gitlibs-command))
-    (f)))
 
 (defn bbin [main-args & {:as opts}]
   (let [out (str/trim (with-out-str (bbin/bbin main-args opts)))]

@@ -4,9 +4,7 @@
             [babashka.fs :as fs]
             [clojure.test :refer [deftest is testing use-fixtures]]))
 
-(use-fixtures :once
-  (tu/bbin-dirs-fixture)
-  (tu/bbin-private-keys-fixture))
+(use-fixtures :once (tu/bbin-dirs-fixture))
 
 (def bbin-test-lib
   '{:lib io.github.rads/bbin-test-lib,

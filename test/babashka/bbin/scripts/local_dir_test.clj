@@ -12,8 +12,8 @@
   (testing "install */* --local/root *"
     (tu/reset-test-dir)
     (dirs/ensure-bbin-dirs {})
-    (let [local-root (str (fs/file tu/test-dir "foo"))]
-      (fs/create-dir local-root)
+    (let [local-root (str (fs/file tu/local-root-dir "foo"))]
+      (fs/create-dirs local-root)
       (spit (fs/file local-root "bb.edn") (pr-str {}))
       (spit (fs/file local-root "deps.edn") (pr-str {}))
       (let [cli-opts {:script/lib "babashka/foo"
@@ -28,9 +28,9 @@
   (testing "install */* --local/root * (invalid bin config)"
     (tu/reset-test-dir)
     (dirs/ensure-bbin-dirs {})
-    (let [local-root (str (fs/file tu/test-dir "foo"))
+    (let [local-root (str (fs/file tu/local-root-dir "invalid-foo"))
           invalid-config 123]
-      (fs/create-dir local-root)
+      (fs/create-dirs local-root)
       (spit (fs/file local-root "bb.edn") (pr-str {:bbin/bin invalid-config}))
       (spit (fs/file local-root "deps.edn") (pr-str {}))
       (let [cli-opts {:script/lib "babashka/foo"
