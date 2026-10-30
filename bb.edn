@@ -1,9 +1,7 @@
-{:min-bb-version "0.9.162"
+{:min-bb-version "1.3.191"
  :paths ["src" "test" "test-resources" "dev"]
  :pods {org.babashka/fswatcher {:version "0.0.7"}}
- :deps {org.babashka/spec.alpha {:git/url "https://github.com/babashka/spec.alpha"
-                                 :git/sha "951b49b8c173244e66443b8188e3ff928a0a71e7"}
-        local/deps {:local/root "."}}
+ :deps {local/deps {:local/root "."}}
  :bbin/bin {bbin {:main-opts ["-f" "bbin"]}}
  :tasks {:requires ([babashka.fs :as fs]
                     [clojure.string :as str])
@@ -30,14 +28,14 @@
                      (run 'lint)
                      (log/info "bb run test")
                      (run 'test))}
-         lint (let [classpath (:out (shell {:out :string} "bb clojure -Spath"))]
+         lint (let [classpath (:out (shell {:out :string} "bb clojure -Spath -M:test"))]
                 (shell "mkdir -p .clj-kondo")
                 (shell
                   "clj-kondo --dependencies --parallel --copy-configs"
                   "--lint" classpath
                   "--skip-lint")
                 (apply shell
-                  "clj-kondo --parallel --lint ."
+                  "clj-kondo --parallel --lint src test dev bb.edn deps.edn"
                   *command-line-args*))
          test {:depends [gen-script]
                :task (apply shell {:extra-env (test-env)} "bb run -test" *command-line-args*)}
@@ -47,7 +45,7 @@
                 :task cognitect.test-runner/-main}
          gen-script {:doc "Build the bbin script"
                      :extra-deps {org.clojure/tools.namespace
-                                  {:mvn/version "1.5.0"}}
+                                  {:mvn/version "1.5.1"}}
                      :requires ([babashka.bbin.gen-script :as gen-script])
                      :task (gen-script/gen-script)}
          render-templates {:requires ([clojure.string :as str]

@@ -10,6 +10,11 @@
 <!-- - Create tag -->
 <!-- - Go to https://github.com/babashka/homebrew-brew and run `bb update-bbin` and publish the new Formula -->
 
+## Unreleased
+
+- [#120: Bump dependencies](https://github.com/babashka/bbin/issues/120)
+([@lread](http://github.com/lread))
+
 ## 0.2.5
 
 - [Fix #78: Installation fails if $GITLIBS are set](https://github.com/babashka/bbin/issues/73) ([@Ramblurr](https://github.com/babashka/bbin/issues/73))
