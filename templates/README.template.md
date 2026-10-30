@@ -219,6 +219,12 @@ $ bbin install . --as bbin-dev --main-opts '["-m" "babashka.bbin.cli/-main"]'
 You can now run your development copy of bbin with `bbin-dev`.
 Rebuilding is not required for `bbin-dev` installed this way, changes in Clojure source code is reflected instantly.
 
+To test [auto-completion](/docs/auto-completion.md), you'll need to specify `--prog bbin-dev` to compensate for the fact we are using a custom name for `bbin`. For ZSH, for example:
+
+```shell
+source <(bbin org.babashka.cli/completions snippet --shell zsh --prog bbin-dev)
+```
+
 ## Contributing
 
 If you'd like to contribute to `bbin`, you're welcome to create [issues for ideas, feature requests, and bug reports](https://github.com/babashka/bbin/issues).

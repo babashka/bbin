@@ -194,9 +194,9 @@
             (t :canceled)
             (println)))))))
 
-(defn migrate-help [_]
-  (println (str/triml "
-In bbin 0.2.0, we now use the XDG Base Directory Specification by default.
+(def migrate-help (str/triml "
+Migrate from bbin v0.1.x
+In bbin 0.2.0+, we now use the XDG Base Directory Specification by default.
 This means the ~/.babashka/bbin/bin path is deprecated in favor of ~/.local/bin.
 
 To migrate your scripts automatically, run `bbin migrate auto`. We won't make
@@ -213,11 +213,4 @@ Otherwise, you can either a) migrate manually or b) override:
   b) Override:
     - Set the BABASHKA_BBIN_BIN_DIR env variable to \"$HOME/.babashka/bbin\"
     - Set the BABASHKA_BBIN_JARS_DIR env variable to \"$HOME/.babashka/jars\"
-")))
-
-(defn migrate
-  ([cli-opts] (migrate :root cli-opts))
-  ([command cli-opts]
-   (case command
-     :root (migrate-help cli-opts)
-     :auto (migrate-auto cli-opts))))
+"))

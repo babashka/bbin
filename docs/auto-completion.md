@@ -1,18 +1,22 @@
 # Auto-Completion
 
+`bbin` uses `babashka/cli` and therefore inherits its [completions](https://github.com/babashka/cli/blob/main/README.md#completions) support.
+
 ### ZSH
 
-Add this to `~/.zshrc`:
+Add this to your zsh init file after `compinit`:
 
 ```shell
-function _bbin() { _arguments "1: :($(bbin commands))" }
-compdef _bbin bbin
+source <(bbin org.babashka.cli/completions snippet --shell zsh)
 ```
 
 ### BASH
 
-Add this to `~/.bashrc`:
+Add this to your bash init file:
 
 ```shell
-complete -W "$(bbin commands)" bbin
+source <(bbin org.babashka.cli/completions snippet --shell bash)
 ```
+
+## Other Shells
+For more details and other shells, see [babashka cli docs](https://github.com/babashka/cli/blob/main/README.md#completions).
