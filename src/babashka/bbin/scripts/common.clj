@@ -329,14 +329,14 @@
                                (default-script-config cli-opts))
                              (some-> bin-config first val)
                              (when (:ns-default cli-opts)
-                               {:ns-default (edn/read-string (:ns-default cli-opts))}))
+                               {:ns-default (:ns-default cli-opts)}))
         script-edn-out (with-out-str
                          (binding [*print-namespace-maps* false]
                            (util/pprint header')))
         tool-mode (or (:tool cli-opts)
                       (and (some-> bin-config first val :ns-default)
                            (not (some-> bin-config first val :main-opts))))
-        main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
+        main-opts (or (:main-opts cli-opts)
                       (:main-opts script-config))
         _ (when (and (not tool-mode) (not (seq main-opts)))
             (throw (ex-info "Main opts not found. Use --main-opts or :bbin/bin to provide main opts."

@@ -1,9 +1,10 @@
 (ns babashka.bbin.cli-test
   (:require [babashka.bbin.dirs :as dirs]
             [babashka.bbin.meta :as meta]
-            [babashka.bbin.test-util :refer [bbin bbin-dirs-fixture reset-test-dir]]
+            [babashka.bbin.test-util :refer [bbin bbin-dirs-fixture reset-test-dir run-bin-script]]
             [babashka.bbin.util :as util]
             [babashka.fs :as fs]
+            [clojure.edn :as edn]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing use-fixtures]]))
 
@@ -146,6 +147,47 @@
              :mvn/version "1.2.3"
              :color false}]
            @calls))))
+
+(deftest full-install-ns-default-override-test
+  (let [rel-local-root (str (fs/file "test-resources" "local-tool"))
+        args ["install" "bbin/foo"
+              "--local/root" rel-local-root
+              "--as" "footool"
+              "--ns-default" "bbin.bar" ;; alternate to default
+              "--tool"
+              "--edn"]
+        {:keys [exit out err]} (bbin args)
+        out (edn/read-string out)
+        script (str (fs/file (dirs/bin-dir nil) "footool"))]
+    (is (= nil exit) "exit")
+    (is (= {:coords {:local/root (str (fs/absolutize rel-local-root))}
+            :lib 'bbin/foo} out) "out")
+    (is (= "" err) "err")
+    (is (fs/exists? script) "generated script exits")
+    (let [footool-help (run-bin-script "footool")
+          [usage _ cmd] (str/split-lines footool-help)]
+      (is (= "Usage: footool <command>" usage) "footool usage")
+      (is (re-matches #" *footool callme *prints opts" cmd) "footool command"))
+    (let [footool-out (run-bin-script "footool" "callme" ":a" "1")]
+      (is (= "opts: {:a 1}" footool-out) "footool run output"))))
+
+(deftest full-install-main-opts-test
+  (let [rel-local-root (str (fs/file "test-resources" "local-tool"))
+        args ["install" "bbin/foo"
+              "--as" "footool"
+              "--main-opts" (pr-str ["-m" "bbin.foo" "--foo" "bar"])
+              "--local/root" rel-local-root
+              "--edn"]
+        {:keys [exit out err]} (bbin args)
+        out (edn/read-string out)
+        script (str (fs/file (dirs/bin-dir nil) "footool"))]
+    (is (= nil exit) "exit")
+    (is (= {:coords {:local/root (str (fs/absolutize rel-local-root))}
+            :lib 'bbin/foo} out) "out")
+    (is (= "" err) "err")
+    (is (fs/exists? script))
+    (let [footool-out (run-bin-script "footool" "bippedy" "boop")]
+      (is (= "main args: --foo bar -- bippedy boop" footool-out) "footool run output"))))
 
 (deftest uninstall-test
   (let [calls (atom [])

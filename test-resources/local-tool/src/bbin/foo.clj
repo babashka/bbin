@@ -9,3 +9,6 @@
   "just `vals`"
   [m]
   (prn (vals m)))
+
+(defn -main [& args]
+  (apply println "main args:" args))
