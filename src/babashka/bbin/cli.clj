@@ -120,7 +120,8 @@
                               :desc "Maven version for project"}
                 :local/root {:coerce :string
                              :desc "Local directory for project"}
-                :tool {:coerce :boolean
+                :tool {:alias :T
+                       :coerce :boolean
                        :desc "Install script using tool mode"}
                 :main-opts {:coerce :edn
                             :desc "Edn for :main-opts to use for the installed script"}
