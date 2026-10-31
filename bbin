@@ -1950,11 +1950,13 @@ Otherwise, you can either a) migrate manually or b) override:
                             :desc "Edn for :main-opts to use for the installed script"}
                 :ns-default {:coerce :symbol
                              :desc ":ns-default to be used for the installed script for --tool mode only"}
+                :dry-run {:coerce :boolean
+                          :desc "Give a data view of what will happen without installing"}
                 :edn {:coerce :boolean
                       :desc "Emit output in edn format"}}
          :order [:as :git/url :git/sha :git/tag :latest-sha
                  :mvn/version :local/root :tool
-                 :ns-default :main-opts :edn]
+                 :ns-default :main-opts :dry-run  :edn]
          :epilog "See https://github.com/babashka/bbin README for example usages."
          :args->opts [:script/lib]
          :fn #(run (:install-fn run-opts) %
