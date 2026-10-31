@@ -133,7 +133,6 @@
                  :ns-default :main-opts :edn]
          :epilog "See https://github.com/babashka/bbin README for example usages."
          :args->opts [:script/lib]
-         :aliases {:T :tool}
          :fn #(run (:install-fn run-opts) %
                    :post-validate post-validate-install)}
         (when (util/upgrade-enabled?)
