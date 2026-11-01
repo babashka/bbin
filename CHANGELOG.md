@@ -12,6 +12,11 @@
 
 ## Unreleased
 
+- [#44: Add help and auto-completions support for cli commands](https://github.com/babashka/bbin/issues/44)
+  - Minimum babashka version is now 1.13.220.
+  - Invalid command line args and options will now generate an error.
+  - See updated [auto-completion docs](/docs/auto-completion.md).
+([@lread](http://github.com/lread))
 - [#120: Bump dependencies](https://github.com/babashka/bbin/issues/120)
 ([@lread](http://github.com/lread))
 
@@ -128,7 +133,7 @@
         ```
         $ bbin bin
         /Users/rads/.babashka/bbin/bin
-      
+
         $ BABASHKA_BBIN_FLAG_XDG=true bbin bin
         /Users/rads/.local/bin
         ```

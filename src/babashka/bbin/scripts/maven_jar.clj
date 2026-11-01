@@ -97,7 +97,7 @@
           script-edn-out (with-out-str
                            (binding [*print-namespace-maps* false]
                              (util/pprint header)))
-          main-opts (or (some-> (:main-opts cli-opts) edn/read-string)
+          main-opts (or (:main-opts cli-opts)
                         (:main-opts script-config))
           template-opts {:script/meta (->> script-edn-out
                                            str/split-lines

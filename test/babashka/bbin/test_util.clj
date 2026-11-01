@@ -3,6 +3,7 @@
             [babashka.bbin.dirs :as dirs]
             [babashka.bbin.scripts :as scripts]
             [babashka.bbin.util :as util]
+            [babashka.cli :as cli]
             [babashka.fs :as fs]
             [babashka.process :as p]
             [clojure.edn :as edn]
@@ -50,10 +51,20 @@
       (f))))
 
 (defn bbin [main-args & {:as opts}]
-  (let [out (str/trim (with-out-str (bbin/bbin main-args opts)))]
-    (if (#{:edn} (:out opts))
-      (edn/read-string out)
-      out)))
+  (let [exit-code (atom nil)]
+    (binding [cli/*exit-fn* (fn [{:keys [exit]}] (reset! exit-code exit))]
+      (let [out (new java.io.StringWriter)
+            err (new java.io.StringWriter)]
+        (binding [*out* out
+                  *err* err]
+          (bbin/bbin main-args opts)
+          (let [out (str/trim (str *out*))
+                err (str/trim (str *err*))]
+            {:exit @exit-code
+             :out (if (#{:edn} (:out opts))
+                    (edn/read-string out)
+                    out)
+             :err err}))))))
 
 (defn run-install [cli-opts]
   (some-> (with-out-str (scripts/install (assoc cli-opts :edn true)))

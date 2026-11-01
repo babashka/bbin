@@ -262,36 +262,13 @@
                                                                :column-coercions    column-coercions
                                                                :no-color            no-color?})))
 
-(def help-commands
-  (->> [{:command "bbin install" :doc "Install a script"}
-        (when (upgrade-enabled?)
-          {:command "bbin upgrade" :doc "Upgrade a script"})
-        {:command "bbin uninstall" :doc "Remove a script"}
-        {:command "bbin ls" :doc "List installed scripts"}
-        {:command "bbin bin" :doc "Display bbin bin folder"}
-        {:command "bbin version" :doc "Display bbin version"}
-        {:command "bbin help" :doc "Display bbin help"}
-        {:command "bbin migrate" :doc "Migrate from bbin v0.1.x"}]
-       (remove nil?)))
-
-(defn print-help [& _]
-  (let [max-width (apply max (map #(count (:command %)) help-commands))
-        lines (->> help-commands
-                   (map (fn [{:keys [command doc]}]
-                          (format (str "  %-" (inc max-width) "s %s") command doc))))]
-    (println (str "Version: " meta/version))
-    (println)
-    (println (str "Usage: bbin <command>\n\n" (str/join "\n" lines)))))
-
 (def windows?
   (some-> (System/getProperty "os.name")
           (str/lower-case)
           (str/index-of "win")))
 
-(defn print-version [& {:as opts}]
-  (if (:help opts)
-    (print-help)
-    (println "bbin" meta/version)))
+(defn print-version [_]
+  (println "bbin" meta/version))
 
 (defn- parse-version [version]
   (mapv #(Integer/parseInt %)

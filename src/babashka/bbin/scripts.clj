@@ -44,7 +44,7 @@
   (->> (file-seq dir)
        (filter #(.isFile %))
        (map (fn [x] [(symbol (str (fs/relativize dir x)))
-                     (-> (read-header x) (parse-script ))]))
+                     (-> (read-header x) (parse-script))]))
        (filter second)
        (into {})))
 
@@ -81,16 +81,13 @@
       (throw-invalid-script summary cli-opts))))
 
 (defn install [cli-opts]
-  (if-not (:script/lib cli-opts)
-    (util/print-help)
-    (do
-      (dirs/ensure-bbin-dirs cli-opts)
-      (when-not (util/edn? cli-opts)
-        (println)
-        (println (util/bold "Starting install..." cli-opts)))
-      (let [cli-opts' (util/canonicalized-cli-opts cli-opts)
-            script (new-script cli-opts')]
-        (p/install script)))))
+  (dirs/ensure-bbin-dirs cli-opts)
+  (when-not (util/edn? cli-opts)
+    (println)
+    (println (util/bold "Starting install..." cli-opts)))
+  (let [cli-opts' (util/canonicalized-cli-opts cli-opts)
+        script (new-script cli-opts')]
+    (p/install script)))
 
 (defn- default-script [cli-opts]
   (reify
@@ -134,21 +131,15 @@
       :else (default-script cli-opts))))
 
 (defn upgrade [cli-opts]
-  (if-not (:script/lib cli-opts)
-    (util/print-help)
-    (do
-      (dirs/ensure-bbin-dirs cli-opts)
-      (let [script (load-script cli-opts)]
-        (p/upgrade script)))))
+  (dirs/ensure-bbin-dirs cli-opts)
+  (let [script (load-script cli-opts)]
+    (p/upgrade script)))
 
 (defn uninstall [cli-opts]
-  (if-not (:script/lib cli-opts)
-    (util/print-help)
-    (do
-      (dirs/ensure-bbin-dirs cli-opts)
-      (let [script-name (:script/lib cli-opts)
-            script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
-        (when (fs/delete-if-exists script-file)
-          (when util/windows? (fs/delete-if-exists (fs/file (str script-file common/windows-wrapper-extension))))
-          (fs/delete-if-exists (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar")))
-          (println "Removing" (str script-file)))))))
+  (dirs/ensure-bbin-dirs cli-opts)
+  (let [script-name (:script/lib cli-opts)
+        script-file (fs/canonicalize (fs/file (dirs/bin-dir cli-opts) script-name) {:nofollow-links true})]
+    (when (fs/delete-if-exists script-file)
+      (when util/windows? (fs/delete-if-exists (fs/file (str script-file common/windows-wrapper-extension))))
+      (fs/delete-if-exists (fs/file (dirs/jars-dir cli-opts) (str script-name ".jar")))
+      (println "Removing" (str script-file)))))

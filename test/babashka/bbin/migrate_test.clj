@@ -19,16 +19,13 @@
        (mapv edn/read-string)))
 
 (deftest migrate-test
-  (testing "migrate"
-    (is (with-out-str (migrate/migrate {}))))
-
   (testing "migrate auto"
 
     (testing "scenario: no changes needed"
       (reset-test-dir)
       (let [commands [[:up-to-date]]]
         (is (= commands
-               (->> (migrate/migrate :auto {:edn true})
+               (->> (migrate/migrate-auto {:edn true})
                     (with-in-str "")
                     with-out-str
                     parse-edn-out)))))
@@ -48,7 +45,7 @@
                           [:prompt-move]
                           [:canceled]]]
             (is (= commands
-                   (->> (migrate/migrate :auto {:edn true})
+                   (->> (migrate/migrate-auto {:edn true})
                         (with-in-str "no\n")
                         with-out-str
                         parse-edn-out)))
@@ -82,7 +79,7 @@
                                     [:done]])
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
-                   (->> (migrate/migrate :auto {:edn true})
+                   (->> (migrate/migrate-auto {:edn true})
                         (with-in-str "yes\n")
                         with-out-str
                         parse-edn-out)))
@@ -90,7 +87,7 @@
                    (parse-edn-out (slurp (migrate/log-path (dirs/legacy-bin-dir)
                                                            (inst-ms (util/now)))))))
             (is (= commands-2
-                   (->> (migrate/migrate :auto {:edn true})
+                   (->> (migrate/migrate-auto {:edn true})
                         (with-in-str "yes\n")
                         with-out-str
                         parse-edn-out)))))))
@@ -119,7 +116,7 @@
                             [:done]]
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
-                   (->> (migrate/migrate :auto {:edn true})
+                   (->> (migrate/migrate-auto {:edn true})
                         (with-in-str "yes\nno\n")
                         with-out-str
                         parse-edn-out)))
@@ -127,7 +124,7 @@
                    (parse-edn-out (slurp (migrate/log-path (dirs/legacy-bin-dir)
                                                            (inst-ms (util/now)))))))
             (is (= commands-2
-                   (->> (migrate/migrate :auto {:edn true})
+                   (->> (migrate/migrate-auto {:edn true})
                         (with-in-str "yes\n")
                         with-out-str
                         parse-edn-out)))))))
@@ -171,7 +168,7 @@
                                     [:done]])
                 commands-2 [[:up-to-date]]]
             (is (= commands-1
-                   (->> (migrate/migrate :auto {:edn true})
+                   (->> (migrate/migrate-auto {:edn true})
                         (with-in-str "yes\nyes\n")
                         with-out-str
                         parse-edn-out)))
@@ -179,7 +176,7 @@
                    (parse-edn-out (slurp (migrate/log-path (dirs/legacy-bin-dir)
                                                            (inst-ms (util/now)))))))
             (is (= commands-2
-                   (->> (migrate/migrate :auto {:edn true})
+                   (->> (migrate/migrate-auto {:edn true})
                         (with-in-str "yes\n")
                         with-out-str
                         parse-edn-out)))))))))
