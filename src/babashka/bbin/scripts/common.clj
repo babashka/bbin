@@ -200,7 +200,7 @@
 
 (def tmp-edn
   (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (spit (binding [*print-namespace-maps* false] (pr-str {:deps {script-lib script-coords}})))
     (fs/delete-on-exit)))
 
 (def base-command
@@ -281,7 +281,7 @@
 
 (def tmp-edn
   (doto (fs/file (fs/temp-dir) (str (gensym \"bbin\")))
-    (spit (str \"{:deps {\" script-lib script-coords \"}}\"))
+    (spit (binding [*print-namespace-maps* false] (pr-str {:deps {script-lib script-coords}})))
     (fs/delete-on-exit)))
 
 (def base-command
