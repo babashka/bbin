@@ -19,6 +19,7 @@
 ([@lread](http://github.com/lread))
 - [#120: Bump dependencies](https://github.com/babashka/bbin/issues/120)
 ([@lread](http://github.com/lread))
+- Fix git and Maven scripts failing with `Failed to infer git url` if `str` prints a namespaced map
 
 ## 0.2.5
 
